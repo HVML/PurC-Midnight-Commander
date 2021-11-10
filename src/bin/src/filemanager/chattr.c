@@ -31,6 +31,8 @@
 
 #include <config.h>
 
+#ifdef ENABLE_EXT2FS_ATTR
+
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1349,3 +1351,4 @@ chattr_get_as_str (unsigned long attr)
 }
 
 /* --------------------------------------------------------------------------------------------- */
+#endif /* ENABLE_EXT2FS_ATTR */

@@ -27,6 +27,8 @@
 
 #include <config.h>
 
+#ifdef HAVE_ASPELL
+
 #include <stdlib.h>
 #include <string.h>
 #include <gmodule.h>
@@ -850,3 +852,4 @@ spell_dialog_lang_list_show (GArray * languages)
 }
 
 /* --------------------------------------------------------------------------------------------- */
+#endif /* HAVE_ASPELL */

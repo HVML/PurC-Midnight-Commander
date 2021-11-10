@@ -2,16 +2,14 @@ include(GlobalCommon)
 include(target/PurcMC)
 include(MyMacros.cmake)
 
-set(BIN_DIR "${CMAKE_SOURCE_DIR}/src/bin/")
-
 PURCMC_EXECUTABLE_DECLARE(purcmc)
 
 list(APPEND purcmc_PRIVATE_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
     "${PurcMC_DERIVED_SOURCES_DIR}"
-    "${CMAKE_SOURCE_DIR}/src/purcmc/"
-    "${CMAKE_SOURCE_DIR}/src/bin/"
-    "${CMAKE_SOURCE_DIR}/src/bin/vfs-plugins/"
+    "${PURCMC_LIB_DIR}"
+    "${PURCMC_BIN_DIR}"
+    "${PURCMC_BIN_DIR}/vfs-plugins"
 )
 
 list(APPEND purcmc_SYSTEM_INCLUDE_DIRECTORIES

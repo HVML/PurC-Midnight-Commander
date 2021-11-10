@@ -12,7 +12,7 @@ set(PurcMC_SYSTEM_INCLUDE_DIRECTORIES
 
 set(PurcMC_PRIVATE_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
-    "${PURCMC_DIR}"
+    "${PURCMC_LIB_DIR}"
     "${PurcMC_DERIVED_SOURCES_DIR}"
     "${FORWARDING_HEADERS_DIR}"
 )
@@ -24,7 +24,6 @@ set(PurcMC_INSTALLED_HEADERS
 # TODO: List the directorires which do not contain any platform-dependent C source files
 set(PurcMC_PLATFORM_INDEPENDENT_DIRS
     "lib"
-    "src"
 )
 
 # This macro will append all C/CXX source files in ${PurcMC_PLATFORM_INDEPENDENT_DIRS}

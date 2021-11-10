@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 add_subdirectory(wtf)
 
-add_subdirectory(purcmc)
+add_subdirectory(lib)
 add_subdirectory(bin)
 
 if (ENABLE_API_TESTS)

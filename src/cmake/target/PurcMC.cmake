@@ -9,7 +9,7 @@ if (NOT TARGET PurcMC::PurcMC)
     set_target_properties(PurcMC::PurcMC PROPERTIES
         IMPORTED_LOCATION ${WEBKIT_LIBRARIES_LINK_DIR}/PurcMC${DEBUG_SUFFIX}.lib
     )
-    set(PurcMC_PRIVATE_FRAMEWORK_HEADERS_DIR "${CMAKE_BINARY_DIR}/../include/private")
+    set(PurcMC_PRIVATE_FRAMEWORK_HEADERS_DIR "${CMAKE_SOURCE_DIR}/src/purcmc")
     target_include_directories(PurcMC::PurcMC INTERFACE
         ${PurcMC_PRIVATE_FRAMEWORK_HEADERS_DIR}
     )

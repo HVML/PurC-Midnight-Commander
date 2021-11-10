@@ -3,8 +3,8 @@ set_property(DIRECTORY . PROPERTY FOLDER "PurcMC")
 include(GlobalCommon)
 include(MyMacros.cmake)
 
-configure_file(include/purcmc_version.h.in ${PurcMC_DERIVED_SOURCES_DIR}/purcmc_version.h)
-configure_file(include/purcmc_features.h.in ${PurcMC_DERIVED_SOURCES_DIR}/purcmc_features.h)
+configure_file(purcmc_version.h.in ${PurcMC_DERIVED_SOURCES_DIR}/purcmc_version.h)
+configure_file(purcmc_features.h.in ${PurcMC_DERIVED_SOURCES_DIR}/purcmc_features.h)
 
 set(PurcMC_PRIVATE_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
@@ -46,7 +46,6 @@ set(PurcMC_INTERFACE_LIBRARIES PurcMC)
 set(PurcMC_INTERFACE_INCLUDE_DIRECTORIES ${PurcMC_PRIVATE_FRAMEWORK_HEADERS_DIR})
 
 PURCMC_FRAMEWORK_DECLARE(PurcMC)
-PURCMC_INCLUDE_CONFIG_FILES_IF_EXISTS()
 
 PURCMC_WRAP_SOURCELIST(${PurcMC_SOURCES})
 

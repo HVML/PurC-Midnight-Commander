@@ -1,4 +1,4 @@
-set_property(DIRECTORY . PROPERTY FOLDER "WTF")
+set_property(DIRECTORY . PROPERTY FOLDER "wtf")
 
 include(GlobalCommon)
 include(MyMacros.cmake)

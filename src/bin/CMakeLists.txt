@@ -1,44 +1,37 @@
-include(PurCCommon)
+include(GlobalCommon)
+include(target/PurcMC)
 include(MyMacros.cmake)
 
-configure_file(ue-version.h.in ${PurC_DERIVED_SOURCES_DIR}/ue-version.h)
-configure_file(ue-features.h.in ${PurC_DERIVED_SOURCES_DIR}/ue-features.h)
+set(BIN_DIR "${CMAKE_SOURCE_DIR}/src/bin/")
 
-set(UE_DIR "${CMAKE_SOURCE_DIR}/Source/Tools/udom-editor")
+PURCMC_EXECUTABLE_DECLARE(purcmc)
 
-# udom-editor
-PURC_EXECUTABLE_DECLARE(ue)
-
-list(APPEND ue_PRIVATE_INCLUDE_DIRECTORIES
+list(APPEND purcmc_PRIVATE_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
-    "${PURC_DIR}/include"
-    "${PurC_DERIVED_SOURCES_DIR}"
-    "${UE_DIR}"
+    "${PurCMC_DERIVED_SOURCES_DIR}"
+    "${MC_DIR}"
 )
 
-list(APPEND ue_SYSTEM_INCLUDE_DIRECTORIES
+list(APPEND purcmc_SYSTEM_INCLUDE_DIRECTORIES
     ${GLIB_INCLUDE_DIRS}
 )
 
-PURC_EXECUTABLE(ue)
+PURCMC_EXECUTABLE(purcmc)
 
-set(ue_PLATFORM_INDEPENDENT_DIRS
-    "lib"
+set(purcmc_PLATFORM_INDEPENDENT_DIRS
     "src"
 )
 
-APPEND_ALL_SOURCE_FILES_IN_DIRLIST(ue_SOURCES "${ue_PLATFORM_INDEPENDENT_DIRS}")
+APPEND_ALL_SOURCE_FILES_IN_DIRLIST(purcmc_SOURCES "${purcmc_PLATFORM_INDEPENDENT_DIRS}")
 
-list(APPEND ue_SOURCES
+list(APPEND purcmc_SOURCES
 )
 
-set(ue_LIBRARIES
-    ${GLIB_LIBRARIES}
-    Ncurses::Ncurses
-    PurC::PurC
+set(purcmc_LIBRARIES
+    PurcMC::PurcMC
     pthread
 )
 
-PURC_COMPUTE_SOURCES(ue)
-PURC_FRAMEWORK(ue)
+PURCMC_COMPUTE_SOURCES(purcmc)
+PURCMC_FRAMEWORK(purcmc)
 

@@ -3,13 +3,11 @@
 # -----------------------------------------------------------------------------
 add_subdirectory(wtf)
 
-add_subdirectory(foobar)
+add_subdirectory(purcmc)
+add_subdirectory(bin)
 
 if (ENABLE_API_TESTS)
-    add_subdirectory(third-party/gtest)
-#    add_subdirectory(test)
+#    add_subdirectory(tests)
 endif ()
 
-#add_subdirectory(samples)
-
-FOOBAR_INCLUDE_CONFIG_FILES_IF_EXISTS()
+PURCMC_INCLUDE_CONFIG_FILES_IF_EXISTS()

@@ -30,7 +30,7 @@
 #include <wtf/Platform.h>
 #include <wtf/ExportMacros.h>
 
-#define PACKAGE                     "udom-editor"
+#define PACKAGE                     "purc-midnight-commander"
 #define SEARCH_TYPE_GLIB            1
 #define USE_NCURSES                 1
 #define SIG_ATOMIC_VOLATILE_T       sig_atomic_t
@@ -50,60 +50,12 @@
 #undef HAVE_QNX_KEYS
 
 /* Undefine the macros for macros defined as 0 in cmakeconfig.h */
-#if !HAVE(STRVERSCMP)
-#undef HAVE_STRVERSCMP
-#endif
-
-#if !HAVE(POSIX_FALLOCATE)
-#undef HAVE_POSIX_FALLOCATE
-#endif
-
-#if !HAVE(REALPATH)
-#undef HAVE_REALPATH
-#endif
-
-#if !HAVE(RESIZETERM)
-#undef HAVE_RESIZETERM
-#endif
-
 #if !HAVE(STRING_H)
 #undef HAVE_STRING_H
 #endif
 
 #if !HAVE(MEMORY_H)
 #undef HAVE_MEMORY_H
-#endif
-
-#if !HAVE(STRNCASECMP)
-#undef HAVE_STRNCASECMP
-#endif
-
-#if !HAVE(STRUCT_STAT_ST_BLKSIZE)
-#undef HAVE_STRUCT_STAT_ST_BLKSIZE
-#endif
-
-#if !HAVE(STRUCT_STAT_ST_BLOCKS)
-#undef HAVE_STRUCT_STAT_ST_BLOCKS
-#endif
-
-#if !HAVE(STRUCT_STAT_ST_MTIM)
-#undef HAVE_STRUCT_STAT_ST_MTIM
-#endif
-
-#if !HAVE(STRUCT_STAT_ST_RDEV)
-#undef HAVE_STRUCT_STAT_ST_RDEV
-#endif
-
-#if !HAVE(STRCASECMP)
-#undef HAVE_STRCASECMP
-#endif
-
-#if !HAVE(STRNCASECMP)
-#undef HAVE_STRNCASECMP
-#endif
-
-#if !HAVE(STRVERSCMP)
-#undef HAVE_STRVERSCMP
 #endif
 
 #if !HAVE(SYS_IOCTL_H)
@@ -126,6 +78,34 @@
 #undef HAVE_LINUX_FS_H
 #endif
 
+#if !HAVE(STRUCT_STAT_ST_BLKSIZE)
+#undef HAVE_STRUCT_STAT_ST_BLKSIZE
+#endif
+
+#if !HAVE(STRUCT_STAT_ST_BLOCKS)
+#undef HAVE_STRUCT_STAT_ST_BLOCKS
+#endif
+
+#if !HAVE(STRUCT_STAT_ST_MTIM)
+#undef HAVE_STRUCT_STAT_ST_MTIM
+#endif
+
+#if !HAVE(STRUCT_STAT_ST_RDEV)
+#undef HAVE_STRUCT_STAT_ST_RDEV
+#endif
+
+#if !HAVE(STRNCASECMP)
+#undef HAVE_STRNCASECMP
+#endif
+
+#if !HAVE(STRCASECMP)
+#undef HAVE_STRCASECMP
+#endif
+
+#if !HAVE(STRVERSCMP)
+#undef HAVE_STRVERSCMP
+#endif
+
 #if !HAVE(UTIMENSAT)
 #undef HAVE_UTIMENSAT
 #endif
@@ -137,3 +117,12 @@
 #if !HAVE(POSIX_FALLOCATE)
 #undef HAVE_POSIX_FALLOCATE
 #endif
+
+#if !HAVE(REALPATH)
+#undef HAVE_REALPATH
+#endif
+
+#if !HAVE(RESIZETERM)
+#undef HAVE_RESIZETERM
+#endif
+

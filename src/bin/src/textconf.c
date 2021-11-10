@@ -25,6 +25,7 @@
  */
 
 #include <config.h>
+#include <purcmc_features.h>
 
 #include <limits.h>
 #include <stdio.h>

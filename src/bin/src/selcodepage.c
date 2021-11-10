@@ -31,6 +31,8 @@
 
 #include <config.h>
 
+#ifdef HAVE_CHARSET
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -174,3 +176,4 @@ do_select_codepage (void)
 }
 
 /* --------------------------------------------------------------------------------------------- */
+#endif /* HAVE_CHARSET */

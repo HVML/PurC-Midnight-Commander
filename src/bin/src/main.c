@@ -30,6 +30,7 @@
  */
 
 #include <config.h>
+#include <purcmc_features.h>
 
 #include <ctype.h>
 #include <errno.h>

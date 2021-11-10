@@ -8,9 +8,10 @@ PURCMC_EXECUTABLE_DECLARE(purcmc)
 
 list(APPEND purcmc_PRIVATE_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
-    "${PurCMC_DERIVED_SOURCES_DIR}"
+    "${PurcMC_DERIVED_SOURCES_DIR}"
     "${CMAKE_SOURCE_DIR}/src/purcmc/"
     "${CMAKE_SOURCE_DIR}/src/bin/"
+    "${CMAKE_SOURCE_DIR}/src/bin/vfs-plugins/"
 )
 
 list(APPEND purcmc_SYSTEM_INCLUDE_DIRECTORIES

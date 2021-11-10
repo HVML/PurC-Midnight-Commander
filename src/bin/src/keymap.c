@@ -923,7 +923,7 @@ keymap_load (gboolean load_from_file)
     }
 
 #define SET_MAP(m) \
-    m##_map = (global_keymap_t *) m##_keymap->data
+    m##_map = (global_keymap_t *) (void *)m##_keymap->data
 
     SET_MAP (filemanager);
     SET_MAP (filemanager_x);

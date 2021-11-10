@@ -182,3 +182,14 @@ check_type_size("__int128_t" INT128_VALUE)
 if (HAVE_INT128_VALUE)
   SET_AND_EXPOSE_TO_BUILD(HAVE_INT128_T INT128_VALUE)
 endif ()
+
+check_type_size("uintmax_t" SIZEOF_UINTMAX_T)
+
+check_type_size("mode_t" SIZEOF_MODE_T)
+check_type_size("int" SIZEOF_INT)
+if (${SIZEOF_MODE_T} LESS ${SIZEOF_INT})
+  SET_AND_EXPOSE_TO_BUILD(HAVE_MODE_T_LT_INT ON)
+else ()
+  SET_AND_EXPOSE_TO_BUILD(HAVE_MODE_T_LT_INT OFF)
+endif ()
+

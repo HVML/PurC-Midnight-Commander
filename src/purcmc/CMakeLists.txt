@@ -6,6 +6,10 @@ include(MyMacros.cmake)
 configure_file(purcmc_version.h.in ${PurcMC_DERIVED_SOURCES_DIR}/purcmc_version.h)
 configure_file(purcmc_features.h.in ${PurcMC_DERIVED_SOURCES_DIR}/purcmc_features.h)
 
+set(PurcMC_SYSTEM_INCLUDE_DIRECTORIES
+    ${GLIB_INCLUDE_DIRS}
+)
+
 set(PurcMC_PRIVATE_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
     "${PURCMC_DIR}"

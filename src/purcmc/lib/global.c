@@ -29,8 +29,7 @@
  */
 
 #include <config.h>
-
-#include "ue-version.h"
+#include <purcmc_version.h>
 
 #include "global.h"
 

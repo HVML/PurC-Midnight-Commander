@@ -33,7 +33,7 @@
  */
 
 #include <config.h>
-#include "ue-features.h"
+#include <purcmc_features.h>
 
 #include <ctype.h>
 #include <limits.h>

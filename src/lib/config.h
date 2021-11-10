@@ -217,7 +217,6 @@
 #define ENABLE_BACKGROUND   1
 #define ENABLE_SUBSHELL     1
 #define ENABLE_VFS          1
-#define ENABLE_VFS_TAR      1
 
 #undef ENABLE_NLS
 #undef ENABLE_EXT2FS_ATTR
@@ -230,6 +229,7 @@
 #undef ENABLE_VFS_SFS
 #undef ENABLE_VFS_SFTP
 #undef ENABLE_VFS_UNDELFS
+#undef ENABLE_VFS_TAR
 
 #undef HAVE_QNX_KEYS
 #undef HAVE_TEXTMODE_X11_SUPPORT

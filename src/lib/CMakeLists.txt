@@ -39,7 +39,10 @@ list(APPEND PurcMC_UNIFIED_SOURCE_LIST_FILES
     "Sources.txt"
 )
 
-set(PurcMC_LIBRARIES)
+set(PurcMC_LIBRARIES
+    ${GLIB_LIBRARIES}
+    Ncurses::Ncurses
+)
 
 if (ENABLE_XML)
     list(APPEND PurcMC_LIBRARIES LibXml2::LibXml2)

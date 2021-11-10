@@ -1384,7 +1384,7 @@ file_mask_dialog (file_op_context_t * ctx, FileOperation operation,
         if (ctx->op_preserve)
         {
             ctx->preserve = TRUE;
-            ctx->umask_kill = 0777777;
+            ctx->umask_kill = (mode_t)0777777;
             ctx->preserve_uidgid = (geteuid () == 0);
         }
         else

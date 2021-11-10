@@ -1529,6 +1529,8 @@ my_statfs (struct my_statfs *myfs_stats, const char *path)
         myfs_stats->nodes = (uintmax_t) fs_use.fsu_files;
     }
     else
+#else
+    (void)path;
 #endif /* HAVE_INFOMOUNT_LIST */
 
 #ifdef HAVE_INFOMOUNT_QNX

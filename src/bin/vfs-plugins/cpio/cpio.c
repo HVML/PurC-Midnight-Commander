@@ -340,13 +340,13 @@ cpio_find_head (struct vfs_class *me, struct vfs_s_super *super)
             }
             top += tmp;
         }
-        if (TYPEIS (CPIO_BIN) && ((*(unsigned short *) (buf + ptr)) == 070707))
+        if (TYPEIS (CPIO_BIN) && ((*(unsigned short *) (void *) (buf + ptr)) == 070707))
         {
             SEEKBACK;
             RETURN (CPIO_BIN);
         }
         else if (TYPEIS (CPIO_BINRE)
-                 && ((*(unsigned short *) (buf + ptr)) == GUINT16_SWAP_LE_BE_CONSTANT (070707)))
+                 && ((*(unsigned short *) (void *) (buf + ptr)) == GUINT16_SWAP_LE_BE_CONSTANT (070707)))
         {
             SEEKBACK;
             RETURN (CPIO_BINRE);

@@ -213,23 +213,42 @@
 #undef HAVE_STRUCT_STAT_ST_RDEV
 #endif
 
-/* enable/disable features */
+/* enable/disable features managed by cmake */
+#if !ENABLE(VFS_CPIO)
+#undef ENABLE_VFS_CPIO
+#endif
+#if !ENABLE(VFS_EXTFS)
+#undef ENABLE_VFS_EXTFS
+#endif
+#if !ENABLE(VFS_FTP)
+#undef ENABLE_VFS_FTP
+#endif
+#if !ENABLE(VFS_NET)
+#undef ENABLE_VFS_NET
+#endif
+#if !ENABLE(VFS_SFS)
+#undef ENABLE_VFS_SFS
+#endif
+#if !ENABLE(VFS_SFTP)
+#undef ENABLE_VFS_SFTP
+#endif
+#if !ENABLE(VFS_UNDELFS)
+#undef ENABLE_VFS_UNDELFS
+#endif
+#if !ENABLE(VFS_TAR)
+#undef ENABLE_VFS_TAR
+#endif
+#if !ENABLE(VFS_FISH)
+#undef ENABLE_VFS_FISH
+#endif
+
+/* enable/disable features managed mannually */
 #define ENABLE_BACKGROUND   1
 #define ENABLE_SUBSHELL     1
 #define ENABLE_VFS          1
 
 #undef ENABLE_NLS
 #undef ENABLE_EXT2FS_ATTR
-#undef ENABLE_VFS_CPIO
-#undef ENABLE_VFS_EXTFS
-#undef ENABLE_VFS_FISH
-#undef FISH_HAVE_LSQ
-#undef ENABLE_VFS_FTP
-#undef ENABLE_VFS_NET
-#undef ENABLE_VFS_SFS
-#undef ENABLE_VFS_SFTP
-#undef ENABLE_VFS_UNDELFS
-#undef ENABLE_VFS_TAR
 
 #undef HAVE_QNX_KEYS
 #undef HAVE_TEXTMODE_X11_SUPPORT

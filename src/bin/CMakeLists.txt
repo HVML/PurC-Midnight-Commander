@@ -27,6 +27,72 @@ APPEND_ALL_SOURCE_FILES_IN_DIRLIST(purcmc_SOURCES "${purcmc_PLATFORM_INDEPENDENT
 list(APPEND purcmc_SOURCES
 )
 
+if (ENABLE_VFS_CPIO)
+    list(APPEND purcmc_SOURCES
+        "${PURCMC_BIN_DIR}/vfs-plugins/cpio/cpio.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/cpio/cpio.c"
+    )
+endif ()
+
+if (ENABLE_VFS_EXTFS)
+    list(APPEND purcmc_SOURCES
+        "${PURCMC_BIN_DIR}/vfs-plugins/extfs/extfs.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/extfs/extfs.c"
+    )
+endif ()
+
+if (ENABLE_VFS_FTP)
+    list(APPEND purcmc_SOURCES
+        "${PURCMC_BIN_DIR}/vfs-plugins/ftpfs/ftpfs.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/ftpfs/ftpfs.c"
+        "${PURCMC_BIN_DIR}/vfs-plugins/ftpfs/ftpfs_parse_ls.c"
+    )
+endif ()
+
+if (ENABLE_VFS_SFS)
+    list(APPEND purcmc_SOURCES
+        "${PURCMC_BIN_DIR}/vfs-plugins/sfs/sfs.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sfs/sfs.c"
+    )
+endif ()
+
+if (ENABLE_VFS_SFTP)
+    list(APPEND purcmc_SOURCES
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/init.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/internal.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/config_parser.c"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/dir.c"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/init.c"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/internal.c"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/vfs_class.c"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/vfs_subclass.c"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/connection.c"
+        "${PURCMC_BIN_DIR}/vfs-plugins/sftpfs/file.c"
+    )
+endif ()
+
+if (ENABLE_VFS_UNDELFS)
+    list(APPEND purcmc_SOURCES
+        "${PURCMC_BIN_DIR}/vfs-plugins/undelfs/undelfs.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/undelfs/undelfs.c"
+    )
+endif ()
+
+if (ENABLE_VFS_TAR)
+    list(APPEND purcmc_SOURCES
+        "${PURCMC_BIN_DIR}/vfs-plugins/tar/tar.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/tar/tar.c"
+    )
+endif ()
+
+if (ENABLE_VFS_FISH)
+    list(APPEND purcmc_SOURCES
+        "${PURCMC_BIN_DIR}/vfs-plugins/fish/fish.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/fish/fishdef.h"
+        "${PURCMC_BIN_DIR}/vfs-plugins/fish/fish.c"
+    )
+endif ()
+
 set(purcmc_LIBRARIES
     PurcMC::PurcMC
     pthread

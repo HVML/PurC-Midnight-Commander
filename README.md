@@ -16,19 +16,19 @@ It keeps almost all functions of GNU MC with the following enhancements:
 
 1. We use cmake as the building system instead of autoconf/automake.
 1. We cleaned up the code and removed some features, such as support for
-   various charsets (codepages). PurC MC supports only UTF-8.
+   various charsets (codepages). PurcMC supports only UTF-8.
 1. It runs as a HVML renderer, accepts the connections from PurC-based HVML
    interpreter instances, and shows the uDOMs as trees in dialogs.
-1. The user can edit a uDOM tree, e.g., changing the attributes and the content
+1. The user can edit a uDOM tree, e.g., changing attributes and contents
    of an element.
 
 ## Source Tree of PurcMC
 
 The source tree of PurcMC is illustrated as follow:
 
-- `src/wtf/`: The simplified WTF (Web Template Framework) from WebKit.
 - `src/cmake/`: The cmake modules.
-- `src/purcmc/`: The common utilities library.
+- `src/wtf/`: The simplified WTF (Web Template Framework) from WebKit.
+- `src/lib/`: The common utilities library.
 - `src/bin/`: The source files of the executable `purcmc`.
 - `src/tests/`: The unit test programs.
 - `src/misc/`: The miscellaneous and the default configuration files.

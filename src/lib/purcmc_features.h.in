@@ -4,6 +4,8 @@
 #define SIZEOF_UINTMAX_T @SIZEOF_UINTMAX_T@
 #endif
 
-#define SYSCONFDIR      "@CMAKE_INSTALL_PREFIX@/etc/" PACKAGE "/"
-#define DATADIR         "@CMAKE_INSTALL_PREFIX@/share/" PACKAGE "/"
-#define EXTHELPERSDIR   "@CMAKE_INSTALL_PREFIX@/share/" PACKAGE "/"
+#define PACKAGE_NAME    "@PACKAGE_NAME@"
+
+#define SYSCONFDIR      "@SYSCONFDIR@"
+#define DATADIR         "@DATADIR@"
+#define EXTHELPERSDIR   "@EXTHELPERSDIR@"

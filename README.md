@@ -1,16 +1,24 @@
 # PurC Midnight Commander
 
 A generic HVML renderer which runs in text-mode. This program is derived from
-the famous GNU Midnight Commander.
+the famous GNU [Midnight Commander].
 
 __Table of Contents__
+
+- [Introduction](#introduction)
+- [Source Tree of PurcMC](#source-tree-of-purcmc)
+- [Current Status](#current-status)
+- [Building](#building)
+   + [Commands](#commands)
+- [Authors and Contributors](#authors-and-contributors)
+- [Copying](#copying)
 
 
 ## Introduction
 
 PurC Midnight Commander (abbreviated as `PurcMC`) is a HVML renderer for
 development and debugging. It runs in a terminal or console like its ancestor:
-GNU [Midnight Commander](https://midnight-commander.org/).
+GNU [Midnight Commander].
 
 It keeps almost all functions of GNU MC with the following enhancements:
 
@@ -18,7 +26,8 @@ It keeps almost all functions of GNU MC with the following enhancements:
 1. We cleaned up the code and removed some features, such as support for
    various charsets (codepages). PurcMC supports only UTF-8.
 1. It runs as a HVML renderer, accepts the connections from PurC-based HVML
-   interpreter instances, and shows the uDOMs as trees in dialogs.
+   interpreter instances via Unix Domain Socket or Web Socket, and shows
+   the uDOMs as trees in dialogs.
 1. The user can edit a uDOM tree, e.g., changing attributes and contents
    of an element.
 
@@ -88,5 +97,4 @@ GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-[Linux Kernel Coding Style]:https://www.kernel.org/doc/html/latest/process/coding-style.html
-[the Best Practices of C Language]:https://courses.fmsoft.cn/best-practices-of-c/
+[Midnight Commander]: https://midnight-commander.org/

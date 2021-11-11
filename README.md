@@ -81,7 +81,7 @@ $ make
 
 ## Copying
 
-Copyright (C) 2021 FMSoft (<https://www.fmsoft.cn>)
+Copyright (C) 2021 Beijing FMSoft Technologies Co., Ltd.  
 Copyright (C) 2005-2021 Free Software Foundation, Inc.
 
 This program is free software: you can redistribute it and/or modify

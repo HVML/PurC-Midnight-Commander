@@ -30,7 +30,6 @@
 #include <wtf/Platform.h>
 #include <wtf/ExportMacros.h>
 
-#define PACKAGE                     "purc-midnight-commander"
 #define SEARCH_TYPE_GLIB            1
 #define SIG_ATOMIC_VOLATILE_T       sig_atomic_t
 

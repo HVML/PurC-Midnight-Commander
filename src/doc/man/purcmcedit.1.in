@@ -80,20 +80,20 @@ In addition to that, Shift combined with arrows does text highlighting
 (if supported by the terminal):
 .B Ctrl\-Ins
 copies to the file
-.BR ~/.cache/mc/mcedit/mcedit.clip ,
+.BR ~/.cache/purcmc/mcedit/mcedit.clip ,
 .B Shift\-Ins
 pastes from
-.BR ~/.cache/mc/mcedit/mcedit.clip ,
+.BR ~/.cache/purcmc/mcedit/mcedit.clip ,
 .B Shift\-Del
 cuts to
-.BR ~/.cache/mc/mcedit/mcedit.clip ,
+.BR ~/.cache/purcmc/mcedit/mcedit.clip ,
 and
 .B Ctrl\-Del
 deletes highlighted text.  Mouse highlighting also works on some
 terminals.  To use the standard mouse support provided by your terminal,
 hold the Shift key.  Please note that the mouse support in the terminal
 doesn't share the clipboard with
-.BR mcedit .
+.BR purcmcedit .
 .PP
 The completion key (usually
 .B "Meta\-Tab"
@@ -112,7 +112,7 @@ The macro is executed when you press the assigned key.
 The macro commands are stored in section
 .B [editor]
 it the file
-.BR ~/.local/share/mc/mc.macros .
+.BR ~/.local/share/purcmc/mc.macros .
 .PP
 External scripts (filters) can be assigned into the any hotkey by edit
 .B mc.macros
@@ -126,11 +126,11 @@ ctrl\-W=ExecuteScript:25;
 This means that ctrl\-W hotkey initiates the
 .I ExecuteScript(25)
 action, then editor handler translates this into execution of
-.B ~/.local/share/mc/mcedit/macros.d/macro.25.sh
+.B ~/.local/share/purcmc/mcedit/macros.d/macro.25.sh
 shell script.
 .PP
 External scripts are stored in
-.B ~/.local/share/mc/mcedit/macros.d/
+.B ~/.local/share/purcmc/mcedit/macros.d/
 directory and must be named as
 .B macro.XXXX.sh
 where
@@ -213,7 +213,7 @@ in the
 .B Options
 menu.
 .SH CODE NAVIGATION
-.B mcedit
+.B purcmcedit
 can be used for navigation through code with tags files created by etags
 or ctags commands. If there is no TAGS file code navigation will not work.
 For example, in case of exuberant\-ctags for C language command will be:
@@ -233,16 +233,16 @@ where equal is symbol "=" goes to next function in navigation list
 (like browser's Forward button).
 .PP
 .SH SYNTAX HIGHLIGHTING
-.B mcedit
+.B purcmcedit
 supports syntax highlighting.  This means that keywords and contexts
 (like C comments, string constants, etc) are highlighted in different
 colors.  The following section explains the format of the file
-.BR ~/.config/mc/mcedit/Syntax .
+.BR ~/.config/purcmc/mcedit/Syntax .
 If this file is missing, system\-wide
-.B %prefix%/share/mc/syntax/Syntax
+.B %prefix%/share/purcmc/syntax/Syntax
 is used.
 The file
-.B ~/.config/mc/mcedit/Syntax
+.B ~/.config/purcmc/mcedit/Syntax
 is rescanned on opening of every new editor file.  The file contains
 rules for highlighting, each of which is given on a separate line, and
 define which keywords will be highlighted with what color.
@@ -261,7 +261,7 @@ applies to the file.  The second argument is the description of the file
 type.  It is used in
 .BR cooledit ;
 future versions of
-.B mcedit
+.B purcmcedit
 may use it as well.  The third optional argument is a regular expression
 to match the first line of text of the file.  The rules in the following
 section apply if either the file name or the first line of text matches.
@@ -336,7 +336,7 @@ The first context is an exception.  It must start with the command
 .RI [ attributes ]
 .PP
 otherwise
-.B mcedit
+.B purcmcedit
 will report an error.  The
 .B linestart
 option specifies that
@@ -421,7 +421,7 @@ and gray0 to gray23.
 If the syntax file is shared with
 .BR cooledit ,
 it is possible to specify different colors for
-.B mcedit
+.B purcmcedit
 and
 .B cooledit
 by separating them with a slash, e.g.
@@ -430,7 +430,7 @@ by separating them with a slash, e.g.
 keyword  #include  red/Orange
 .fi
 .PP
-.B mcedit
+.B purcmcedit
 uses the color before the slash.  See cooledit(1) for supported
 .B cooledit
 colors.
@@ -476,14 +476,14 @@ editmarked=black,cyan"
 Most options can be set from Options dialog box.  See the
 .B Options
 menu.  The following options are defined in
-.B ~/.config/mc/ini
+.B ~/.config/purcmc/ini
 and have obvious counterparts in the dialog box.  You can modify them to
 change the editor behavior, by editing the file.  Unless specified, a 1
 sets the option to on, and a 0 sets it to off, as usual.
 .TP
 .I use_internal_edit
 This option is ignored when invoking
-.BR mcedit .
+.BR purcmcedit .
 .TP
 .I editor_tab_spacing
 Interpret the tab character as being of this length.
@@ -614,31 +614,31 @@ binary files, you should set
 to 7 bits in Midnight Commander's options menu to keep the spacing
 clean.
 .SH FILES
-.I %prefix%/share/mc/help/mc.hlp
+.I %prefix%/share/purcmc/help/mc.hlp
 .IP
 The help file for the program.
 .PP
-.I %prefix%/share/mc/mc.ini
+.I %prefix%/share/purcmc/mc.ini
 .IP
 The default system\-wide setup for PurC Midnight Commander, used only if
 the user's own ~/.config/mc/ini file is missing.
 .PP
-.I %prefix%/share/mc/mc.lib
+.I %prefix%/share/purcmc/mc.lib
 .IP
 Global settings for Midnight Commander. Settings in this file
-affect all users, whether they have ~/.config/mc/ini or not.
+affect all users, whether they have ~/.config/purcmc/ini or not.
 .PP
-.I %prefix%/share/mc/syntax/*
+.I %prefix%/share/purcmc/syntax/*
 .IP
 The default system\-wide syntax files for mcedit, used only if
-the corresponding user's own ~/.local/share/mc/mcedit/ file is missing.
+the corresponding user's own ~/.local/share/purcmc/mcedit/ file is missing.
 .PP
-.I ~/.config/mc/ini
+.I ~/.config/purcmc/ini
 .IP
 User's own setup.  If this file is present then the setup is loaded
 from here instead of the system\-wide setup file.
 .PP
-.I ~/.local/share/mc/mcedit/
+.I ~/.local/share/purcmc/mcedit/
 .IP
 User's own directory where block commands are processed and saved and
 user's own syntax files are located.
@@ -651,7 +651,7 @@ of warranty.
 The latest version of this program can be found at
 http://ftp.midnight\-commander.org/.
 .SH SEE ALSO
-cooledit(1), mc(1), gpm(1), terminfo(1), scanf(3).
+cooledit(1), purcmc(1), gpm(1), terminfo(1), scanf(3).
 .SH AUTHORS
 Paul Sheer (psheer@obsidian.co.za) is the original author of
 Midnight Commander's internal editor.

@@ -61,14 +61,14 @@ selected=black,green"
 .fi
 .PP
 .SH FILES
-.I @PREFIX@/share/purcmc/help/purcmc.hlp
+.I @PREFIX@/share/purcmc/help/mc.hlp
 .IP
 The help file for the program.
 .PP
 .I @PREFIX@/share/purcmc/mc.ini
 .IP
 The default system\-wide setup for GNU Midnight Commander, used only if
-the user's own ~/.config/mc/ini file is missing.
+the user's own ~/.config/purcmc/ini file is missing.
 .PP
 .I @PREFIX@/share/purcmc/mc.lib
 .IP

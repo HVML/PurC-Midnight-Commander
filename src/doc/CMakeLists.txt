@@ -18,7 +18,7 @@ set(PurcMC_MAN_FILES
 )
 
 set(PurcMC_HELP_FILES
-    "${PurcMC_DERIVED_SOURCES_DIR}/help/purcmc.hlp"
+    "${PurcMC_DERIVED_SOURCES_DIR}/help/mc.hlp"
 )
 
 add_custom_command(
@@ -26,8 +26,8 @@ add_custom_command(
     MAIN_DEPENDENCY ${CMAKE_BINARY_DIR}/man2hlp
     DEPENDS ${PurcMC_DERIVED_SOURCES_DIR}/man/purcmc.1 ${PURCMC_DOC_DIR}/help/xnc.hlp
     COMMAND ${CMAKE_COMMAND} -E make_directory "${PurcMC_DERIVED_SOURCES_DIR}/help"
-    COMMAND ${PERL_EXECUTABLE} ${CMAKE_BINARY_DIR}/man2hlp ${PurcMC_DERIVED_SOURCES_DIR}/man/purcmc.1 ${PURCMC_DOC_DIR}/help/xnc.hlp ${PurcMC_DERIVED_SOURCES_DIR}/help/purcmc.hlp
-    COMMENT "Generating purcmc.hlp..."
+    COMMAND ${PERL_EXECUTABLE} ${CMAKE_BINARY_DIR}/man2hlp ${PurcMC_DERIVED_SOURCES_DIR}/man/purcmc.1 ${PURCMC_DOC_DIR}/help/xnc.hlp ${PurcMC_DERIVED_SOURCES_DIR}/help/mc.hlp
+    COMMENT "Generating mc.hlp..."
     VERBATIM)
 
 add_custom_target(purcmc_help DEPENDS ${PurcMC_HELP_FILES})

@@ -78,11 +78,11 @@ Print the last working directory to the specified file.  This option is
 not meant to be used directly.  Instead, it's used from a special shell
 script that automatically changes the current directory of the shell to
 the last directory Midnight Commander was in. Source the file
-.B @LIBEXECDIR@/mc/mc.sh
+.B @LIBEXECDIR@/purcmc/mc.sh
 (bash and zsh users) or
-.B @LIBEXECDIR@/mc.csh
+.B @LIBEXECDIR@/purcmc.csh
 (tcsh users) respectively to define
-.B mc
+.B purcmc
 as an alias to the appropriate shell script.
 .TP
 .I \-s, \-\-slow
@@ -211,7 +211,7 @@ key labels by clicking on them.
 The default auto repeat rate for the mouse buttons is 400
 milliseconds. This may be changed to other values by editing the
 .\"LINK2"
-\&~/.config/mc/ini
+\&~/.config/purcmc/ini
 .\"Save Setup"
 file and changing the
 .I mouse_repeat_rate
@@ -295,9 +295,9 @@ the input lines in the query dialogs.
 Hotkey bindings may be read from external file (keymap\-file).
 Initially, Midnight Commander creates key bindings using keymap defined
 in the source code. Then, two files
-.B @PREFIX@/share/mc/mc.keymap
+.B @PREFIX@/share/purcmc/mc.keymap
 and
-.B @SYSCONFDIR@/mc/mc.keymap
+.B @SYSCONFDIR@/purcmc/mc.keymap
 are loaded always, sequentially reassigned key bindings defined earlier.
 User\-defined keymap\-file is searched on the following algorithm (to the first one found):
 .IP
@@ -317,7 +317,7 @@ in section
 of config file.
 .br
 4) File
-.B ~/.config/mc/mc.keymap
+.B ~/.config/purcmc/mc.keymap
 .br
 .PP
 Command line option, environment variable and parameter in config file may
@@ -326,13 +326,13 @@ or without it). Search of keymap\-file will occur in (to the first one found):
 .IP
 .br
 1)
-.B ~/.config/mc
+.B ~/.config/purcmc
 .br
 2)
-.B @SYSCONFDIR@/mc/
+.B @SYSCONFDIR@/purcmc/
 .br
 3)
-.B @PREFIX@/share/mc/
+.B @PREFIX@/share/purcmc/
 
 .\"NODE "  Miscellaneous Keys"
 .SH "  Miscellaneous Keys"
@@ -1106,12 +1106,12 @@ You can change either one.
 Sometimes you may want to change the absolute path of the original into
 a relative path. An absolute path starts from the root directory:
 .PP
-.I /home/frodo/mc/mc \-> /home/frodo/new/mc
+.I /home/frodo/purcmc/mc \-> /home/frodo/new/mc
 .PP
 A relative link describes the original file's location starting from the
 location of the link itself:
 .PP
-.I /home/frodo/mc/mc \-> ../new/mc
+.I /home/frodo/purcmc/mc \-> ../new/mc
 .PP
 You can force Midnight Commander to suggest a relative path by pressing
 "C\-x v" instead of "C\-x s".
@@ -1466,7 +1466,7 @@ description.
 .\"NODE "    Edit Extension File"
 .SH "    Edit Extension File"
 This will invoke your editor on the file
-.IR ~/.config/mc/mc.ext .
+.IR ~/.config/purcmc/mc.ext .
 The format of this file following:
 .PP
 All lines starting with # or empty lines are thrown away.
@@ -1559,9 +1559,9 @@ The user menu is a menu of useful actions that can be customized by
 the user. When you access the user menu, the
 file .mc.menu from the current directory is used if it exists,
 but only if it is owned by user or root and is not world\-writable.
-If no such file found, ~/.config/mc/menu is tried in the same way,
+If no such file found, ~/.config/purcmc/menu is tried in the same way,
 and otherwise mc uses the default system\-wide menu
-@PREFIX@/share/mc/mc.menu.
+@PREFIX@/share/purcmc/mc.menu.
 .PP
 The format of the menu file is very simple. Lines that start with
 anything but space or tab are considered entries for the menu (in
@@ -1935,7 +1935,7 @@ This option is disabled by default.
 .I Auto save setup.
 If this option is enabled, when you exit Midnight Commander, the
 configurable options of Midnight Commander are saved in the
-~/.config/mc/ini file.
+~/.config/purcmc/ini file.
 .\"NODE "    Layout"
 .SH "    Layout"
 The layout dialog gives you a possibility to change the general layout
@@ -2042,7 +2042,7 @@ format and sort options. Unchecked by default.
 .PP
 .I Auto save panels setup.
 If this option is enabled, when you exit Midnight Commander, the
-current settings of panels are saved in the ~/.config/mc/panels.ini file.
+current settings of panels are saved in the ~/.config/purcmc/panels.ini file.
 Disabled by default.
 .PP
 .B Navigation
@@ -2089,7 +2089,7 @@ the color defined by the
 .I selected
 keyword.  If the file type highlighting is enabled, file names are colored
 according to rules described in
-@SYSCONFDIR@/mc/filehighlight.ini
+@SYSCONFDIR@/purcmc/filehighlight.ini
 file. See
 .\"LINK2"
 Filenames Highlight
@@ -2156,7 +2156,7 @@ and wait.
 .PP
 When you finish with all the keys, you can Save them.  The definitions
 for the keys you have redefined will be written into the [terminal:TERM]
-section of your ~/.config/mc/ini file (where TERM is the name of your current
+section of your ~/.config/purcmc/ini file (where TERM is the name of your current
 terminal).  The definitions of the keys that were already working properly
 are not saved.
 .\"NODE "    Virtual FS"
@@ -2228,7 +2228,7 @@ FTP File System
 for examples.
 .PP
 If this option is set, the program will do two things: consult the
-@PREFIX@/lib/mc/mc.no_proxy file for lines containing host names that
+@PREFIX@/lib/purcmc/mc.no_proxy file for lines containing host names that
 are local (if the host name starts with a dot, it is assumed to be a
 domain) and to assume that any hostnames without dots in their names are
 directly accessible.  All other hosts will be accessed through the
@@ -2248,16 +2248,16 @@ firewalls.
 .\"NODE "    Save Setup"
 .SH "    Save Setup"
 At startup, Midnight Commander tries to load initialization information
-from the ~/.config/mc/ini file.
+from the ~/.config/purcmc/ini file.
 If this file doesn't exist, the system\-wide file
-.B @SYSCONFDIR@/mc/mc.ini
+.B @SYSCONFDIR@/purcmc/mc.ini
 is used. If this file doesn't exist, the system\-wide file
-.B @PREFIX@/share/mc/mc.ini
+.B @PREFIX@/share/purcmc/mc.ini
 is used. If this file doesn't exist, MC uses the default settings.
 .PP
 The
 .I Save Setup
-command creates the ~/.config/mc/ini file by saving the
+command creates the ~/.config/purcmc/ini file by saving the
 current settings of the
 .\"LINK2"
 Left, Right
@@ -2457,14 +2457,14 @@ environment variables, use shell functions and define aliases that are
 valid until you quit Midnight Commander.
 .PP
 .B bash
-users may specify startup commands in ~/.local/share/mc/bashrc (fallback ~/.bashrc)
-and special keyboard maps in ~/.local/share/mc/inputrc (fallback ~/.inputrc).
+users may specify startup commands in ~/.local/share/purcmc/bashrc (fallback ~/.bashrc)
+and special keyboard maps in ~/.local/share/purcmc/inputrc (fallback ~/.inputrc).
 .PP
 .B ash/dash
-users (BusyBox or Debian) may specify startup commands in ~/.local/share/mc/ashrc (fallback ~/.profile).
+users (BusyBox or Debian) may specify startup commands in ~/.local/share/purcmc/ashrc (fallback ~/.profile).
 .PP
 .B zsh
-users may specify startup commands in ~/.local/share/mc/.zshrc (fallback ~/.zshrc).
+users may specify startup commands in ~/.local/share/purcmc/.zshrc (fallback ~/.zshrc).
 .PP
 .B tcsh, fish
 users cannot specify mc-specific startup commands at present. They have to rely on
@@ -2802,7 +2802,7 @@ If
 is off, the case will be ignored.
 .\"NODE "Diff Viewer"
 .SH "Internal Diff Viewer"
-The mcdiff is a visual diff tool. You can compare two files and edit them
+The purcmcdiff is a visual diff tool. You can compare two files and edit them
 in\-place (diffs are updated dynamically). You can browse and view a working
 copy from popular version control systems (GIT, Subversion, etc).
 .PP
@@ -3071,7 +3071,7 @@ and then the assigned key. The macro is also executed if
 you press Meta, Ctrl, or Esc and the assigned key, provided that the
 key is not used for any other function. Once defined, the macro
 commands go into the file
-.B ~/.local/share/mc/mcedit/mcedit.macros
+.B ~/.local/share/purcmc/mcedit/mcedit.macros
 You can delete a macro by deleting the
 appropriate line in this file.
 .PP
@@ -3084,9 +3084,9 @@ selection dialog.
 will format the currently highlighted block (plain text or C or C++
 code or another). This is controlled by the
 file
-.B @PREFIX@/share/mc/edit.indent.rc
+.B @PREFIX@/share/purcmc/edit.indent.rc
 which is copied to
-.B ~/.local/share/mc/mcedit/edit.indent.rc
+.B ~/.local/share/purcmc/mcedit/edit.indent.rc
 in your home directory the first time you use it.
 .PP
 The editor also displays non\-us characters (160+). When editing
@@ -3274,7 +3274,7 @@ section for details on how this is done.
 Examples:
 .PP
 .nf
-    mc\-3.0.tar.gz/utar://mc\-3.0/vfs
+    purcmc\-3.0.tar.gz/utar://mc\-3.0/vfs
     /ftp/GCC/gcc\-2.7.0.tar/utar://
 .fi
 .PP
@@ -3676,10 +3676,10 @@ in section
 in config file.
 .br
 4) File
-.B @SYSCONFDIR@/mc/skins/default.ini
+.B @SYSCONFDIR@/purcmc/skins/default.ini
 .br
 5) File
-.B @PREFIX@/share/mc/skins/default.ini
+.B @PREFIX@/share/purcmc/skins/default.ini
 
 .PP
 Command line option, environment variable and parameter in config file may
@@ -3687,13 +3687,13 @@ contain the absolute path to the skin\-file (with the extension \.ini
 or without it). Search of skin\-file will occur in (to the first one found):
 .IP
 1)
-.B ~/.local/share/mc/skins/
+.B ~/.local/share/purcmc/skins/
 .br
 2)
-.B @SYSCONFDIR@/mc/skins/
+.B @SYSCONFDIR@/purcmc/skins/
 .br
 3)
-.B @PREFIX@/share/mc/skins/
+.B @PREFIX@/share/purcmc/skins/
 .br
 
 .PP
@@ -4017,8 +4017,8 @@ Skins
 .\"Skins"
 section.
 .PP
-Rules of filenames highlight are placed in @PREFIX@/share/mc/filehighlight.ini file
-(~/.config/mc/filehighlight.ini).
+Rules of filenames highlight are placed in @PREFIX@/share/purcmc/filehighlight.ini file
+(~/.config/purcmc/filehighlight.ini).
 Name of section in this file must be equal to parameters names in
 [filehighlight] section (in current skin\-file).
 .PP
@@ -4063,12 +4063,12 @@ Most of Midnight Commander settings can be changed from the
 menus. However, there are a small number of settings which can only be
 changed by editing the setup file.
 .PP
-These variables may be set in your ~/.config/mc/ini file:
+These variables may be set in your ~/.config/purcmc/ini file:
 .TP
 .I clear_before_exec
 By default, Midnight Commander clears the screen before executing a
 command.  If you would prefer to see the output of the command at the
-bottom of the screen, edit your ~/.config/mc/ini file and change the value of
+bottom of the screen, edit your ~/.config/purcmc/ini file and change the value of
 the field clear_before_exec to 0.
 .TP
 .I confirm_view_dir
@@ -4190,7 +4190,7 @@ Midnight Commander provides a way for specify an options for external editors
 and viewers. Midnight Commander tries to search the
 "[External editor or viewer parameters]" section in the system initialization file
 (the mc.lib file located in Midnight Commander's library directory)
-and then in the ~/.config/mc/ini file. The option name should be equal to the name
+and then in the ~/.config/purcmc/ini file. The option name should be equal to the name
 (full pathname) of external editor or viewer. The option value can contain following
 variables:
 .TP
@@ -4225,7 +4225,7 @@ Midnight Commander provides a way to fix your system terminal
 database without requiring root privileges. Midnight Commander
 searches in the system initialization file (the mc.lib file located in
 Midnight Commander's library directory) and in the 
-~/.config/mc/ini file for the section 
+~/.config/purcmc/ini file for the section 
 "terminal:your\-terminal\-name" and then for the section
 "terminal:general", each line of the section contains a key symbol that
 you want to define, followed by an equal sign and the definition for the
@@ -4285,58 +4285,58 @@ Full paths below may vary between installations.  They are also affected
 by the
 .B MC_DATADIR
 environment variable. If it's set, its value is used instead of
-@PREFIX@/share/mc in the paths below.
+@PREFIX@/share/purcmc in the paths below.
 .PP
-.I @PREFIX@/share/mc/help/mc.hlp
+.I @PREFIX@/share/purcmc/help/mc.hlp
 .IP
 The help file for the program.
 .PP
-.I @PREFIX@/share/mc/mc.ext
+.I @PREFIX@/share/purcmc/mc.ext
 .IP
 The default system\-wide extensions file.
 .PP
-.I ~/.config/mc/mc.ext
+.I ~/.config/purcmc/mc.ext
 .IP
 User's own extension, view configuration and edit configuration
 file.  They override the contents of the system wide files if present.
 .PP
-.I @SYSCONFDIR@/mc/mc.ini
+.I @SYSCONFDIR@/purcmc/mc.ini
 .RE
-.I @PREFIX@/share/mc/mc.ini
+.I @PREFIX@/share/purcmc/mc.ini
 .IP
 System\-wide setup files for Midnight Commander, used only if the user
 doesn't have his own
-.B ~/.config/mc/ini
-file. If @SYSCONFDIR@/mc/mc.ini exists, @PREFIX@/share/mc/mc.ini isn't used.
+.B ~/.config/purcmc/ini
+file. If @SYSCONFDIR@/purcmc/mc.ini exists, @PREFIX@/share/purcmc/mc.ini isn't used.
 .PP
-.I @PREFIX@/share/mc/mc.lib
+.I @PREFIX@/share/purcmc/mc.lib
 .IP
 Global settings for Midnight Commander. Settings in this file
-affect all users, whether they have ~/.config/mc/ini or not.  Currently, only
+affect all users, whether they have ~/.config/purcmc/ini or not.  Currently, only
 .\"LINK2"
 terminal settings
 .\"Terminal databases"
 are loaded from mc.lib.
 .PP
-.I ~/.config/mc/ini
+.I ~/.config/purcmc/ini
 .IP
 User's own setup. If this file is present then the setup is loaded
 from here instead of the system\-wide startup file.
 .PP
-.I @PREFIX@/share/mc/hints/mc.hint
+.I @PREFIX@/share/purcmc/hints/mc.hint
 .IP
 This file contains the hints displayed by the program.
 .PP
-.I @PREFIX@/share/mc/mc.menu
+.I @PREFIX@/share/purcmc/mc.menu
 .IP
 This file contains the default system\-wide applications menu.
 .PP
-.I ~/.config/mc/menu
+.I ~/.config/purcmc/menu
 .IP
 User's own application menu. If this file is present it is used instead
 of the system\-wide applications menu.
 .PP
-.I ~/.cache/mc/Tree
+.I ~/.cache/purcmc/Tree
 .IP
 The directory list for the directory tree and tree view features.
 .PP
@@ -4382,6 +4382,6 @@ at http://www.midnight\-commander.org/.
 .PP
 Provide a detailed description of the bug, the version of the program
 you are running
-.RI ( "mc \-V"
+.RI ( "purcmc \-V"
 displays this information), the operating system you are running the
 program on.  If the program crashes, we would appreciate a stack trace.

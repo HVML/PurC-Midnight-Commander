@@ -83,7 +83,7 @@ endif ()
 
 if (${PurcMC_LIBRARY_TYPE} MATCHES "SHARED")
     set_target_properties(PurcMC PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-    install(TARGETS PurcMC DESTINATION "${LIB_INSTALL_DIR}")
+# install(TARGETS PurcMC DESTINATION "${LIB_INSTALL_DIR}")
 endif ()
 
 if (MSVC)
@@ -94,10 +94,6 @@ endif ()
 
 # add_subdirectory(res)
 
-install(TARGETS PurcMC
-        DESTINATION "${LIB_INSTALL_DIR}/"
-)
+# install(TARGETS PurcMC DESTINATION "${LIB_INSTALL_DIR}/")
 
-install(FILES ${PurcMC_INSTALLED_HEADERS}
-        DESTINATION "${HEADER_INSTALL_DIR}/purcmc"
-)
+# install(FILES ${PurcMC_INSTALLED_HEADERS} DESTINATION "${HEADER_INSTALL_DIR}/purcmc")

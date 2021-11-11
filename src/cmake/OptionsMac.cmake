@@ -17,6 +17,5 @@ PURCMC_OPTION_END()
 
 set(PurcMC_PKGCONFIG_FILE ${CMAKE_BINARY_DIR}/src/purcmc/purcmc.pc)
 
-set(PurcMC_LIBRARY_TYPE STATIC)
 set(PurcMCTestSupport_LIBRARY_TYPE STATIC)
 

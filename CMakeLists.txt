@@ -122,11 +122,9 @@ endif ()
 # -----------------------------------------------------------------------------
 # Default library types
 # -----------------------------------------------------------------------------
-# By default, only the highest-level libraries, PurcMC, is
-# shared, because properly building shared libraries that depend on each other
-# can be tricky. Override these in Options*.cmake for your port as needed.
+# Override these in Options*.cmake for your port as needed.
 set(WTF_LIBRARY_TYPE STATIC)
-set(PurcMC_LIBRARY_TYPE SHARED)
+set(PurcMC_LIBRARY_TYPE STATIC)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 

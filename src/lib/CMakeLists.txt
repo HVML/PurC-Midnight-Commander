@@ -1,4 +1,4 @@
-set_property(DIRECTORY . PROPERTY FOLDER "PurcMC")
+set_property(DIRECTORY . PROPERTY FOLDER "lib")
 
 include(GlobalCommon)
 include(MyMacros.cmake)

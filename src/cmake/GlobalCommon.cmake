@@ -13,9 +13,11 @@ if (NOT HAS_RUN_PURCMC_COMMON)
         list(APPEND CMAKE_PROGRAM_PATH $ENV{SystemDrive}/cygwin/bin)
     endif ()
 
+    find_package(Perl 5.10.0)
+
     set(Python_ADDITIONAL_VERSIONS 3)
-    find_package(PythonInterp 2.7.0 REQUIRED)
-    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    find_package(PythonInterp 2.7.0)
+    find_package(Python3 COMPONENTS Interpreter)
 
     # -----------------------------------------------------------------------------
     # Helper macros and feature defines

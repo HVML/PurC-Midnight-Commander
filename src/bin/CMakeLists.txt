@@ -1,6 +1,12 @@
+set_property(DIRECTORY . PROPERTY FOLDER "bin")
+
 include(GlobalCommon)
 include(target/PurcMC)
 include(MyMacros.cmake)
+
+configure_file(man2hlp/man2hlp.in ${CMAKE_BINARY_DIR}/man2hlp
+        FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
+        @ONLY)
 
 PURCMC_EXECUTABLE_DECLARE(purcmc)
 

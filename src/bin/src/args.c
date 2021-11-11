@@ -620,18 +620,18 @@ mc_setup_run_mode (char **argv)
 
     base = x_basename (argv[0]);
 
-    if (strncmp (base, "mce", 3) == 0 || strcmp (base, "vi") == 0)
+    if (strncmp (base, "purcmce", 7) == 0 || strcmp (base, "vi") == 0)
     {
         /* mce* or vi is link to mc */
         mc_global.mc_run_mode = MC_RUN_EDITOR;
     }
-    else if (strncmp (base, "mcv", 3) == 0 || strcmp (base, "view") == 0)
+    else if (strncmp (base, "purcmcv", 7) == 0 || strcmp (base, "view") == 0)
     {
         /* mcv* or view is link to mc */
         mc_global.mc_run_mode = MC_RUN_VIEWER;
     }
 #ifdef USE_DIFF_VIEW
-    else if (strncmp (base, "mcd", 3) == 0 || strcmp (base, "diff") == 0)
+    else if (strncmp (base, "purcmcd", 7) == 0 || strcmp (base, "diff") == 0)
     {
         /* mcd* or diff is link to mc */
         mc_global.mc_run_mode = MC_RUN_DIFFVIEWER;

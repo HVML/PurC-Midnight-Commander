@@ -42,6 +42,7 @@ The source tree of PurcMC is illustrated as follow:
 - `src/tests/`: The unit test programs.
 - `src/misc/`: The miscellaneous and the default configuration files.
 - `src/po/`: The translation files.
+- `docs/`: Documents.
 - `tools/`: Some tools for easy development.
 
 ## Current Status

@@ -1,13 +1,13 @@
-.TH MCVIEW 1 "%DATE_OF_MAN_PAGE%" "MC Version %MAN_VERSION%" "GNU Midnight Commander"
+.TH MCVIEW 1 "@DATE_OF_MAN_PAGE@" "MC Version @MAN_VERSION@" "GNU Midnight Commander"
 .SH NAME
-mcview \- Internal file viewer of GNU Midnight Commander.
+purcmcview \- Internal file viewer of GNU Midnight Commander.
 .SH SYNOPSIS
-.B mcview
+.B purcmcview
 [\-bcCdfhstVx?] file
 .SH DESCRIPTION
 .LP
-mcview is a link to
-.BR mc ,
+purcmcview is a link to
+.BR purcmc ,
 the main GNU Midnight Commander executable.  Executing GNU Midnight
 Commander under this name requests staring the internal viewer and
 opening the
@@ -20,13 +20,13 @@ Force black and white display.
 .TP
 .I "\-c"
 Force color mode on terminals where
-.B mcview
+.B purcmcview
 defaults to black and white.
 .TP
 .I "\-C <keyword>=<fgcolor>,<bgcolor>,<attributes>:<keyword>= ..."
 Specify a different color set.  See the
 .B Colors
-section in mc(1) for more information.
+section in purcmc(1) for more information.
 .TP
 .I "\-d"
 Disable mouse support.
@@ -61,21 +61,21 @@ selected=black,green"
 .fi
 .PP
 .SH FILES
-.I %prefix%/share/mc/help/mc.hlp
+.I @PREFIX@/share/purcmc/help/purcmc.hlp
 .IP
 The help file for the program.
 .PP
-.I %prefix%/share/mc/mc.ini
+.I @PREFIX@/share/purcmc/mc.ini
 .IP
 The default system\-wide setup for GNU Midnight Commander, used only if
 the user's own ~/.config/mc/ini file is missing.
 .PP
-.I %prefix%/share/mc/mc.lib
+.I @PREFIX@/share/purcmc/mc.lib
 .IP
 Global settings for Midnight Commander. Settings in this file
-affect all users, whether they have ~/.config/mc/ini or not.
+affect all users, whether they have ~/.config/purcmc/ini or not.
 .PP
-.I ~/.config/mc/ini
+.I ~/.config/purcmc/ini
 .IP
 User's own setup.  If this file is present, the setup is loaded from
 here instead of the system\-wide startup file.
@@ -89,7 +89,7 @@ of warranty.
 The latest version of this program can be found at
 http://ftp.midnight\-commander.org/.
 .SH SEE ALSO
-mc(1), mcedit(1)
+purcmc(1), purcmcedit(1)
 .PP
 .SH BUGS
 Bugs should be reported to http://www.midnight\-commander.org/.

@@ -1,17 +1,17 @@
-.TH MCEDIT 1 "%DATE_OF_MAN_PAGE%" "MC Version %MAN_VERSION%" "GNU Midnight Commander"
+.TH MCEDIT 1 "@DATE_OF_MAN_PAGE@" "MC Version @MAN_VERSION@" "PurC Midnight Commander"
 .SH NAME
-mcedit \- Internal file editor of GNU Midnight Commander.
+mcedit \- Internal file editor of PurC Midnight Commander.
 .SH SYNOPSIS
-.B mcedit
+.B purcmcedit
 [\-bcCdfhstVx?] [+lineno] [file1] [file2] ...
 .PP
-.B mcedit
+.B purcmcedit
 [\-bcCdfhstVx?] file1:lineno[:] file2:lineno[:] ...
 .SH DESCRIPTION
 .LP
-mcedit is a link to
-.BR mc ,
-the main GNU Midnight Commander executable. Executing GNU Midnight Commander
+purcmcedit is a link to
+.BR purcmc ,
+the main PurC Midnight Commander executable. Executing PurC Midnight Commander
 under this name runs the internal editor and opens files
 specified on the command line. The editor is based on the terminal version of
 .B cooledit
@@ -34,18 +34,18 @@ support.
 .I "\-C <keyword>=<fgcolor>,<bgcolor>,<attributes>:<keyword>= ..."
 Specify a different color set.  See the
 .B Colors
-section in mc(1) for more information.
+section in purcmc(1) for more information.
 .TP
 .I "\-d"
 Disable mouse support.
 .TP
 .I "\-f"
-Display the compiled\-in search path for GNU Midnight Commander data
+Display the compiled\-in search path for PurC Midnight Commander data
 files.
 .TP
 .I "\-t"
 Force using termcap database instead of terminfo.  This option is only
-applicable if GNU Midnight Commander was compiled with S\-Lang library
+applicable if PurC Midnight Commander was compiled with S\-Lang library
 with terminfo support.
 .TP
 .I "\-V"
@@ -620,7 +620,7 @@ The help file for the program.
 .PP
 .I %prefix%/share/mc/mc.ini
 .IP
-The default system\-wide setup for GNU Midnight Commander, used only if
+The default system\-wide setup for PurC Midnight Commander, used only if
 the user's own ~/.config/mc/ini file is missing.
 .PP
 .I %prefix%/share/mc/mc.lib
@@ -643,7 +643,7 @@ from here instead of the system\-wide setup file.
 User's own directory where block commands are processed and saved and
 user's own syntax files are located.
 .SH LICENSE
-This program is distributed under the terms of the GNU General Public
+This program is distributed under the terms of the PurC General Public
 License as published by the Free Software Foundation.  See the built\-in
 help of Midnight Commander for details on the License and the lack
 of warranty.

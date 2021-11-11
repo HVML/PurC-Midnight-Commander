@@ -136,6 +136,13 @@ include(GlobalCommon)
 SET_PROJECT_VERSION(0 0 1)
 set(PURCMC_API_VERSION 0.0)
 
+set(PACKAGE purcmc)
+set(PACKAGE_NAME "PurC Midnight Commander")
+set(SYSCONFDIR "${CMAKE_INSTALL_PREFIX}/etc/${PACKAGE}")
+set(DATADIR "${CMAKE_INSTALL_PREFIX}/share/${PACKAGE}")
+set(EXTHELPERSDIR "${CMAKE_INSTALL_PREFIX}/lib/${PACKAGE}/ext.d")
+add_definitions(-DPACKAGE="${PACKAGE}")
+
 add_subdirectory(src)
 
 # -----------------------------------------------------------------------------

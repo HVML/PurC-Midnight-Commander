@@ -85,6 +85,9 @@
 #if !HAVE(STROPTS_H)
 #undef HAVE_STROPTS_H
 #endif
+#if !HAVE(SYS_EPOLL_H)
+#undef HAVE_SYS_EPOLL_H
+#endif
 #if !HAVE(SYS_FS_S5PARAM_H)
 #undef HAVE_SYS_FS_S5PARAM_H
 #endif

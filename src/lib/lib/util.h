@@ -274,6 +274,18 @@ void mc_replace_error (GError ** dest, int code, const char *format, ...) G_GNUC
 
 gboolean mc_time_elapsed (gint64 * timestamp, gint64 delay);
 
+/*
+ * calloc_a(size_t len, [void **addr, size_t len,...], NULL)
+ *
+ * allocate a block of memory big enough to hold multiple aligned objects.
+ * the pointer to the full object (starting with the first chunk) is returned,
+ * all other pointers are stored in the locations behind extra addr arguments.
+ * the last argument needs to be a NULL pointer
+ */
+
+#define calloc_a(len, ...) mc_calloc_a(len, ##__VA_ARGS__, NULL)
+void *mc_calloc_a(size_t len, ...);
+
 /*** inline functions **************************************************/
 
 static inline gboolean

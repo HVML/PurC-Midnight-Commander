@@ -23,15 +23,29 @@
 #ifndef MC_RENDERER_SERVER_H_
 #define MC_RENDERER_SERVER_H_
 
+#include <time.h>
+
 #include "lib/list.h"
 #include "lib/kvlist.h"
+#include "lib/gslist.h"
+
+/* Constants */
+#define SERVER_PROTOCOL_NAME             "PURCRDR"
+#define SERVER_PROTOCOL_VERSION          100
+#define SERVER_MINIMAL_PROTOCOL_VERSION  100
+
+#define SERVER_US_PATH                   "/var/run/purc/renderer.sock"
+#define SERVER_WS_PORT                   "7702"
+#define SERVER_WS_PORT_RESERVED          "7703"
+
+#define SERVER_LOCALHOST                 "localhost"
 
 /* Status Codes */
 #define SERVER_SC_IOERR                  1
 #define SERVER_SC_OK                     200
 #define SERVER_SC_CREATED                201
 #define SERVER_SC_ACCEPTED               202
-#define SERVER_SC_NO_CONTENT             204 
+#define SERVER_SC_NO_CONTENT             204
 #define SERVER_SC_RESET_CONTENT          205
 #define SERVER_SC_PARTIAL_CONTENT        206
 #define SERVER_SC_BAD_REQUEST            400
@@ -45,7 +59,7 @@
 #define SERVER_SC_PRECONDITION_FAILED    412
 #define SERVER_SC_PACKET_TOO_LARGE       413
 #define SERVER_SC_EXPECTATION_FAILED     417
-#define SERVER_SC_IM_A_TEAPOT            418 
+#define SERVER_SC_IM_A_TEAPOT            418
 #define SERVER_SC_UNPROCESSABLE_PACKET   422
 #define SERVER_SC_LOCKED                 423
 #define SERVER_SC_FAILED_DEPENDENCY      424
@@ -89,6 +103,7 @@
 #define SERVER_LEN_RUNNER_NAME           63
 #define SERVER_LEN_ENDPOINT_NAME         \
     (SERVER_LEN_HOST_NAME + SERVER_LEN_APP_NAME + SERVER_LEN_RUNNER_NAME + 3)
+#define SERVER_LEN_UNIQUE_ID             63
 
 #define SERVER_MIN_PACKET_BUFF_SIZE      512
 #define SERVER_DEF_PACKET_BUFF_SIZE      1024
@@ -234,6 +249,9 @@ typedef struct Server_
     /* The KV list using endpoint name as the key, and Endpoint* as the value */
     struct kvlist endpoint_list;
 
+    /* The accepted endpoints but waiting for authentification */
+    gs_list *dangling_endpoints;
+
     /* the AVL tree of endpoints sorted by living time */
     struct avl_tree living_avl;
 } Server;
@@ -254,6 +272,41 @@ typedef struct ServerConfig_
     int websocket;
     int use_ssl;
 } ServerConfig;
+
+const char* server_get_ret_message (int err_code);
+
+static inline time_t server_get_monotoic_time (void)
+{
+    struct timespec tp;
+
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    return tp.tv_sec;
+}
+
+const char *server_get_ret_message(int ret_code);
+const char *server_get_err_message(int err_code);
+int server_errcode_to_retcode(int err_code);
+bool server_is_valid_token(const char *token, int max_len);
+bool server_is_valid_host_name(const char *host_name);
+bool server_is_valid_app_name(const char *app_name);
+bool server_is_valid_endpoint_name(const char *endpoint_name);
+int server_extract_host_name(const char *endpoint, char *buff);
+int server_extract_app_name(const char *endpoint, char *buff);
+int server_extract_runner_name(const char *endpoint, char *buff);
+char *server_extract_host_name_alloc(const char *endpoint);
+char *server_extract_app_name_alloc(const char *endpoint);
+char *server_extract_runner_name_alloc(const char *endpoint);
+int server_assemble_endpoint_name(const char *host_name, const char *app_name,
+        const char *runner_name, char *buff);
+char *server_assemble_endpoint_name_alloc(const char *host_name,
+        const char *app_name, const char *runner_name);
+bool server_is_valid_app_name(const char *app_name);
+
+static inline bool
+server_is_valid_runner_name(const char *runner_name)
+{
+    return server_is_valid_token(runner_name, SERVER_LEN_RUNNER_NAME);
+}
 
 #endif /* !MC_RENDERER_SERVER_H_*/
 

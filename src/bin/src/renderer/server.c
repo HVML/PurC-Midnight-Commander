@@ -20,22 +20,11 @@
 ** along with this program.  If not, see http://www.gnu.org/licenses/.
 */
 
-#include <config.h>
-
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
 #include <time.h>
-
-#include <unistd.h>
-#if HAVE(SYS_EPOLL_H)
-#include <sys/epoll.h>
-#elif HAVE(SYS_SELECT_H)
-#include <sys/select.h>
-#else
-#error no `epoll` either `select` found.
-#endif
 
 #include "lib/kvlist.h"
 #include "lib/hook.h"
@@ -52,6 +41,9 @@ extern hook_t *idle_hook;
 static Server the_server;
 
 #define srvcfg mc_global.rdr
+
+#define PTR_FOR_US_LISTENER ((void *)1)
+#define PTR_FOR_WS_LISTENER ((void *)2)
 
 /* callbacks for socket servers */
 // Allocate a Endpoint structure for a new client and send `auth` packet.
@@ -100,6 +92,51 @@ on_packet (void* sock_srv, SockClient* client,
     return SERVER_SC_OK;
 }
 
+#if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
+static int
+listen_new_client(int fd, void *ptr, bool rw)
+{
+    CliAVLNode* cli_node = calloc(1, sizeof (CliAVLNode));
+
+    cli_node->fd = fd;
+    cli_node->ptr = ptr;
+    if (avl_insert (&the_server.clients_avl, &cli_node->avl)) {
+        return -1;
+    }
+
+    FD_SET (fd, &the_server.rfdset);
+    if (rw)
+        FD_SET (fd, &the_server.wfdset);
+
+    if (the_server.maxfd < fd)
+        the_server.maxfd = fd;
+
+    return 0;
+}
+
+static int
+remove_listening_client (int fd)
+{
+    CliAVLNode key = { };
+    struct avl_node *node;
+
+    key.fd = fd;
+    node = avl_find (&the_server.clients_avl, &key);
+    if (node) {
+        CliAVLNode *cli_node = container_of (node, CliAVLNode, avl);
+
+        avl_delete (&the_server.clients_avl, &cli_node->avl);
+        free (cli_node);
+
+        FD_CLR (fd, &the_server.rfdset);
+        FD_CLR (fd, &the_server.wfdset);
+        return 0;
+    }
+
+    return -1;
+}
+#endif
+
 static int
 on_pending (void* sock_srv, SockClient* client)
 {
@@ -116,8 +153,11 @@ on_pending (void* sock_srv, SockClient* client)
     }
 #elif HAVE(SYS_SELECT_H)
     (void)sock_srv;
-    (void)client;
-    // TODO
+
+    if (listen_new_client (client->fd, client, TRUE)) {
+        ULOG_ERR ("Failed to insert to the client AVL tree: %d\n", client->fd);
+        assert (0);
+    }
 #endif
 
     return 0;
@@ -126,14 +166,20 @@ on_pending (void* sock_srv, SockClient* client)
 static int
 on_close (void* sock_srv, SockClient* client)
 {
-    (void)sock_srv;
 #if HAVE(SYS_EPOLL_H)
+    (void)sock_srv;
+
     if (epoll_ctl (the_server.epollfd, EPOLL_CTL_DEL, client->fd, NULL) == -1) {
         ULOG_WARN ("Failed to call epoll_ctl to delete the client fd (%d): %s\n",
                 client->fd, strerror (errno));
     }
 #elif HAVE(SYS_SELECT_H)
-    // TODO
+    (void)sock_srv;
+
+    if (remove_listening_client (client->fd)) {
+        ULOG_WARN ("Failed to delete the client fd (%d) from the listening fdset\n",
+                client->fd);
+    }
 #endif
 
     if (client->entity) {
@@ -210,21 +256,19 @@ update_endpoint_living_time (Server *srv, Endpoint* endpoint)
 
 /* max events for epoll */
 #define MAX_EVENTS          10
-#define PTR_FOR_US_LISTENER ((void *)1)
-#define PTR_FOR_WS_LISTENER ((void *)2)
 
 static void
 prepare_server (void)
 {
-    int us_listener = -1, ws_listener = -1;
 #if HAVE(SYS_EPOLL_H)
     struct epoll_event ev, events[MAX_EVENTS];
-    time_t t_start = server_get_monotoic_time ();
-    time_t t_elapsed, t_elapsed_last = 0;
 #endif
+    the_server.us_listener = the_server.ws_listener = -1;
+    the_server.t_start = server_get_monotoic_time ();
+    the_server.t_elapsed = the_server.t_elapsed_last = 0;
 
     // create unix socket
-    if ((us_listener = us_listen (the_server.us_srv)) < 0) {
+    if ((the_server.us_listener = us_listen (the_server.us_srv)) < 0) {
         ULOG_ERR ("Unable to listen on Unix socket (%s)\n",
                 srvcfg.unixsocket);
         goto error;
@@ -252,7 +296,7 @@ prepare_server (void)
         srvcfg.sslcert = srvcfg.sslkey = NULL;
 #endif
 
-        if ((ws_listener = ws_listen (the_server.ws_srv)) < 0) {
+        if ((the_server.ws_listener = ws_listen (the_server.ws_srv)) < 0) {
             ULOG_ERR ("Unable to listen on Web socket (%s, %s)\n",
                     srvcfg.addr, srvcfg.port);
             goto error;
@@ -276,23 +320,26 @@ prepare_server (void)
 
     ev.events = EPOLLIN;
     ev.data.ptr = PTR_FOR_US_LISTENER;
-    if (epoll_ctl (the_server.epollfd, EPOLL_CTL_ADD, us_listener, &ev) == -1) {
+    if (epoll_ctl (the_server.epollfd, EPOLL_CTL_ADD, the_server.us_listener, &ev) == -1) {
         ULOG_ERR ("Failed to call epoll_ctl with us_listener (%d): %s\n",
-                us_listener, strerror (errno));
+                the_server.us_listener, strerror (errno));
         goto error;
     }
 
-    if (ws_listener >= 0) {
+    if (the_server.ws_listener >= 0) {
         ev.events = EPOLLIN;
         ev.data.ptr = PTR_FOR_WS_LISTENER;
-        if (epoll_ctl (the_server.epollfd, EPOLL_CTL_ADD, ws_listener, &ev) == -1) {
+        if (epoll_ctl (the_server.epollfd, EPOLL_CTL_ADD, the_server.ws_listener, &ev) == -1) {
             ULOG_ERR ("Failed to call epoll_ctl with ws_listener (%d): %s\n",
-                    ws_listener, strerror (errno));
+                    the_server.ws_listener, strerror (errno));
             goto error;
         }
     }
 #elif HAVE(SYS_SELECT_H)
-    // TODO
+    listen_new_client (the_server.us_listener, PTR_FOR_US_LISTENER, FALSE);
+    if (the_server.ws_listener >= 0) {
+        listen_new_client (the_server.ws_listener, PTR_FOR_WS_LISTENER, FALSE);
+    }
 #endif
 
 error:
@@ -307,26 +354,27 @@ static void check_server_on_idle (void *data)
 
     (void)data;
 
-    nfds = epoll_wait (the_server.epollfd, events, MAX_EVENTS, 500);
+again:
+    nfds = epoll_wait (the_server.epollfd, events, MAX_EVENTS, 0);
     if (nfds < 0) {
         if (errno == EINTR) {
-            continue;
+            goto again;
         }
 
         ULOG_ERR ("Failed to call epoll_wait: %s\n", strerror (errno));
         goto error;
     }
     else if (nfds == 0) {
-        t_elapsed = server_get_monotoic_time () - t_start;
-        if (t_elapsed != t_elapsed_last) {
-            if (t_elapsed % 10 == 0) {
+        the_server.t_elapsed = server_get_monotoic_time () - the_server.t_start;
+        if (the_server.t_elapsed != the_server.t_elapsed_last) {
+            if (the_server.t_elapsed % 10 == 0) {
                 check_no_responding_endpoints (&the_server);
             }
-            else if (t_elapsed % 5 == 0) {
+            else if (the_server.t_elapsed % 5 == 0) {
                 check_dangling_endpoints (&the_server);
             }
 
-            t_elapsed_last = t_elapsed;
+            the_server.t_elapsed_last = the_server.t_elapsed;
         }
     }
 
@@ -348,7 +396,8 @@ static void check_server_on_idle (void *data)
             }
         }
         else if (events[n].data.ptr == PTR_FOR_WS_LISTENER) {
-            WSClient * client = ws_handle_accept (the_server.ws_srv, ws_listener);
+            WSClient * client = ws_handle_accept (the_server.ws_srv,
+                    the_server.ws_listener);
             if (client == NULL) {
                 ULOG_NOTE ("Refused a client\n");
             }
@@ -428,18 +477,156 @@ static void check_server_on_idle (void *data)
             }
         }
     }
+
+error:
+    return;
 }
 
 #elif HAVE(SYS_SELECT_H)
 
 static void check_server_on_idle (void *data)
 {
-    // TODO
+    int retval;
+    fd_set rset, wset;
+    fd_set* rsetptr = NULL;
+    fd_set* wsetptr = NULL;
+    fd_set* esetptr = NULL;
+    struct timeval sel_timeout = { 0, 0 };
+
     (void)data;
-    update_endpoint_living_time (&the_server, NULL);
+
+    /* a fdset got modified each time around */
+    FD_COPY (&the_server.rfdset, &rset);
+    rsetptr = &rset;
+
+    FD_COPY (&the_server.wfdset, &wset);
+    wsetptr = &wset;
+
+again:
+    if ((retval = select (the_server.maxfd + 1,
+            rsetptr, wsetptr, esetptr, &sel_timeout)) < 0) {
+        /* no event. */
+        if (errno == EINTR) {
+            goto again;
+        }
+
+        ULOG_ERR ("unexpected error of select(): %m\n");
+        goto error;
+    }
+    else if (retval == 0) {
+        the_server.t_elapsed = server_get_monotoic_time () - the_server.t_start;
+        if (the_server.t_elapsed != the_server.t_elapsed_last) {
+            if (the_server.t_elapsed % 10 == 0) {
+                check_no_responding_endpoints (&the_server);
+            }
+            else if (the_server.t_elapsed % 5 == 0) {
+                check_dangling_endpoints (&the_server);
+            }
+
+            the_server.t_elapsed_last = the_server.t_elapsed;
+        }
+    }
+    else {
+        CliAVLNode *cli_node;
+        avl_for_each_element (&the_server.clients_avl, cli_node, avl) {
+            if (FD_ISSET (cli_node->fd, rsetptr)) {
+                if (cli_node->ptr == PTR_FOR_US_LISTENER) {
+                    USClient * client = us_handle_accept (the_server.us_srv);
+                    if (client == NULL) {
+                        ULOG_NOTE ("Refused a client\n");
+                    }
+                    else if (listen_new_client (client->fd, client, FALSE)) {
+                        ULOG_ERR ("Failed epoll_ctl for connected unix socket (%d): %s\n",
+                                client->fd, strerror (errno));
+                        goto error;
+                    }
+                }
+                else if (cli_node->ptr == PTR_FOR_WS_LISTENER) {
+                    WSClient * client = ws_handle_accept (the_server.ws_srv, the_server.ws_listener);
+                    if (client == NULL) {
+                        ULOG_NOTE ("Refused a client\n");
+                    }
+                    else if (listen_new_client (client->fd, client, FALSE)) {
+                        ULOG_ERR ("Failed epoll_ctl for connected web socket (%d): %s\n",
+                                client->fd, strerror (errno));
+                        goto error;
+                    }
+                }
+                else {
+                    USClient *usc = (USClient *)cli_node->ptr;
+                    if (usc->ct == CT_UNIX_SOCKET) {
+                        if (usc->entity) {
+                            Endpoint *endpoint = container_of (usc->entity,
+                                    Endpoint, entity);
+                            update_endpoint_living_time (&the_server, endpoint);
+                        }
+
+                        us_handle_reads (the_server.us_srv, usc);
+                    }
+                    else if (usc->ct == CT_WEB_SOCKET) {
+                        WSClient *wsc = (WSClient *)cli_node->ptr;
+                        if (wsc->entity) {
+                            Endpoint *endpoint = container_of (usc->entity,
+                                    Endpoint, entity);
+                            update_endpoint_living_time (&the_server, endpoint);
+                        }
+
+                        ws_handle_reads (the_server.ws_srv, wsc);
+                    }
+                    else {
+                        ULOG_ERR ("Bad socket type (%d): %s\n",
+                                usc->ct, strerror (errno));
+                        goto error;
+                    }
+                }
+            }
+
+            if (FD_ISSET (cli_node->fd, wsetptr)) {
+                if (cli_node->ptr == PTR_FOR_US_LISTENER ||
+                        cli_node->ptr == PTR_FOR_WS_LISTENER) {
+                    assert (0);
+                }
+                else {
+                    USClient *usc = (USClient *)cli_node->ptr;
+                    if (usc->ct == CT_UNIX_SOCKET) {
+                        us_handle_writes (the_server.us_srv, usc);
+
+                        if (!(usc->status & US_SENDING) &&
+                                !(usc->status & US_CLOSE)) {
+                            FD_CLR (cli_node->fd, &the_server.wfdset);
+                        }
+                    }
+                    else if (usc->ct == CT_WEB_SOCKET) {
+                        WSClient *wsc = (WSClient *)cli_node->ptr;
+                        ws_handle_writes (the_server.ws_srv, wsc);
+
+                        if (!(wsc->status & WS_SENDING) &&
+                                !(wsc->status & WS_CLOSE)) {
+                            FD_CLR (cli_node->fd, &the_server.wfdset);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+error:
+    return;
 }
 
 #endif /* HAVE(SYS_SELECT_H) */
+
+#if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
+static int
+comp_fd (const void *k1, const void *k2, void *ptr)
+{
+    const CliAVLNode *c1 = k1;
+    const CliAVLNode *c2 = k2;
+
+    (void)ptr;
+    return c1->fd - c2->fd;
+}
+#endif
 
 static int
 comp_living_time (const void *k1, const void *k2, void *ptr)
@@ -454,6 +641,13 @@ comp_living_time (const void *k1, const void *k2, void *ptr)
 static int
 init_server (void)
 {
+#if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
+    the_server.maxfd = -1;
+    FD_ZERO(&the_server.rfdset);
+    FD_ZERO(&the_server.wfdset);
+    avl_init (&the_server.clients_avl, comp_fd, true, NULL);
+#endif
+
     the_server.nr_endpoints = 0;
     the_server.running = true;
 
@@ -471,6 +665,11 @@ deinit_server (void)
     const char* name;
     void *next, *data;
     Endpoint *endpoint, *tmp;
+    CliAVLNode *client, *cli_tmp;
+
+    avl_remove_all_elements (&the_server.clients_avl, client, avl, cli_tmp) {
+        free (client);
+    }
 
     avl_remove_all_elements (&the_server.living_avl, endpoint, avl, tmp) {
         if (endpoint->type == ET_UNIX_SOCKET) {

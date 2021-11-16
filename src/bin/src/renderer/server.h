@@ -23,7 +23,17 @@
 #ifndef MC_RENDERER_SERVER_H_
 #define MC_RENDERER_SERVER_H_
 
+#include <config.h>
 #include <time.h>
+
+#include <unistd.h>
+#if HAVE(SYS_EPOLL_H)
+#include <sys/epoll.h>
+#elif HAVE(SYS_SELECT_H)
+#include <sys/select.h>
+#else
+#error no `epoll` either `select` found.
+#endif
 
 #include "lib/list.h"
 #include "lib/kvlist.h"
@@ -234,12 +244,31 @@ typedef struct Endpoint_
 struct WSServer_;
 struct USServer_;
 
+typedef struct {
+    int     fd;
+    void    *ptr;
+    struct  avl_node avl;
+} CliAVLNode;
+
 /* The PurcMC Server */
 typedef struct Server_
 {
+    int us_listener;
+    int ws_listener;
+#if HAVE(SYS_EPOLL_H)
     int epollfd;
+#elif HAVE(SYS_SELECT_H)
+    int maxfd;
+    fd_set rfdset, wfdset;
+    /* the AVL tree for the map from fd to client */
+    struct avl_tree clients_avl;
+#endif
     unsigned int nr_endpoints;
     bool running;
+
+    time_t t_start;
+    time_t t_elapsed;
+    time_t t_elapsed_last;
 
     char* server_name;
 

@@ -279,6 +279,21 @@ typedef struct
         gboolean preallocate_space;
 
     } vfs;
+
+    struct
+    {
+        int nowebsocket;
+        int accesslog;
+        int use_ssl;
+        char *unixsocket;
+        char *origin;
+        char *addr;
+        char *port;
+        char *sslcert;
+        char *sslkey;
+        int max_frm_size;
+        int backlog;
+    } rdr;
 } mc_global_t;
 
 /*** global variables defined in .c file *********************************************************/

@@ -2320,7 +2320,7 @@ ws_listen (WSServer* server)
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   /*hints.ai_flags = AI_PASSIVE; */
-  if (getaddrinfo (server->config->host, server->config->port, &hints, &ai) != 0)
+  if (getaddrinfo (server->config->addr, server->config->port, &hints, &ai) != 0)
     ULOG_ERR ("Unable to set server: %s.", gai_strerror (errno));
 
   /* Create a TCP socket.  */

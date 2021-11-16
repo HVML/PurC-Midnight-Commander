@@ -37,10 +37,11 @@
 #error no `epoll` either `select` found.
 #endif
 
-#include "ulog.h"
 #include "lib/kvlist.h"
 #include "lib/hook.h"
+#include "lib/global.h"
 
+#include "ulog.h"
 #include "server.h"
 #include "websocket.h"
 #include "unixsocket.h"
@@ -50,76 +51,7 @@ extern hook_t *idle_hook;
 
 static Server the_server;
 
-static ServerConfig srvcfg = { 0 };
-
-void
-srv_set_config_websocket (int websocket)
-{
-    srvcfg.websocket = websocket;
-}
-
-/* Set the origin so the server can force connections to have the
- * given HTTP origin. */
-void
-srv_set_config_origin (const char *origin)
-{
-    srvcfg.origin = origin;
-}
-
-/* Set the the maximum websocket frame size. */
-void
-srv_set_config_frame_size (int max_frm_size)
-{
-    srvcfg.max_frm_size = max_frm_size;
-}
-
-/* Set the the backlog. */
-void
-srv_set_config_backlog (int backlog)
-{
-    srvcfg.backlog = backlog;
-}
-
-/* Set specific name for the UNIX socket. */
-void
-srv_set_config_unixsocket (const char *unixsocket)
-{
-    srvcfg.unixsocket = unixsocket;
-}
-
-void
-srv_set_config_accesslog (int accesslog)
-{
-    srvcfg.accesslog = accesslog;
-}
-
-/* Set the server host bind address. */
-void
-srv_set_config_host (const char *host)
-{
-    srvcfg.host = host;
-}
-
-/* Set the server port bind address. */
-void
-srv_set_config_port (const char *port)
-{
-    srvcfg.port = port;
-}
-
-/* Set specific name for the SSL certificate. */
-void
-srv_set_config_sslcert (const char *sslcert)
-{
-    srvcfg.sslcert = sslcert;
-}
-
-/* Set specific name for the SSL key. */
-void
-srv_set_config_sslkey (const char *sslkey)
-{
-    srvcfg.sslkey = sslkey;
-}
+#define srvcfg mc_global.rdr
 
 /* callbacks for socket servers */
 // Allocate a Endpoint structure for a new client and send `auth` packet.
@@ -322,7 +254,7 @@ prepare_server (void)
 
         if ((ws_listener = ws_listen (the_server.ws_srv)) < 0) {
             ULOG_ERR ("Unable to listen on Web socket (%s, %s)\n",
-                    srvcfg.host, srvcfg.port);
+                    srvcfg.addr, srvcfg.port);
             goto error;
         }
 
@@ -333,7 +265,7 @@ prepare_server (void)
         the_server.ws_srv->on_error = on_error;
     }
     ULOG_NOTE ("Listening on Web Socket (%s, %s) %s SSL...\n",
-            srvcfg.host, srvcfg.port, srvcfg.sslcert ? "with" : "without");
+            srvcfg.addr, srvcfg.port, srvcfg.sslcert ? "with" : "without");
 
 #if HAVE(SYS_EPOLL_H)
     the_server.epollfd = epoll_create1 (EPOLL_CLOEXEC);
@@ -520,7 +452,7 @@ comp_living_time (const void *k1, const void *k2, void *ptr)
 }
 
 static int
-init_rdr_server (void)
+init_server (void)
 {
     the_server.nr_endpoints = 0;
     the_server.running = true;
@@ -534,7 +466,7 @@ init_rdr_server (void)
 }
 
 static void
-deinint_rdr_server (void)
+deinit_server (void)
 {
     const char* name;
     void *next, *data;
@@ -554,7 +486,7 @@ deinint_rdr_server (void)
         endpoint = *(Endpoint **)data;
 
         if (endpoint->type != ET_BUILTIN) {
-            ULOG_INFO ("Deleting endpoint: %s (%p) in deinint_rdr_server\n", name, endpoint);
+            ULOG_INFO ("Deleting endpoint: %s (%p) in deinit_server\n", name, endpoint);
 
             if (endpoint->type == ET_UNIX_SOCKET && endpoint->entity.client) {
                 // avoid a duplicated call of del_endpoint
@@ -614,25 +546,25 @@ deinint_rdr_server (void)
 }
 
 int
-purcmc_init_server (void)
+purcmc_init_rdr_server (void)
 {
     int retval;
 
     srandom (time (NULL));
 
-    if ((retval = init_rdr_server ())) {
-        ULOG_ERR ("Error during init_rdr_server: %s\n",
+    if ((retval = init_server ())) {
+        ULOG_ERR ("Error during init_server: %s\n",
                 server_get_ret_message (retval));
         goto error;
     }
 
-    if ((the_server.us_srv = us_init (&srvcfg)) == NULL) {
+    if ((the_server.us_srv = us_init ((ServerConfig *)&srvcfg)) == NULL) {
         ULOG_ERR ("Error during us_init\n");
         goto error;
     }
 
-    if (srvcfg.websocket) {
-        if ((the_server.ws_srv = ws_init (&srvcfg)) == NULL) {
+    if (!srvcfg.nowebsocket) {
+        if ((the_server.ws_srv = ws_init ((ServerConfig *)&srvcfg)) == NULL) {
             ULOG_ERR ("Error during ws_init\n");
             goto error;
         }
@@ -652,9 +584,9 @@ error:
 }
 
 int
-purcmc_deinit_server (void)
+purcmc_deinit_rdr_server (void)
 {
-    deinint_rdr_server ();
+    deinit_server ();
     return 0;
 }
 

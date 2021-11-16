@@ -259,18 +259,17 @@ typedef struct Server_
 /* Config Options */
 typedef struct ServerConfig_
 {
-    /* Config Options */
-    const char *host;
-    const char *origin;
-    const char *unixsocket;
-    const char *port;
-    const char *sslcert;
-    const char *sslkey;
+    int nowebsocket;
     int accesslog;
+    int use_ssl;
+    char *unixsocket;
+    char *origin;
+    char *addr;
+    char *port;
+    char *sslcert;
+    char *sslkey;
     int max_frm_size;
     int backlog;
-    int websocket;
-    int use_ssl;
 } ServerConfig;
 
 const char* server_get_ret_message (int err_code);

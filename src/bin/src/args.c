@@ -306,6 +306,90 @@ static const GOptionEntry argument_color_table[] = {
 
 #undef ARGS_COLOR_OPTIONS
 
+static GOptionGroup *renderer_group;
+#define ARGS_RENDERER_OPTIONS 0
+/* #define ARGS_RENDERER_OPTIONS G_OPTION_FLAG_IN_MAIN */
+static const GOptionEntry argument_renderer_table[] = {
+    /* *INDENT-OFF* */
+    /* renderer options */
+    {
+     "nowebsocket", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_NONE,
+     &mc_global.rdr.nowebsocket,
+     N_("Disable WebSocket"),
+     NULL
+    },
+
+    {
+     "accesslog", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_NONE,
+     &mc_global.rdr.accesslog,
+     N_("Logging the verbose socket access information"),
+     NULL
+    },
+
+    {
+     "unixsocket", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_STRING,
+     &mc_global.rdr.unixsocket,
+     N_("Specify the path of the Unix socket."),
+     N_("<string>")
+    },
+
+    {
+     "origin", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_STRING,
+     &mc_global.rdr.origin,
+     N_("Specify the origin to ensure clients send the specified origin header upon the WebSocket handshake"),
+     N_("<string>")
+    },
+
+    {
+     "addr", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_STRING,
+     &mc_global.rdr.addr,
+     N_("Specify an IP address to bind to."),
+     N_("<IPv4 address>")
+    },
+
+    {
+     "port", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_STRING,
+     &mc_global.rdr.port,
+     N_("Specify the port to bind to"),
+     N_("<port>")
+    },
+
+#if HAVE(LIBSSL)
+    {
+     "ssl-cert", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_STRING,
+     &mc_global.rdr.sslcert,
+     N_("Path to SSL certificate"),
+     N_("<cert.crt>")
+    },
+
+    {
+     "ssl-key", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_STRING,
+     &mc_global.rdr.sslkey,
+     N_("Path to SSL private key"),
+     N_("<priv.key>")
+    },
+#endif
+
+    {
+     "max-frm-size", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_INT,
+     &mc_global.rdr.max_frm_size,
+     N_("Maximum size of a socket frame"),
+     N_("<bytes>")
+    },
+
+    {
+     "backlog", '\0', ARGS_RENDERER_OPTIONS, G_OPTION_ARG_INT,
+     &mc_global.rdr.backlog,
+     N_("The maximum length to which the queue of pending connections."),
+     N_("<number>")
+    },
+
+    G_OPTION_ENTRY_NULL
+    /* *INDENT-ON* */
+};
+
+#undef ARGS_RENDERER_OPTIONS
+
 static gchar *mc_args__loc__colors_string = NULL;
 static gchar *mc_args__loc__footer_string = NULL;
 static gchar *mc_args__loc__header_string = NULL;
@@ -678,6 +762,10 @@ mc_args_parse (int *argc, char ***argv, const char *translation_domain, GError *
     g_option_group_add_entries (color_group, argument_color_table);
     g_option_context_add_group (context, color_group);
     g_option_group_set_translation_domain (color_group, translation_domain);
+
+    g_option_group_add_entries (renderer_group, argument_renderer_table);
+    g_option_context_add_group (context, renderer_group);
+    g_option_group_set_translation_domain (renderer_group, translation_domain);
 
     if (!g_option_context_parse (context, argc, argv, mcerror))
     {

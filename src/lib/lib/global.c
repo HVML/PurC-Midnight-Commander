@@ -115,8 +115,22 @@ mc_global_t mc_global =
     {
         .cd_symlinks = TRUE,
         .preallocate_space = FALSE,
-    }
+    },
 
+    .rdr =
+    {
+        .nowebsocket = FALSE,
+        .accesslog = FALSE,
+        .use_ssl = FALSE,
+        .unixsocket = NULL,
+        .origin = NULL,
+        .addr = NULL,
+        .port = NULL,
+        .sslcert = NULL,
+        .sslkey = NULL,
+        .max_frm_size = 0,
+        .backlog = 0,
+    },
 };
 /* *INDENT-ON* */
 

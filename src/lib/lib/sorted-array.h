@@ -18,6 +18,8 @@
 #ifndef __MC_LIB_SORTED_ARRAY_H
 #define __MC_LIB_SORTED_ARRAY_H
 
+#include <stdbool.h>
+
 struct sorted_array;
 
 typedef void (*sacb_free)(void *sortv, void *data);
@@ -42,7 +44,7 @@ sorted_array_create(unsigned int flags, size_t sz_init,
 void sorted_array_destroy(struct sorted_array *sa);
 
 /* add a new member with the sort value and the data. */
-bool sorted_array_add(struct sorted_array *sa, void *sortv, void *data);
+int sorted_array_add(struct sorted_array *sa, void *sortv, void *data);
 
 /* remove one member which has the same sort value. */
 bool sorted_array_remove(struct sorted_array *sa, const void* sortv);

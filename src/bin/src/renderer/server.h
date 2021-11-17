@@ -38,6 +38,7 @@
 #include "lib/list.h"
 #include "lib/kvlist.h"
 #include "lib/gslist.h"
+#include "lib/sorted-array.h"
 
 /* Constants */
 #define SERVER_PROTOCOL_NAME             "PURCRDR"
@@ -244,12 +245,6 @@ typedef struct Endpoint_
 struct WSServer_;
 struct USServer_;
 
-typedef struct {
-    int     fd;
-    void    *ptr;
-    struct  avl_node avl;
-} CliAVLNode;
-
 /* The PurcMC Server */
 typedef struct Server_
 {
@@ -261,7 +256,7 @@ typedef struct Server_
     int maxfd;
     fd_set rfdset, wfdset;
     /* the AVL tree for the map from fd to client */
-    struct avl_tree clients_avl;
+    struct sorted_array *fd2clients;
 #endif
     unsigned int nr_endpoints;
     bool running;

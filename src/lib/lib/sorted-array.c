@@ -16,7 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
@@ -91,14 +90,14 @@ void sorted_array_destroy(struct sorted_array *sa)
     free(sa);
 }
 
-bool sorted_array_add(struct sorted_array *sa, void *sortv, void *data)
+int sorted_array_add(struct sorted_array *sa, void *sortv, void *data)
 {
     size_t i, idx;
     size_t low, high, mid;
 
     if (!(sa->flags & SAFLAG_DUPLCATE_SORTV)) {
         if (sorted_array_find(sa, sortv, NULL)) {
-            return false;
+            return -1;
         }
     }
 
@@ -110,7 +109,7 @@ bool sorted_array_add(struct sorted_array *sa, void *sortv, void *data)
                 sizeof(struct sorted_array_member) * new_sz);
         if (sa->members == NULL) {
             sa->members = old_members;
-            return false;
+            return -2;
         }
 
         sa->sz_array = new_sz;
@@ -163,7 +162,7 @@ bool sorted_array_add(struct sorted_array *sa, void *sortv, void *data)
     sa->members[idx].data = data;
 
     sa->nr_members++;
-    return true;
+    return 0;
 }
 
 bool sorted_array_remove(struct sorted_array *sa, const void* sortv)
@@ -253,6 +252,7 @@ found:
     if (data) {
         *data = sa->members[mid].data;
     }
+
     return true;
 }
 

@@ -96,11 +96,7 @@ on_packet (void* sock_srv, SockClient* client,
 static int
 listen_new_client(int fd, void *ptr, bool rw)
 {
-    CliAVLNode* cli_node = calloc(1, sizeof (CliAVLNode));
-
-    cli_node->fd = fd;
-    cli_node->ptr = ptr;
-    if (avl_insert (&the_server.clients_avl, &cli_node->avl)) {
+    if (sorted_array_add (the_server.fd2clients, (void *)(intptr_t)fd, ptr)) {
         return -1;
     }
 
@@ -117,17 +113,7 @@ listen_new_client(int fd, void *ptr, bool rw)
 static int
 remove_listening_client (int fd)
 {
-    CliAVLNode key = { };
-    struct avl_node *node;
-
-    key.fd = fd;
-    node = avl_find (&the_server.clients_avl, &key);
-    if (node) {
-        CliAVLNode *cli_node = container_of (node, CliAVLNode, avl);
-
-        avl_delete (&the_server.clients_avl, &cli_node->avl);
-        free (cli_node);
-
+    if (sorted_array_remove (the_server.fd2clients, (void *)(intptr_t)fd)) {
         FD_CLR (fd, &the_server.rfdset);
         FD_CLR (fd, &the_server.wfdset);
         return 0;
@@ -527,10 +513,20 @@ again:
         }
     }
     else {
-        CliAVLNode *cli_node;
-        avl_for_each_element (&the_server.clients_avl, cli_node, avl) {
-            if (FD_ISSET (cli_node->fd, rsetptr)) {
-                if (cli_node->ptr == PTR_FOR_US_LISTENER) {
+        size_t i, nr_fds = sorted_array_count (the_server.fd2clients);
+        int *fds = alloca(sizeof(int) * nr_fds);
+
+        for (i = 0; i < nr_fds; i++) {
+            fds[i] = (int)(intptr_t)sorted_array_get (the_server.fd2clients, i, NULL);
+        }
+
+        for (i = 0; i < nr_fds; i++) {
+            int fd = fds[i];
+            void *cli_node;
+
+            if (FD_ISSET (fd, rsetptr)) {
+                sorted_array_find (the_server.fd2clients, (void *)(intptr_t)fd, &cli_node);
+                if (cli_node == PTR_FOR_US_LISTENER) {
                     USClient * client = us_handle_accept (the_server.us_srv);
                     if (client == NULL) {
                         ULOG_NOTE ("Refused a client\n");
@@ -541,7 +537,7 @@ again:
                         goto error;
                     }
                 }
-                else if (cli_node->ptr == PTR_FOR_WS_LISTENER) {
+                else if (cli_node == PTR_FOR_WS_LISTENER) {
                     WSClient * client = ws_handle_accept (the_server.ws_srv, the_server.ws_listener);
                     if (client == NULL) {
                         ULOG_NOTE ("Refused a client\n");
@@ -553,7 +549,7 @@ again:
                     }
                 }
                 else {
-                    USClient *usc = (USClient *)cli_node->ptr;
+                    USClient *usc = (USClient *)cli_node;
                     if (usc->ct == CT_UNIX_SOCKET) {
                         if (usc->entity) {
                             Endpoint *endpoint = container_of (usc->entity,
@@ -564,7 +560,7 @@ again:
                         us_handle_reads (the_server.us_srv, usc);
                     }
                     else if (usc->ct == CT_WEB_SOCKET) {
-                        WSClient *wsc = (WSClient *)cli_node->ptr;
+                        WSClient *wsc = (WSClient *)cli_node;
                         if (wsc->entity) {
                             Endpoint *endpoint = container_of (usc->entity,
                                     Endpoint, entity);
@@ -581,28 +577,28 @@ again:
                 }
             }
 
-            if (FD_ISSET (cli_node->fd, wsetptr)) {
-                if (cli_node->ptr == PTR_FOR_US_LISTENER ||
-                        cli_node->ptr == PTR_FOR_WS_LISTENER) {
+            if (FD_ISSET (fd, wsetptr)) {
+                if (cli_node == PTR_FOR_US_LISTENER ||
+                        cli_node == PTR_FOR_WS_LISTENER) {
                     assert (0);
                 }
                 else {
-                    USClient *usc = (USClient *)cli_node->ptr;
+                    USClient *usc = (USClient *)cli_node;
                     if (usc->ct == CT_UNIX_SOCKET) {
                         us_handle_writes (the_server.us_srv, usc);
 
                         if (!(usc->status & US_SENDING) &&
                                 !(usc->status & US_CLOSE)) {
-                            FD_CLR (cli_node->fd, &the_server.wfdset);
+                            FD_CLR (fd, &the_server.wfdset);
                         }
                     }
                     else if (usc->ct == CT_WEB_SOCKET) {
-                        WSClient *wsc = (WSClient *)cli_node->ptr;
+                        WSClient *wsc = (WSClient *)cli_node;
                         ws_handle_writes (the_server.ws_srv, wsc);
 
                         if (!(wsc->status & WS_SENDING) &&
                                 !(wsc->status & WS_CLOSE)) {
-                            FD_CLR (cli_node->fd, &the_server.wfdset);
+                            FD_CLR (fd, &the_server.wfdset);
                         }
                     }
                 }
@@ -616,18 +612,6 @@ error:
 
 #endif /* HAVE(SYS_SELECT_H) */
 
-#if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
-static int
-comp_fd (const void *k1, const void *k2, void *ptr)
-{
-    const CliAVLNode *c1 = k1;
-    const CliAVLNode *c2 = k2;
-
-    (void)ptr;
-    return c1->fd - c2->fd;
-}
-#endif
-
 static int
 comp_living_time (const void *k1, const void *k2, void *ptr)
 {
@@ -638,14 +622,29 @@ comp_living_time (const void *k1, const void *k2, void *ptr)
     return e1->t_living - e2->t_living;
 }
 
+#if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
+static int
+intcmp(const void *sortv1, const void *sortv2)
+{
+    int fd1 = (int)(intptr_t)sortv1;
+    int fd2 = (int)(intptr_t)sortv2;
+
+    return fd1 - fd2;
+}
+#endif
+
 static int
 init_server (void)
 {
 #if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
     the_server.maxfd = -1;
+    the_server.fd2clients = sorted_array_create(SAFLAG_DEFAULT, 4, NULL,
+            intcmp);
+    if (the_server.fd2clients == NULL)
+        return -1;
+
     FD_ZERO(&the_server.rfdset);
     FD_ZERO(&the_server.wfdset);
-    avl_init (&the_server.clients_avl, comp_fd, true, NULL);
 #endif
 
     the_server.nr_endpoints = 0;
@@ -665,11 +664,10 @@ deinit_server (void)
     const char* name;
     void *next, *data;
     Endpoint *endpoint, *tmp;
-    CliAVLNode *client, *cli_tmp;
 
-    avl_remove_all_elements (&the_server.clients_avl, client, avl, cli_tmp) {
-        free (client);
-    }
+#if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
+    sorted_array_destroy(the_server.fd2clients);
+#endif
 
     avl_remove_all_elements (&the_server.living_avl, endpoint, avl, tmp) {
         if (endpoint->type == ET_UNIX_SOCKET) {

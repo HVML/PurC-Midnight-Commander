@@ -177,6 +177,13 @@ static const GOptionEntry argument_main_table[] = {
      N_("<file> ...")
     },
 
+    {
+     "hvml-renderer", 'R', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_NONE,
+     &mc_global.start_hvml_rdr,
+     N_("Starts the HVML renderer"),
+     NULL
+    },
+
     G_OPTION_ENTRY_NULL
     /* *INDENT-ON* */
 };
@@ -390,6 +397,7 @@ static const GOptionEntry argument_renderer_table[] = {
 
 #undef ARGS_RENDERER_OPTIONS
 
+static gchar *mc_args__loc__renderer_string = NULL;
 static gchar *mc_args__loc__colors_string = NULL;
 static gchar *mc_args__loc__footer_string = NULL;
 static gchar *mc_args__loc__header_string = NULL;
@@ -402,6 +410,7 @@ static gchar *mc_args__loc__usage_string = NULL;
 static void
 mc_args_clean_temp_help_strings (void)
 {
+    MC_PTR_FREE (mc_args__loc__renderer_string);
     MC_PTR_FREE (mc_args__loc__colors_string);
     MC_PTR_FREE (mc_args__loc__footer_string);
     MC_PTR_FREE (mc_args__loc__header_string);
@@ -452,6 +461,16 @@ mc_args_new_color_group (void)
 
 /* --------------------------------------------------------------------------------------------- */
 
+static GOptionGroup *
+mc_args_new_renderer_group (void)
+{
+    mc_args__loc__renderer_string = g_strdup_printf (_("Options for the HVML Renderer:\n"));
+    return g_option_group_new ("renderer", mc_args__loc__renderer_string,
+                               _("Renderer options"), NULL, NULL);
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
 static gchar *
 mc_args_add_usage_info (void)
 {
@@ -488,10 +507,10 @@ mc_args_add_extended_info_to_help (void)
     mc_args__loc__footer_string = g_strdup_printf ("%s",
                                                    _
                                                    ("\n"
-                                                    "Please send any bug reports (including the output of 'mc -V')\n"
-                                                    "as tickets at www.midnight-commander.org\n"));
+                                                    "Please send any bug reports (including the output of 'purcmc -V')\n"
+                                                    "as tickets at hybridos.fmsoft.cn\n"));
     mc_args__loc__header_string =
-        g_strdup_printf (_("GNU Midnight Commander %s\n"), mc_global.mc_version);
+        g_strdup_printf (_("PurC Midnight Commander %s\n"), mc_global.mc_version);
 
     g_option_context_set_description (context, mc_args__loc__footer_string);
     g_option_context_set_summary (context, mc_args__loc__header_string);
@@ -762,6 +781,8 @@ mc_args_parse (int *argc, char ***argv, const char *translation_domain, GError *
     g_option_group_add_entries (color_group, argument_color_table);
     g_option_context_add_group (context, color_group);
     g_option_group_set_translation_domain (color_group, translation_domain);
+
+    renderer_group = mc_args_new_renderer_group ();
 
     g_option_group_add_entries (renderer_group, argument_renderer_table);
     g_option_context_add_group (context, renderer_group);

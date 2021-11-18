@@ -204,6 +204,9 @@ typedef struct
     gboolean we_are_background;
 #endif                          /* ENABLE_BACKGROUND */
 
+    /* Set if start the hvml renderer */
+    gboolean start_hvml_rdr;
+
     struct
     {
         /* Asks for confirmation before clean up of history */

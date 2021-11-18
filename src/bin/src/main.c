@@ -81,6 +81,8 @@
 
 #include "consaver/cons.saver.h"        /* cons_saver_pid */
 
+#include "renderer/renderer.h"        /* cons_saver_pid */
+
 /*** global variables ****************************************************************************/
 
 /*** file scope macro definitions ****************************************************************/
@@ -452,8 +454,17 @@ main (int argc, char *argv[])
     /* Program main loop */
     if (mc_global.midnight_shutdown)
         exit_code = EXIT_SUCCESS;
-    else
+    else {
+        if (mc_global.mc_run_mode == MC_RUN_FULL && mc_global.start_hvml_rdr) {
+            purcmc_rdr_server_init();
+        }
+
         exit_code = do_nc ()? EXIT_SUCCESS : EXIT_FAILURE;
+
+        if (mc_global.mc_run_mode == MC_RUN_FULL && mc_global.start_hvml_rdr) {
+            purcmc_rdr_server_term();
+        }
+    }
 
     disable_bracketed_paste ();
 

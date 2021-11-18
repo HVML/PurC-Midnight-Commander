@@ -23,8 +23,8 @@
 #ifndef MC_RENDERER_RENDERER_H_
 #define MC_RENDERER_RENDERER_H_
 
-int purcmc_deinit_rdr_server (void);
-int purcmc_init_rdr_server (void);
+int purcmc_rdr_server_init (void);
+int purcmc_rdr_server_term (void);
 
 #endif /* !MC_RENDERER_RENDERER_H_*/
 

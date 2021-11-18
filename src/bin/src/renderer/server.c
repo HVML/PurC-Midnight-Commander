@@ -743,7 +743,7 @@ deinit_server (void)
 }
 
 int
-purcmc_init_rdr_server (void)
+purcmc_rdr_server_init (void)
 {
     int retval;
 
@@ -781,7 +781,7 @@ error:
 }
 
 int
-purcmc_deinit_rdr_server (void)
+purcmc_rdr_server_term (void)
 {
     deinit_server ();
     return 0;

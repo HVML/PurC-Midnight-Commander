@@ -35,5 +35,5 @@ add_dependencies(purcmc purcmc_help)
 
 install(FILES ${PurcMC_MAN_FILES} DESTINATION "${DATAROOTDIR}/man/man1")
 install(DIRECTORY "${PURCMC_DOC_DIR}/hints" DESTINATION "${DATADIR}")
-install(FILES ${PurcMC_HELP_FILES} DESTINATION "${DATAROOTDIR}/help")
+install(FILES ${PurcMC_HELP_FILES} DESTINATION "${DATADIR}/help")
 

@@ -94,7 +94,11 @@ mcview_ccache_add_entry (coord_cache_t * cache, size_t pos, const coord_cache_en
     if (pos != cache->size)
         memmove (cache->cache[pos + 1], cache->cache[pos],
                  (cache->size - pos) * sizeof (*cache->cache));
+#if GLIB_CHECK_VERSION(2, 68, 0)
     cache->cache[pos] = g_memdup2 (entry, sizeof (*entry));
+#else
+    cache->cache[pos] = g_memdup (entry, sizeof (*entry));
+#endif
     cache->size++;
 }
 

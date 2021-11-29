@@ -182,6 +182,8 @@ PURCMC_CHECK_HAVE_SYMBOL(HAVE_PTHREAD_MAIN_NP pthread_main_np pthread_np.h)
 endif ()
 # Windows has signal.h but is missing symbols that are used in calls to signal.
 PURCMC_CHECK_HAVE_SYMBOL(HAVE_SIGNAL_H SIGTRAP signal.h)
+PURCMC_CHECK_HAVE_SYMBOL(MAJOR_IN_MKDEV major sys/mkdev.h)
+PURCMC_CHECK_HAVE_SYMBOL(MAJOR_IN_SYSMACROS major sys/sysmacros.h)
 
 # Check for struct members
 PURCMC_CHECK_HAVE_STRUCT(HAVE_STAT_BIRTHTIME "struct stat" st_birthtime sys/stat.h)

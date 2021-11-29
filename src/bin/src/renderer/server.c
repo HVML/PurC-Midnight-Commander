@@ -247,7 +247,7 @@ static void
 prepare_server (void)
 {
 #if HAVE(SYS_EPOLL_H)
-    struct epoll_event ev, events[MAX_EVENTS];
+    struct epoll_event ev;
 #endif
     the_server.us_listener = the_server.ws_listener = -1;
     the_server.t_start = server_get_monotoic_time ();

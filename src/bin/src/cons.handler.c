@@ -25,6 +25,7 @@
  */
 
 #include <config.h>
+#include <purcmc_features.h>
 
 #include <stdlib.h>
 #include <sys/wait.h>

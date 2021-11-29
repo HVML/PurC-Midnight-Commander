@@ -244,6 +244,13 @@
 #undef ENABLE_VFS_FISH
 #endif
 
+#if defined(MAJOR_IN_MKDEV) && !MAJOR_IN_MKDEV
+#undef MAJOR_IN_MKDEV
+#endif
+#if defined(MAJOR_IN_SYSMACROS) && !MAJOR_IN_SYSMACROS
+#undef MAJOR_IN_SYSMACROS
+#endif
+
 /* enable/disable features managed mannually */
 #define ENABLE_BACKGROUND   1
 #define ENABLE_SUBSHELL     1

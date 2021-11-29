@@ -65,7 +65,7 @@ find_path(Ncurses_INCLUDE_DIR
 )
 
 find_library(Ncurses_LIBRARY
-    NAMES ${Ncurses_NAMES} ncurses
+    NAMES ${Ncurses_NAMES} ncursesw
     HINTS ${PC_NCURSES_LIBDIR} ${PC_NCURSES_LIBRARY_DIRS}
 )
 

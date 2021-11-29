@@ -41,7 +41,7 @@
 
 #include <ctype.h>
 #ifdef HAVE_STRVERSCMP
-#include <string.h>
+int strverscmp(const char *s1, const char *s2);
 #endif /* HAVE_STRVERSCMP */
 
 #include "lib/strutil.h"

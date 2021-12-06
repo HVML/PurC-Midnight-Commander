@@ -4,7 +4,7 @@ set(MACOSX_FRAMEWORK_BUNDLE_VERSION 0.0.1)
 
 find_package(GLIB 2.44.0 REQUIRED COMPONENTS gio gio-unix gmodule)
 find_package(Ncurses 5.0 REQUIRED)
-#find_package(PurC 0.0.1)
+find_package(PurC 0.0.1 REQUIRED)
 find_package(LibXml2 2.8.0)
 
 PURCMC_OPTION_BEGIN()

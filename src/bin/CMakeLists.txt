@@ -101,6 +101,7 @@ endif ()
 
 set(purcmc_LIBRARIES
     PurcMC::PurcMC
+    PurC::PurC
     pthread
 )
 

@@ -52,7 +52,6 @@ struct run_info {
     char builtin_endpoint [PURCRDR_LEN_ENDPOINT_NAME + 1];
     char self_endpoint [PURCRDR_LEN_ENDPOINT_NAME + 1];
 
-    pcrdr_json *jo_endpoints;
     struct kvlist ret_value_list;
 
     char edit_buff [LEN_EDIT_BUFF + 1];

@@ -160,7 +160,45 @@ enum {
     PT_BINARY,
 };
 
-struct _pcrdr_msg;
+typedef enum {
+    PCRDR_MSG_TYPE_REQUEST = 0,
+    PCRDR_MSG_TYPE_RESPONSE,
+    PCRDR_MSG_TYPE_EVENT,
+} pcrdr_msg_type;
+
+typedef enum {
+    PCRDR_DATA_TYPE_VOID = 0,
+    PCRDR_DATA_TYPE_EJSON,
+    PCRDR_DATA_TYPE_TEXT,
+    PCRDR_DATA_TYPE_RESULT,
+    PCRDR_DATA_TYPE_RESULT_EXTRA,
+} pcrdr_data_type;
+
+#define PCRDR_TARGET_SESSION    "session"
+#define PCRDR_TARGET_WINDOW     "window"
+#define PCRDR_TARGET_TAB        "tab"
+#define PCRDR_TARGET_DOM        "dom"
+
+#define PCRDR_RESVAL_INITIAL    "_initial"
+#define PCRDR_RESVAL_DEFAULT    "_default"
+#define PCRDR_RESVAL_VOID       "_void"
+
+struct _pcrdr_msg {
+    pcrdr_msg_type  type;
+    pcrdr_data_type dataType;
+
+    const char*     target;
+    const char*     operation;
+    const char*     element;
+    const char*     property;
+    const char*     event;
+
+    char*           requestId;
+
+    size_t          dataLen;
+    char*           data;
+};
+
 typedef struct _pcrdr_msg pcrdr_msg;
 
 struct _pcrdr_conn;

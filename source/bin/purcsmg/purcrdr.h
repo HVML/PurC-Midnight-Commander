@@ -1,0 +1,818 @@
+/**
+ * @file purcrdr.h
+ * @author Vincent Wei (https://github.com/VincentWei)
+ * @date 2021/01/12
+ * @brief This file declares API for the simple markup generator of
+ *        a PurC Renderer.
+ *
+ * Copyright (c) 2021 FMSoft (http://www.fmsoft.cn)
+ *
+ * This file is part of PurC Midnight Commander.
+ *
+ * PurCSMG is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * PurCRDR is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/.
+ */
+
+#ifndef _PURCRDR_H_
+#define _PURCRDR_H_
+
+#include <stddef.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <ctype.h>
+#include <time.h>
+
+/* Constants */
+#define PURCRDR_PROTOCOL_NAME             "PURCRDR"
+#define PURCRDR_PROTOCOL_VERSION          100
+#define PURCRDR_MINIMAL_PROTOCOL_VERSION  100
+
+#define PURCRDR_US_PATH                   "/var/tmp/purcrdr.sock"
+#define PURCRDR_WS_PORT                   "7702"
+#define PURCRDR_WS_PORT_RESERVED          "7703"
+
+#define PURCRDR_LOCALHOST                 "localhost"
+#define PURCRDR_APP_PURCSMG               "cn.fmsoft.hybridos.purcsmg"
+#define PURCRDR_RUNNER_CMDLINE            "cmdline"
+
+#define PURCRDR_NOT_AVAILABLE             "<N/A>"
+
+/* Status Codes */
+#define PURCRDR_SC_IOERR                  1
+#define PURCRDR_SC_OK                     200
+#define PURCRDR_SC_CREATED                201
+#define PURCRDR_SC_ACCEPTED               202
+#define PURCRDR_SC_NO_CONTENT             204
+#define PURCRDR_SC_RESET_CONTENT          205
+#define PURCRDR_SC_PARTIAL_CONTENT        206
+#define PURCRDR_SC_BAD_REQUEST            400
+#define PURCRDR_SC_UNAUTHORIZED           401
+#define PURCRDR_SC_FORBIDDEN              403
+#define PURCRDR_SC_NOT_FOUND              404
+#define PURCRDR_SC_METHOD_NOT_ALLOWED     405
+#define PURCRDR_SC_NOT_ACCEPTABLE         406
+#define PURCRDR_SC_CONFLICT               409
+#define PURCRDR_SC_GONE                   410
+#define PURCRDR_SC_PRECONDITION_FAILED    412
+#define PURCRDR_SC_PACKET_TOO_LARGE       413
+#define PURCRDR_SC_EXPECTATION_FAILED     417
+#define PURCRDR_SC_IM_A_TEAPOT            418
+#define PURCRDR_SC_UNPROCESSABLE_PACKET   422
+#define PURCRDR_SC_LOCKED                 423
+#define PURCRDR_SC_FAILED_DEPENDENCY      424
+#define PURCRDR_SC_TOO_EARLY              425
+#define PURCRDR_SC_UPGRADE_REQUIRED       426
+#define PURCRDR_SC_RETRY_WITH             449
+#define PURCRDR_SC_UNAVAILABLE_FOR_LEGAL_REASONS             451
+#define PURCRDR_SC_INTERNAL_SERVER_ERROR  500
+#define PURCRDR_SC_NOT_IMPLEMENTED        501
+#define PURCRDR_SC_BAD_CALLEE             502
+#define PURCRDR_SC_SERVICE_UNAVAILABLE    503
+#define PURCRDR_SC_CALLEE_TIMEOUT         504
+#define PURCRDR_SC_INSUFFICIENT_STORAGE   507
+
+#define PURCRDR_EC_IO                     (-1)
+#define PURCRDR_EC_CLOSED                 (-2)
+#define PURCRDR_EC_NOMEM                  (-3)
+#define PURCRDR_EC_TOO_LARGE              (-4)
+#define PURCRDR_EC_PROTOCOL               (-5)
+#define PURCRDR_EC_UPPER                  (-6)
+#define PURCRDR_EC_NOT_IMPLEMENTED        (-7)
+#define PURCRDR_EC_INVALID_VALUE          (-8)
+#define PURCRDR_EC_DUPLICATED             (-9)
+#define PURCRDR_EC_TOO_SMALL_BUFF         (-10)
+#define PURCRDR_EC_BAD_SYSTEM_CALL        (-11)
+#define PURCRDR_EC_AUTH_FAILED            (-12)
+#define PURCRDR_EC_SERVER_ERROR           (-13)
+#define PURCRDR_EC_TIMEOUT                (-14)
+#define PURCRDR_EC_UNKNOWN_EVENT          (-15)
+#define PURCRDR_EC_UNKNOWN_RESULT         (-16)
+#define PURCRDR_EC_UNKNOWN_METHOD         (-17)
+#define PURCRDR_EC_UNEXPECTED             (-18)
+#define PURCRDR_EC_SERVER_REFUSED         (-19)
+#define PURCRDR_EC_BAD_PACKET             (-20)
+#define PURCRDR_EC_BAD_CONNECTION         (-21)
+#define PURCRDR_EC_CANT_LOAD              (-22)
+#define PURCRDR_EC_BAD_KEY                (-23)
+
+#define PURCRDR_LEN_HOST_NAME             127
+#define PURCRDR_LEN_APP_NAME              127
+#define PURCRDR_LEN_RUNNER_NAME           63
+#define PURCRDR_LEN_METHOD_NAME           63
+#define PURCRDR_LEN_BUBBLE_NAME           63
+#define PURCRDR_LEN_ENDPOINT_NAME         \
+    (PURCRDR_LEN_HOST_NAME + PURCRDR_LEN_APP_NAME + PURCRDR_LEN_RUNNER_NAME + 3)
+#define PURCRDR_LEN_UNIQUE_ID             63
+
+#define PURCRDR_MIN_PACKET_BUFF_SIZE      512
+#define PURCRDR_DEF_PACKET_BUFF_SIZE      1024
+#define PURCRDR_DEF_TIME_EXPECTED         5   /* 5 seconds */
+
+/* the maximal size of a payload in a frame (4KiB) */
+#define PURCRDR_MAX_FRAME_PAYLOAD_SIZE    4096
+
+/* the maximal size of a payload which will be held in memory (40KiB) */
+#define PURCRDR_MAX_INMEM_PAYLOAD_SIZE    40960
+
+/* the maximal time to ping client (60 seconds) */
+#define PURCRDR_MAX_PING_TIME             60
+
+/* the maximal no responding time (90 seconds) */
+#define PURCRDR_MAX_NO_RESPONDING_TIME    90
+
+/* Connection types */
+enum {
+    CT_UNIX_SOCKET = 1,
+    CT_WEB_SOCKET,
+};
+
+/* The frame operation codes for UnixSocket */
+typedef enum USOpcode_ {
+    US_OPCODE_CONTINUATION = 0x00,
+    US_OPCODE_TEXT = 0x01,
+    US_OPCODE_BIN = 0x02,
+    US_OPCODE_END = 0x03,
+    US_OPCODE_CLOSE = 0x08,
+    US_OPCODE_PING = 0x09,
+    US_OPCODE_PONG = 0x0A,
+} USOpcode;
+
+/* The frame header for UnixSocket */
+typedef struct USFrameHeader_ {
+    int op;
+    unsigned int fragmented;
+    unsigned int sz_payload;
+    unsigned char payload[0];
+} USFrameHeader;
+
+/* packet body types */
+enum {
+    PT_TEXT = 0,
+    PT_BINARY,
+};
+
+struct _pcrdr_msg;
+typedef struct _pcrdr_msg pcrdr_msg;
+
+struct _pcrdr_conn;
+typedef struct _pcrdr_conn pcrdr_conn;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @defgroup Helpers Helper functions
+ *  implemented in helpers.c, for both server and clients.
+ * @{
+ */
+
+/**
+ * Get the return message of a return code.
+ * 
+ * @param ret_code: the return code.
+ *
+ * Returns the pointer to the message string of the specific return code.
+ *
+ * Returns: a pointer to the message string.
+ *
+ * Since: 1.0
+ */
+const char *pcrdr_get_ret_message(int ret_code);
+
+/**
+ * Get the error message of an error code.
+ *
+ * pcrdr_get_err_message:
+ * @param err_code: the error code.
+ *
+ * Returns the pointer to the message string of the specific error code.
+ *
+ * Returns: a pointer to the message string.
+ *
+ * Since: 1.0
+ */
+const char *pcrdr_get_err_message(int err_code);
+
+/**
+ * Convert an error code to a return code.
+ *
+ * pcrdr_errcode_to_retcode:
+ * @param err_code: the internal error code of PurCRDR.
+ *
+ * Returns the return code of the PurCRDR protocol according to
+ * the internal error code.
+ *
+ * Returns: the return code of PurCRDR protocol.
+ *
+ * Since: 1.0
+ */
+int pcrdr_errcode_to_retcode(int err_code);
+
+/**
+ * Check whether a string is a valid token.
+ * 
+ * @param token: the pointer to the token string.
+ * @param max_len: The maximal possible length of the token string.
+ *
+ * Checks whether a token string is valid. According to PurCRDR protocal,
+ * the runner name, method name, bubble name should be a valid token.
+ *
+ * Note that a string with a length longer than \a max_len will
+ * be considered as an invalid token.
+ *
+ * Returns: true for a valid token, otherwise false.
+ *
+ * Since: 1.0
+ */
+bool pcrdr_is_valid_token(const char *token, int max_len);
+
+/**
+ * Generate an unique identifier.
+ *
+ * @param id_buff: the buffer to save the identifier.
+ * @param prefix: the prefix used for the identifier.
+ *
+ * Generates a unique id; the size of \a id_buff should be at least 64 long.
+ *
+ * Returns: none.
+ *
+ * Since: 1.0
+ */
+void pcrdr_generate_unique_id(char *id_buff, const char *prefix);
+
+/**
+ * Generate an unique MD5 identifier.
+ *
+ * @param id_buff: the buffer to save the identifier.
+ * @param prefix: the prefix used for the identifier.
+ *
+ * Generates a unique id by using MD5 digest algorithm.
+ * The size of \a id_buff should be at least 33 bytes long.
+ *
+ * Returns: none.
+ *
+ * Since: 1.0
+ */
+void pcrdr_generate_md5_id(char *id_buff, const char *prefix);
+
+/**
+ * Check whether a string is a valid unique identifier.
+ *
+ * @param id: the unique identifier.
+ *
+ * Checks whether a unique id is valid.
+ *
+ * Returns: none.
+ *
+ * Since: 1.0
+ */
+bool pcrdr_is_valid_unique_id(const char *id);
+
+/**
+ * Check whether a string is a valid MD5 identifier.
+ *
+ * @param id: the unique identifier.
+ *
+ * Checks whether a unique identifier is valid.
+ *
+ * Returns: none.
+ *
+ * Since: 1.0
+ */
+bool pcrdr_is_valid_md5_id(const char *id);
+
+/**
+ * Get the elapsed seconds.
+ *
+ * @param ts1: the earlier time.
+ * @param ts2 (nullable): the later time.
+ *
+ * Calculates the elapsed seconds between two times.
+ * If \a ts2 is NULL, the function uses the current time.
+ *
+ * Returns: the elapsed time in seconds (a double).
+ *
+ * Since: 1.0
+ */
+double pcrdr_get_elapsed_seconds(const struct timespec *ts1, const struct timespec *ts2);
+
+/**@}*/
+
+/**
+ * @defgroup Connection Connection functions
+ *
+ * The connection functions are implemented in libhibus.c, only for clients.
+ * @{
+ */
+
+/**
+ * Connect to the server via UnixSocket.
+ *
+ * @param path_to_socket: the path to the unix socket.
+ * @param app_name: the app name.
+ * @param runner_name: the runner name.
+ * @param conn: the pointer to a pcrdr_conn* to return the PurCRDR connection.
+ *
+ * Connects to a PurCRDR server via WebSocket.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_connect_via_unix_socket(const char *path_to_socket,
+        const char *app_name, const char *runner_name, pcrdr_conn** conn);
+
+/**
+ * Connect to the server via WebSocket.
+ *
+ * @param srv_host_name: the host name of the server.
+ * @param port: the port.
+ * @param app_name: the app name.
+ * @param runner_name: the runner name.
+ * @param conn: the pointer to a pcrdr_conn* to return the PurCRDR connection.
+ *
+ * Connects to a PurCRDR server via WebSocket.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Note that this function is not implemented so far.
+ */
+int pcrdr_connect_via_web_socket(const char *srv_host_name, int port,
+        const char *app_name, const char *runner_name, pcrdr_conn** conn);
+
+/**
+ * Disconnect to the server.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Disconnects the PurCRDR connection.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_disconnect(pcrdr_conn* conn);
+
+/**
+ * Free a connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Frees the space used by the connection, including the connection itself.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_free_connection(pcrdr_conn* conn);
+
+/**
+ * The prototype of an error handler.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param jo: the json object contains the error information.
+ *
+ * Since: 1.0
+ */
+typedef void (*pcrdr_error_handler)(pcrdr_conn* conn, const pcrdr_msg *msg);
+
+/**
+ * pcrdr_conn_get_error_handler:
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the current error handler of the PurCRDR connection.
+ *
+ * Since: 1.0
+ */
+pcrdr_error_handler pcrdr_conn_get_error_handler(pcrdr_conn* conn);
+
+/**
+ * Set the error handler of the connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param error_handler: the new error handler.
+ *
+ * Sets the error handler of the PurCRDR connection, and returns the old one.
+ *
+ * Since: 1.0
+ */
+pcrdr_error_handler pcrdr_conn_set_error_handler(pcrdr_conn* conn,
+        pcrdr_error_handler error_handler);
+
+/**
+ * Get the user data associated with the connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the current user data (a pointer) bound with the PurCRDR connection.
+ *
+ * Since: 1.0
+ */
+void *pcrdr_conn_get_user_data(pcrdr_conn* conn);
+
+/**
+ * Set the user data associated with the connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param user_data: the new user data (a pointer).
+ *
+ * Sets the user data of the PurCRDR connection, and returns the old one.
+ *
+ * Since: 1.0
+ */
+void *pcrdr_conn_set_user_data(pcrdr_conn* conn, void* user_data);
+
+/**
+ * Get the last return code from the server.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the last return code of PurCRDR result or error packet.
+ *
+ * Since: 1.0
+ */
+int pcrdr_conn_get_last_ret_code(pcrdr_conn* conn);
+
+/**
+ * Get the server host name of a connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the host name of the PurCRDR server.
+ *
+ * Since: 1.0
+ */
+const char *pcrdr_conn_srv_host_name(pcrdr_conn* conn);
+
+/**
+ * Get the own host name of a connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the host name of the current PurCRDR client.
+ *
+ * Since: 1.0
+ */
+const char *pcrdr_conn_own_host_name(pcrdr_conn* conn);
+
+/**
+ * Get the app name of a connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the app name of the current PurCRDR client.
+ *
+ * Since: 1.0
+ */
+const char *pcrdr_conn_app_name(pcrdr_conn* conn);
+
+/**
+ * Get the runner name of a connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the runner name of the current PurCRDR client.
+ *
+ * Since: 1.0
+ */
+const char *pcrdr_conn_runner_name(pcrdr_conn* conn);
+
+/**
+ * Get the file descriptor of the connection.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the file descriptor of the PurCRDR connection socket.
+ *
+ * Returns: the file descriptor.
+ *
+ * Since: 1.0
+ */
+int pcrdr_conn_socket_fd(pcrdr_conn* conn);
+
+/**
+ * Get the connnection socket type.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Returns the socket type of the PurCRDR connection.
+ *
+ * Returns: \a CT_UNIX_SOCKET for UnixSocket, and \a CT_WEB_SOCKET for WebSocket.
+ *
+ * Since: 1.0
+ */
+int pcrdr_conn_socket_type(pcrdr_conn* conn);
+
+/**
+ * Read a packet (pre-allocation version).
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param packet_buf: the pointer to a buffer for saving the contents of the packet.
+ * @param packet_len: the pointer to a unsigned integer for returning
+ *      the length of the packet.
+ *
+ * Reads a packet and saves the contents of the packet and returns
+ * the length of the packet.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Note that use this function only if you know the length of
+ * the next packet, and have a long enough buffer to save the
+ * contents of the packet.
+ *
+ * Also note that if the length of the packet is 0, there is no data in the packet.
+ * You should ignore the packet in this case.
+ *
+ * Since: 1.0
+ */
+int pcrdr_read_packet(pcrdr_conn* conn, void* packet_buf, unsigned int *packet_len);
+
+/**
+ * Read a packet (allocation version).
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param packet: the pointer to a pointer to a buffer for returning
+ *      the contents of the packet.
+ * @param packet_len: the pointer to a unsigned integer for returning
+ *      the length of the packet.
+ *
+ * Reads a packet and allocates a buffer for the contents of the packet
+ * and returns the contents and the length.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Note that the caller is responsible for releasing the buffer.
+ *
+ * Also note that if the length of the packet is 0, there is no data in the packet.
+ * You should ignore the packet in this case.
+ *
+ * Since: 1.0
+ */
+int pcrdr_read_packet_alloc(pcrdr_conn* conn, void **packet, unsigned int *packet_len);
+
+/**
+ * Send a text packet to the server.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param text: the pointer to the text to send.
+ * @param txt_len: the length to send.
+ *
+ * Sends a text packet to the PurCRDR server.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_send_text_packet(pcrdr_conn* conn, const char *text, unsigned int txt_len);
+
+/**
+ * Ping the server.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * Pings the PurCRDR server. The client should ping the server
+ * about every 30 seconds to tell the server "I am alive".
+ * According to the PurCRDR protocol, the server may consider
+ * a client died if there was no any data from the client
+ * for 90 seconds.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_ping_server(pcrdr_conn* conn);
+
+/**
+ * The prototype of a result handler.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param from_endpoint: the endpoint name of the result.
+ * @param from_method: the method name of the result.
+ * @param call_id: the call identifier.
+ * @param ret_code: the return code of the result.
+ * @param ret_value: the return value (a string) of the result.
+ *
+ * Returns: 0 for finished the handle of the result; otherwise -1.
+ *
+ * Since: 1.0
+ */
+typedef int (*pcrdr_result_handler)(pcrdr_conn* conn,
+        const char *from_endpoint, const char *from_method,
+        const char *call_id,
+        int ret_code, const char *ret_value);
+
+/**
+ * Call a procedure and handle the result in a callback handler.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param endpoint: the endpoint name of the procedure.
+ * @param method: the method of the procedure.
+ * @param method_param: the parameter of the method.
+ * @param time_expected: the expected return time in seconds.
+ * @param result_handler: the result handler.
+ * @param call_id (nullable): the buffer to store the call identifier.
+ *
+ * This function emits a call to a remote procedure and
+ * returns immediately. The result handler will be called
+ * in subsequent calls of \a pcrdr_read_and_dispatch_packet().
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_call_procedure(pcrdr_conn* conn,
+        const char *endpoint,
+        const char *method, const char *method_param,
+        int time_expected, pcrdr_result_handler result_handler,
+        const char **call_id);
+
+/**
+ * Call a procedure and wait the result.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param endpoint: the endpoint name of the procedure.
+ * @param method_name: the method of the procedure.
+ * @param method_param: the parameter of the method.
+ * @param time_expected: the expected return time in seconds.
+ * @param ret_code: the pointer to an integer to return the return code
+ *      of the result.
+ * @param ret_value: the pointer to a pointer to return the value (a string)
+ *      of the result.
+ *
+ * This function calls a remote procedure and wait for the result.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_call_procedure_and_wait(pcrdr_conn* conn, const char *endpoint,
+        const char *method_name, const char *method_param,
+        int time_expected, int *ret_code, char** ret_value);
+
+/**
+ * Read and dispatch the packet from the server.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ *
+ * This function read a PurCRDR packet and dispatches the packet to
+ * a event handler, method handler, or result handler.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_read_and_dispatch_packet(pcrdr_conn* conn);
+
+/**
+ * Wait and dispatch the packet from the server.
+ *
+ * @param conn: the pointer to the PurCRDR connection.
+ * @param timeout_ms (not nullable): the timeout value in milliseconds.
+ *
+ * This function waits for a PurCRDR packet by calling select()
+ * and dispatches the packet to event handlers, method handlers,
+ * or result handlers.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Note that if you need watching multiple file descriptors, you'd
+ * better user \a pcrdr_read_and_dispatch_packet.
+ *
+ * Since: 1.0
+ */
+int pcrdr_wait_and_dispatch_packet(pcrdr_conn* conn, int timeout_ms);
+
+/**@}*/
+
+#ifdef __cplusplus
+}
+#endif
+
+/**
+ * @addtogroup Helpers
+ *  @{
+ */
+
+/**
+ * Convert a string to uppercases in place.
+ *
+ * @param name: the pointer to a name string (not nullable).
+ *
+ * Converts a name string uppercase in place.
+ *
+ * Returns: the length of the name string.
+ *
+ * Since: 1.0
+ */
+static inline int
+pcrdr_name_toupper(char *name)
+{
+    int i = 0;
+
+    while (name [i]) {
+        name [i] = toupper(name[i]);
+        i++;
+    }
+
+    return i;
+}
+
+/**
+ * Convert a string to lowercases and copy to another buffer.
+ *
+ * @param name: the pointer to a name string (not nullable).
+ * @param buff: the buffer used to return the converted name string (not nullable).
+ * @param max_len: The maximal length of the name string to convert.
+ *
+ * Converts a name string lowercase and copies the letters to
+ * the specified buffer.
+ *
+ * Note that if \a max_len <= 0, the argument will be ignored.
+ *
+ * Returns: the total number of letters converted.
+ *
+ * Since: 1.0
+ */
+static inline int
+pcrdr_name_tolower_copy(const char *name, char *buff, int max_len)
+{
+    int n = 0;
+
+    while (*name) {
+        buff [n] = tolower(*name);
+        name++;
+        n++;
+
+        if (max_len > 0 && n == max_len)
+            break;
+    }
+
+    buff [n] = '\0';
+    return n;
+}
+
+/**
+ * Convert a string to uppercases and copy to another buffer.
+ *
+ * @param name: the pointer to a name string (not nullable).
+ * @param buff: the buffer used to return the converted name string (not nullable).
+ * @param max_len: The maximal length of the name string to convert.
+ *
+ * Converts a name string uppercase and copies the letters to
+ * the specified buffer.
+ *
+ * Note that if \a max_len <= 0, the argument will be ignored.
+ *
+ * Returns: the total number of letters converted.
+ *
+ * Since: 1.0
+ */
+static inline int
+pcrdr_name_toupper_copy(const char *name, char *buff, int max_len)
+{
+    int n = 0;
+
+    while (*name) {
+        buff [n] = toupper(*name);
+        name++;
+        n++;
+
+        if (max_len > 0 && n == max_len)
+            break;
+    }
+
+    buff [n] = '\0';
+    return n;
+}
+
+/**
+ * Get monotonic time in seconds
+ *
+ * Gets the monotoic time in seconds.
+ *
+ * Returns: the the monotoic time in seconds.
+ *
+ * Since: 1.0
+ */
+static inline time_t pcrdr_get_monotoic_time(void)
+{
+    struct timespec tp;
+
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    return tp.tv_sec;
+}
+
+/**@}*/
+
+#endif /* !_PURCRDR_H_ */
+

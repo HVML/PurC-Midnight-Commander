@@ -647,6 +647,26 @@ init_server (void)
     FD_ZERO(&the_server.wfdset);
 #endif
 
+    if (srvcfg.unixsocket == NULL) {
+        srvcfg.unixsocket = g_strdup(SERVER_US_PATH);
+    }
+
+    if (srvcfg.addr == NULL) {
+        srvcfg.addr = g_strdup(SERVER_LOCALHOST);
+    }
+
+    if (srvcfg.port == NULL) {
+        srvcfg.port = g_strdup(SERVER_WS_PORT);
+    }
+
+    if (srvcfg.max_frm_size == 0) {
+        srvcfg.max_frm_size = SERVER_MAX_FRAME_PAYLOAD_SIZE;
+    }
+
+    if (srvcfg.backlog == 0) {
+        srvcfg.backlog = SOMAXCONN;
+    }
+
     the_server.nr_endpoints = 0;
     the_server.running = true;
 
@@ -740,6 +760,21 @@ deinit_server (void)
 
     ULOG_INFO ("the_server.nr_endpoints: %d\n", the_server.nr_endpoints);
     assert (the_server.nr_endpoints == 0);
+
+    if (srvcfg.unixsocket) {
+        g_free (srvcfg.unixsocket);
+        srvcfg.unixsocket = NULL;
+    }
+
+    if (srvcfg.addr) {
+        g_free (srvcfg.addr);
+        srvcfg.addr = NULL;
+    }
+
+    if (srvcfg.port) {
+        g_free (srvcfg.port);
+        srvcfg.port = NULL;
+    }
 }
 
 int

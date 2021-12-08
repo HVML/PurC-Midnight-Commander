@@ -45,7 +45,7 @@
 #define SERVER_PROTOCOL_VERSION          100
 #define SERVER_MINIMAL_PROTOCOL_VERSION  100
 
-#define SERVER_US_PATH                   "/var/run/purc/renderer.sock"
+#define SERVER_US_PATH                   "/var/tmp/purc-mc-renderer.sock"
 #define SERVER_WS_PORT                   "7702"
 #define SERVER_WS_PORT_RESERVED          "7703"
 

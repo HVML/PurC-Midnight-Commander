@@ -35,13 +35,13 @@ It keeps almost all functions of GNU MC with the following enhancements:
 
 The source tree of PurcMC is illustrated as follow:
 
-- `src/cmake/`: The cmake modules.
-- `src/wtf/`: The simplified WTF (Web Template Framework) from WebKit.
-- `src/lib/`: The common utilities library.
-- `src/bin/`: The source files of the executable `purcmc`.
-- `src/tests/`: The unit test programs.
-- `src/misc/`: The miscellaneous and the default configuration files.
-- `src/po/`: The translation files.
+- `source/cmake/`: The cmake modules.
+- `source/wtf/`: The simplified WTF (Web Template Framework) from WebKit.
+- `source/lib/`: The common utilities library.
+- `source/bin/`: The source files of the executable `purcmc` and others.
+- `source/tests/`: The unit test programs.
+- `source/misc/`: The miscellaneous and the default configuration files.
+- `source/po/`: The translation files.
 - `docs/`: Documents.
 - `tools/`: Some tools for easy development.
 

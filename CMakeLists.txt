@@ -19,7 +19,7 @@ else ()
     message(STATUS "The CMake build type is: ${CMAKE_BUILD_TYPE}")
 endif ()
 
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/src/cmake")
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/source/cmake")
 
 # -----------------------------------------------------------------------------
 # Determine which port will be built
@@ -145,7 +145,7 @@ set(DATADIR "${CMAKE_INSTALL_PREFIX}/share/${PACKAGE}")
 set(EXTHELPERSDIR "${CMAKE_INSTALL_PREFIX}/lib/${PACKAGE}/ext.d")
 add_definitions(-DPACKAGE="${PACKAGE}")
 
-add_subdirectory(src)
+add_subdirectory(source)
 
 # -----------------------------------------------------------------------------
 # Print the features list last, for maximum visibility.

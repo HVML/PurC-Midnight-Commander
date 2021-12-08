@@ -112,3 +112,35 @@ install(TARGETS purcmc DESTINATION "${EXEC_INSTALL_DIR}/")
 install(CODE "file(CREATE_LINK \"${EXEC_INSTALL_DIR}/purcmc\" \"${EXEC_INSTALL_DIR}/purcmcdiff\" COPY_ON_ERROR SYMBOLIC)")
 install(CODE "file(CREATE_LINK \"${EXEC_INSTALL_DIR}/purcmc\" \"${EXEC_INSTALL_DIR}/purcmcview\" COPY_ON_ERROR SYMBOLIC)")
 install(CODE "file(CREATE_LINK \"${EXEC_INSTALL_DIR}/purcmc\" \"${EXEC_INSTALL_DIR}/purcmcedit\" COPY_ON_ERROR SYMBOLIC)")
+
+if (WTF_OS_LINUX)
+    PURCMC_EXECUTABLE_DECLARE(consaver)
+    list(APPEND consaver_PRIVATE_INCLUDE_DIRECTORIES
+        "${CMAKE_BINARY_DIR}"
+        "${PurcMC_DERIVED_SOURCES_DIR}"
+        "${PURCMC_LIB_DIR}"
+        "${PURCMC_BIN_DIR}"
+    )
+
+    list(APPEND consaver_SYSTEM_INCLUDE_DIRECTORIES
+        ${GLIB_INCLUDE_DIRS}
+    )
+
+    PURCMC_EXECUTABLE(consaver)
+
+    set(consaver_PLATFORM_INDEPENDENT_DIRS
+        "consaver"
+    )
+
+    APPEND_ALL_SOURCE_FILES_IN_DIRLIST(consaver_SOURCES "${consaver_PLATFORM_INDEPENDENT_DIRS}")
+
+    list(APPEND consaver_SOURCES
+    )
+
+    set(consaver_LIBRARIES
+    )
+
+    PURCMC_COMPUTE_SOURCES(consaver)
+    PURCMC_FRAMEWORK(consaver)
+endif ()
+

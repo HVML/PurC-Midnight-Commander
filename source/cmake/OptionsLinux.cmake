@@ -44,7 +44,7 @@ PURCMC_OPTION_DEFAULT_PORT_VALUE(ENABLE_XML PUBLIC ${ENABLE_XML_DEFAULT})
 # this point, and do not attempt to change any option after this point.
 PURCMC_OPTION_END()
 
-set(PurcMC_PKGCONFIG_FILE ${CMAKE_BINARY_DIR}/src/purcmc/purcmc.pc)
+set(PurcMC_PKGCONFIG_FILE ${CMAKE_BINARY_DIR}/source/bin/purcmc.pc)
 
 # CMake does not automatically add --whole-archive when building shared objects from
 # a list of convenience libraries. This can lead to missing symbols in the final output.

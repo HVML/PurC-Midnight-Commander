@@ -72,7 +72,7 @@
 #include "lib/unixcompat.h"     /* STDERR_FILENO */
 
 #define LINUX_CONS_SAVER_C
-#include "cons.saver.h"
+#include "src/consaver/cons.saver.h"
 
 /*** global variables ****************************************************************************/
 

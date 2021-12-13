@@ -37,8 +37,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include <hibox/ulog.h>
-#include <hibox/json.h>
+#include "lib/hiboxcompat.h"
 
 #include "purcmc_version.h"
 #include "purcrdr.h"
@@ -855,8 +854,6 @@ int main (int argc, char **argv)
     strcpy (the_client.app_name, PURCRDR_APP_PURCSMG);
     strcpy (the_client.runner_name, PURCRDR_RUNNER_CMDLINE);
 
-    ulog_open (-1, -1, "PurCSMG");
-
     kvlist_init (&the_client.ret_value_list, NULL);
     the_client.running = true;
     the_client.last_sigint_time = 0;
@@ -908,7 +905,7 @@ int main (int argc, char **argv)
             if (FD_ISSET (cnnfd, &rfds)) {
                 int err_code = pcrdr_read_and_dispatch_packet (conn);
                 if (err_code) {
-                    fprintf (stderr, "Failed to read and dispatch packet: %s\n",
+                    fprintf (stderr, "Failed to read and dispatch message: %s\n",
                             pcrdr_get_err_message (err_code));
                     if (err_code == PURCRDR_EC_IO)
                         break;
@@ -946,7 +943,6 @@ failed:
     if (cnnfd >= 0)
         pcrdr_disconnect (conn);
 
-    ulog_close ();
     return 0;
 }
 

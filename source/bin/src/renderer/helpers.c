@@ -26,8 +26,8 @@
 #include <assert.h>
 
 #include "lib/md5.h"
+#include "lib/hiboxcompat.h"
 
-#include "ulog.h"
 #include "server.h"
 
 /* Return Codes and Messages */

@@ -29,8 +29,8 @@
 #include "lib/kvlist.h"
 #include "lib/hook.h"
 #include "lib/global.h"
+#include "lib/hiboxcompat.h"
 
-#include "ulog.h"
 #include "server.h"
 #include "websocket.h"
 #include "unixsocket.h"

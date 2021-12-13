@@ -50,7 +50,8 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 
-#include "ulog.h"
+#include "lib/hiboxcompat.h"
+
 #include "sha1.h"
 #include "base64.h"
 #include "server.h"

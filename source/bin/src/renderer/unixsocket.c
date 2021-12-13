@@ -35,7 +35,8 @@
 #include <sys/un.h>
 #include <sys/time.h>
 
-#include "ulog.h"
+#include "lib/hiboxcompat.h"
+
 #include "server.h"
 #include "unixsocket.h"
 

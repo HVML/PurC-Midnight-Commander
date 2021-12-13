@@ -36,10 +36,9 @@
 #include <sys/un.h>
 #include <sys/time.h>
 
-#include "lib/utils.h"
-#include "lib/ulog.h"
-#include "hibox/md5.h"
-#include "hibox/kvlist.h"
+#include "lib/hiboxcompat.h"
+#include "lib/md5.h"
+#include "lib/kvlist.h"
 
 #include "purcrdr.h"
 
@@ -54,40 +53,22 @@ struct _pcrdr_conn {
     char* app_name;
     char* runner_name;
 
-    struct kvlist method_list;
-    struct kvlist bubble_list;
     struct kvlist call_list;
-    struct kvlist subscribed_list;
 
-    pcrdr_error_handler error_handler;
+    pcrdr_event_handler event_handler;
     void *user_data;
 };
 
-typedef enum  {
-    MHT_STRING  = 0,
-    MHT_CONST_STRING = 1,
-} method_handler_type;
-
-struct method_handler_info {
-    method_handler_type type;
-    void* handler;
-};
-
-static int mhi_get_len (struct kvlist *kv, const void *data)
+pcrdr_event_handler pcrdr_conn_get_event_handler (pcrdr_conn *conn)
 {
-    return sizeof (struct method_handler_info);
+    return conn->event_handler;
 }
 
-pcrdr_error_handler pcrdr_conn_get_error_handler (pcrdr_conn *conn)
+pcrdr_event_handler pcrdr_conn_set_event_handler (pcrdr_conn *conn,
+        pcrdr_event_handler event_handler)
 {
-    return conn->error_handler;
-}
-
-pcrdr_error_handler pcrdr_conn_set_error_handler (pcrdr_conn *conn,
-        pcrdr_error_handler error_handler)
-{
-    pcrdr_error_handler old = conn->error_handler;
-    conn->error_handler = error_handler;
+    pcrdr_event_handler old = conn->event_handler;
+    conn->event_handler = event_handler;
 
     return old;
 }
@@ -110,26 +91,7 @@ int pcrdr_conn_get_last_ret_code (pcrdr_conn *conn)
     return conn->last_ret_code;
 }
 
-int pcrdr_conn_endpoint_name (pcrdr_conn* conn, char *buff)
-{
-    if (conn->own_host_name && conn->app_name && conn->runner_name) {
-        return pcrdr_assemble_endpoint_name (conn->own_host_name,
-                conn->app_name, conn->runner_name, buff);
-    }
-
-    return 0;
-}
-
-char *pcrdr_conn_endpoint_name_alloc (pcrdr_conn* conn)
-{
-    if (conn->own_host_name && conn->app_name && conn->runner_name) {
-        return pcrdr_assemble_endpoint_name_alloc (conn->own_host_name,
-                conn->app_name, conn->runner_name);
-    }
-
-    return NULL;
-}
-
+#if 0
 /* return NULL for error */
 static char* read_text_payload_from_us (int fd, int* len)
 {
@@ -172,367 +134,7 @@ failed:
     free (payload);
     return NULL;
 }
-
-static int get_challenge_code (pcrdr_conn *conn, char **challenge)
-{
-    int err_code = 0;
-    char* payload;
-    int len;
-    pcrdr_json *jo = NULL, *jo_tmp;
-    const char *ch_code = NULL;
-
-    // TODO: handle WebSocket connection
-    payload = read_text_payload_from_us (conn->fd, &len);
-    if (payload == NULL) {
-        err_code = PURCRDR_EC_NOMEM;
-        goto failed;
-    }
-
-    jo = pcrdr_json_object_from_string (payload, len, 2);
-    if (jo == NULL) {
-        err_code = PURCRDR_EC_BAD_PACKET;
-        goto failed;
-    }
-
-    free (payload);
-    payload = NULL;
-
-    if (json_object_object_get_ex (jo, "packetType", &jo_tmp)) {
-        const char *pack_type;
-        pack_type = json_object_get_string (jo_tmp);
-
-        if (strcasecmp (pack_type, "error") == 0) {
-            const char* prot_name = PURCRDR_NOT_AVAILABLE;
-            int prot_ver = 0, ret_code = 0;
-            const char *ret_msg = PURCRDR_NOT_AVAILABLE, *extra_msg = PURCRDR_NOT_AVAILABLE;
-
-            ULOG_WARN ("Refued by server:\n");
-            if (json_object_object_get_ex (jo, "protocolName", &jo_tmp)) {
-                prot_name = json_object_get_string (jo_tmp);
-            }
-
-            if (json_object_object_get_ex (jo, "protocolVersion", &jo_tmp)) {
-                prot_ver = json_object_get_int (jo_tmp);
-            }
-            ULOG_WARN ("  Protocol: %s/%d\n", prot_name, prot_ver);
-
-            if (json_object_object_get_ex (jo, "retCode", &jo_tmp)) {
-                ret_code = json_object_get_int (jo_tmp);
-            }
-            if (json_object_object_get_ex (jo, "retMsg", &jo_tmp)) {
-                ret_msg = json_object_get_string (jo_tmp);
-            }
-            if (json_object_object_get_ex (jo, "extraMsg", &jo_tmp)) {
-                extra_msg = json_object_get_string (jo_tmp);
-            }
-            ULOG_WARN ("  Error Info: %d (%s): %s\n", ret_code, ret_msg, extra_msg);
-
-            err_code = PURCRDR_EC_SERVER_REFUSED;
-            goto failed;
-        }
-        else if (strcasecmp (pack_type, "auth") == 0) {
-            const char *prot_name = PURCRDR_NOT_AVAILABLE;
-            int prot_ver = 0;
-
-            if (json_object_object_get_ex (jo, "challengeCode", &jo_tmp)) {
-                ch_code = json_object_get_string (jo_tmp);
-            }
-
-            if (json_object_object_get_ex (jo, "protocolName", &jo_tmp)) {
-                prot_name = json_object_get_string (jo_tmp);
-            }
-            if (json_object_object_get_ex (jo, "protocolVersion", &jo_tmp)) {
-                prot_ver = json_object_get_int (jo_tmp);
-            }
-
-            if (ch_code == NULL) {
-                ULOG_WARN ("Null challenge code\n");
-                err_code = PURCRDR_EC_BAD_PACKET;
-                goto failed;
-            }
-            else if (strcasecmp (prot_name, PURCRDR_PROTOCOL_NAME) ||
-                    prot_ver < PURCRDR_PROTOCOL_VERSION) {
-                ULOG_WARN ("Protocol not matched: %s/%d\n", prot_name, prot_ver);
-                err_code = PURCRDR_EC_PROTOCOL;
-                goto failed;
-            }
-        }
-    }
-    else {
-        ULOG_WARN ("No packetType field\n");
-        err_code = PURCRDR_EC_BAD_PACKET;
-        goto failed;
-    }
-
-    assert (ch_code);
-    *challenge = strdup (ch_code);
-    if (*challenge == NULL)
-        err_code = PURCRDR_EC_NOMEM;
-
-failed:
-    if (jo)
-        json_object_put (jo);
-    if (payload)
-        free (payload);
-
-    return err_code;
-}
-
-static int send_auth_info (pcrdr_conn *conn, const char* ch_code)
-{
-    int err_code = 0, n;
-    unsigned char* sig;
-    unsigned int sig_len;
-    char* enc_sig = NULL;
-    unsigned int enc_sig_len;
-    char buff [PURCRDR_DEF_PACKET_BUFF_SIZE];
-
-    err_code = pcrdr_sign_data (conn->app_name,
-            (const unsigned char *)ch_code, strlen (ch_code),
-            &sig, &sig_len);
-    if (err_code) {
-        return err_code;
-    }
-
-    enc_sig_len = B64_ENCODE_LEN (sig_len);
-    enc_sig = malloc (enc_sig_len);
-    if (enc_sig == NULL) {
-        err_code = PURCRDR_EC_NOMEM;
-        goto failed;
-    }
-
-    // When encode the signature in base64 or exadecimal notation,
-    // there will be no any '"' and '\' charecters.
-    b64_encode (sig, sig_len, enc_sig, enc_sig_len);
-
-    free (sig);
-    sig = NULL;
-
-    n = snprintf (buff, sizeof (buff), 
-            "{"
-            "\"packetType\":\"auth\","
-            "\"protocolName\":\"%s\","
-            "\"protocolVersion\":%d,"
-            "\"hostName\":\"%s\","
-            "\"appName\":\"%s\","
-            "\"runnerName\":\"%s\","
-            "\"signature\":\"%s\","
-            "\"encodedIn\":\"base64\""
-            "}",
-            PURCRDR_PROTOCOL_NAME, PURCRDR_PROTOCOL_VERSION,
-            conn->own_host_name, conn->app_name, conn->runner_name, enc_sig);
-
-    if (n < 0) {
-        err_code = PURCRDR_EC_UNEXPECTED;
-        goto failed;
-    }
-    else if ((size_t)n >= sizeof (buff)) {
-        ULOG_ERR ("Too small buffer for signature (%s) in send_auth_info.\n", enc_sig);
-        err_code = PURCRDR_EC_TOO_SMALL_BUFF;
-        goto failed;
-    }
-
-    if (pcrdr_send_text_packet (conn, buff, n)) {
-        ULOG_ERR ("Failed to send text packet to PurCRDR server in send_auth_info.\n");
-        err_code = PURCRDR_EC_IO;
-        goto failed;
-    }
-
-    free (enc_sig);
-    return 0;
-
-failed:
-    if (sig)
-        free (sig);
-    if (enc_sig)
-        free (enc_sig);
-    return err_code;
-}
-
-static void on_lost_event_generator (pcrdr_conn* conn,
-        const char* from_endpoint, const char* from_bubble,
-        const char* bubble_data)
-{
-    pcrdr_json *jo = NULL, *jo_tmp;
-    const char *endpoint_name = NULL;
-    const char* event_name;
-    void *next, *data;
-
-    jo = pcrdr_json_object_from_string (bubble_data, strlen (bubble_data), 2);
-    if (jo == NULL) {
-        ULOG_ERR ("Failed to parse bubble data for bubble `LOSTEVENTGENERATOR`\n");
-        return;
-    }
-
-    if (json_object_object_get_ex (jo, "endpointName", &jo_tmp) &&
-            (endpoint_name = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        ULOG_ERR ("Fatal error: no endpointName field in the packet!\n");
-        return;
-    }
-
-    kvlist_for_each_safe (&conn->subscribed_list, event_name, next, data) {
-        const char* end_of_endpoint = strrchr (event_name, '/');
-
-        if (strncasecmp (event_name, endpoint_name, end_of_endpoint - event_name) == 0) {
-            ULOG_INFO ("Matched an event (%s) in subscribed events for %s\n",
-                    event_name, endpoint_name);
-
-            kvlist_delete (&conn->subscribed_list, event_name);
-        }
-    }
-}
-
-static void on_lost_event_bubble (pcrdr_conn* conn,
-        const char* from_endpoint, const char* from_bubble,
-        const char* bubble_data)
-{
-    int n;
-    pcrdr_json *jo = NULL, *jo_tmp;
-    const char *endpoint_name = NULL;
-    const char *bubble_name = NULL;
-    char event_name [PURCRDR_LEN_ENDPOINT_NAME + PURCRDR_LEN_BUBBLE_NAME + 2];
-
-    jo = pcrdr_json_object_from_string (bubble_data, strlen (bubble_data), 2);
-    if (jo == NULL) {
-        ULOG_ERR ("Failed to parse bubble data for bubble `LOSTEVENTBUBBLE`\n");
-        return;
-    }
-
-    if (json_object_object_get_ex (jo, "endpointName", &jo_tmp) &&
-            (endpoint_name = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        ULOG_ERR ("Fatal error: no endpointName in the packet!\n");
-        return;
-    }
-
-    if (json_object_object_get_ex (jo, "bubbleName", &jo_tmp) &&
-            (bubble_name = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        ULOG_ERR ("Fatal error: no bubbleName in the packet!\n");
-        return;
-    }
-
-    n = pcrdr_name_tolower_copy (endpoint_name, event_name, PURCRDR_LEN_ENDPOINT_NAME);
-    event_name [n++] = '/';
-    event_name [n] = '\0';
-    pcrdr_name_toupper_copy (bubble_name, event_name + n, PURCRDR_LEN_BUBBLE_NAME);
-    if (!kvlist_get (&conn->subscribed_list, event_name))
-        return;
-
-    kvlist_delete (&conn->subscribed_list, event_name);
-}
-
-/* add systen event handlers here */
-static int on_auth_passed (pcrdr_conn* conn, const pcrdr_json *jo)
-{
-    int n;
-    pcrdr_json *jo_tmp;
-    char event_name [PURCRDR_LEN_ENDPOINT_NAME + PURCRDR_LEN_BUBBLE_NAME + 2];
-    const char* srv_host_name;
-    const char* own_host_name;
-    pcrdr_event_handler event_handler;
-
-    if (json_object_object_get_ex (jo, "serverHostName", &jo_tmp) &&
-            (srv_host_name = json_object_get_string (jo_tmp))) {
-        if (conn->srv_host_name)
-            free (conn->srv_host_name);
-
-        conn->srv_host_name = strdup (srv_host_name);
-    }
-    else {
-        ULOG_ERR ("Fatal error: no serverHostName in authPassed packet!\n");
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    if (json_object_object_get_ex (jo, "reassignedHostName", &jo_tmp) &&
-            (own_host_name = json_object_get_string (jo_tmp))) {
-        if (conn->own_host_name)
-            free (conn->own_host_name);
-
-        conn->own_host_name = strdup (own_host_name);
-    }
-    else {
-        ULOG_ERR ("Fatal error: no reassignedHostName in authPassed packet!\n");
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    n = pcrdr_assemble_endpoint_name (srv_host_name,
-            PURCRDR_APP_HIBUS, PURCRDR_RUNNER_BUILITIN, event_name);
-    event_name [n++] = '/';
-    event_name [n] = '\0';
-    strcat (event_name, "LOSTEVENTGENERATOR");
-
-    event_handler = on_lost_event_generator;
-    if (!kvlist_set (&conn->subscribed_list, event_name, &event_handler)) {
-        ULOG_ERR ("Failed to register callback for system event `LOSTEVENTGENERATOR`!\n");
-        return PURCRDR_EC_UNEXPECTED;
-    }
-
-    n = pcrdr_assemble_endpoint_name (srv_host_name,
-            PURCRDR_APP_HIBUS, PURCRDR_RUNNER_BUILITIN, event_name);
-    event_name [n++] = '/';
-    event_name [n] = '\0';
-    strcat (event_name, "LOSTEVENTBUBBLE");
-
-    event_handler = on_lost_event_bubble;
-    if (!kvlist_set (&conn->subscribed_list, event_name, &event_handler)) {
-        ULOG_ERR ("Failed to register callback for system event `LOSTEVENTBUBBLE`!\n");
-        return PURCRDR_EC_UNEXPECTED;
-    }
-
-    return 0;
-}
-
-static int check_auth_result (pcrdr_conn* conn)
-{
-    void *packet;
-    unsigned int data_len;
-    pcrdr_json *jo;
-    int retval, err_code;
-
-    err_code = pcrdr_read_packet_alloc (conn, &packet, &data_len);
-    if (err_code) {
-        ULOG_ERR ("Failed to read packet\n");
-        return err_code;
-    }
-
-    if (data_len == 0) {
-        ULOG_ERR ("Unexpected\n");
-        return PURCRDR_EC_UNEXPECTED;
-    }
-
-    retval = pcrdr_json_packet_to_object (packet, data_len, &jo);
-    free (packet);
-
-    if (retval < 0) {
-        ULOG_ERR ("Failed to parse JSON packet\n");
-        err_code = PURCRDR_EC_BAD_PACKET;
-    }
-    else if (retval == JPT_AUTH_PASSED) {
-        ULOG_WARN ("Passed the authentication\n");
-        err_code = on_auth_passed (conn, jo);
-        ULOG_ERR ("return value of on_auth_passed: %d\n", retval);
-    }
-    else if (retval == JPT_AUTH_FAILED) {
-        ULOG_WARN ("Failed the authentication\n");
-        err_code = PURCRDR_EC_AUTH_FAILED;
-    }
-    else if (retval == JPT_ERROR) {
-        ULOG_WARN ("Got an error\n");
-        err_code = PURCRDR_EC_SERVER_REFUSED;
-    }
-    else {
-        ULOG_WARN ("Got an unexpected packet: %d\n", retval);
-        err_code = PURCRDR_EC_UNEXPECTED;
-    }
-
-    json_object_put (jo);
-    return err_code;
-}
+#endif
 
 #define CLI_PATH    "/var/tmp/"
 #define CLI_PERM    S_IRWXU
@@ -609,11 +211,9 @@ int pcrdr_connect_via_unix_socket (const char* path_to_socket,
     (*conn)->app_name = strdup (app_name);
     (*conn)->runner_name = strdup (runner_name);
 
-    kvlist_init (&(*conn)->method_list, mhi_get_len);
-    kvlist_init (&(*conn)->bubble_list, NULL);
     kvlist_init (&(*conn)->call_list, NULL);
-    kvlist_init (&(*conn)->subscribed_list, NULL);
 
+#if 0
     /* try to read challenge code */
     if ((err_code = get_challenge_code (*conn, &ch_code)))
         goto error;
@@ -628,6 +228,7 @@ int pcrdr_connect_via_unix_socket (const char* path_to_socket,
     if ((err_code = check_auth_result (*conn))) {
         goto error;
     }
+#endif
 
     return fd;
 
@@ -713,10 +314,7 @@ int pcrdr_free_connection (pcrdr_conn* conn)
     free (conn->runner_name);
     close (conn->fd);
 
-    kvlist_free (&conn->method_list);
-    kvlist_free (&conn->bubble_list);
     kvlist_free (&conn->call_list);
-    kvlist_free (&conn->subscribed_list);
 
     free (conn);
 
@@ -751,7 +349,7 @@ int pcrdr_disconnect (pcrdr_conn* conn)
     return err_code;
 }
 
-int pcrdr_read_packet (pcrdr_conn* conn, void* packet_buf, unsigned int *packet_len)
+int pcrdr_read_packet (pcrdr_conn* conn, char* packet_buf, size_t *sz_packet)
 {
     unsigned int offset;
     int err_code = 0;
@@ -767,7 +365,7 @@ int pcrdr_read_packet (pcrdr_conn* conn, void* packet_buf, unsigned int *packet_
 
         if (header.op == US_OPCODE_PONG) {
             // TODO
-            *packet_len = 0;
+            *sz_packet = 0;
             return 0;
         }
         else if (header.op == US_OPCODE_PING) {
@@ -777,7 +375,7 @@ int pcrdr_read_packet (pcrdr_conn* conn, void* packet_buf, unsigned int *packet_
                 err_code = PURCRDR_EC_IO;
                 goto done;
             }
-            *packet_len = 0;
+            *sz_packet = 0;
             return 0;
         }
         else if (header.op == US_OPCODE_CLOSE) {
@@ -844,10 +442,10 @@ int pcrdr_read_packet (pcrdr_conn* conn, void* packet_buf, unsigned int *packet_
 
             if (is_text) {
                 ((char *)packet_buf) [offset] = '\0';
-                *packet_len = offset + 1;
+                *sz_packet = offset + 1;
             }
             else {
-                *packet_len = offset;
+                *sz_packet = offset;
             }
         }
         else {
@@ -873,9 +471,9 @@ static inline void my_log (const char* str)
     n = n & n;
 }
 
-int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, unsigned int *packet_len)
+int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, size_t *sz_packet)
 {
-    void* packet_buf = NULL;
+    char* packet_buf = NULL;
     int err_code = 0;
 
     if (conn->type == CT_UNIX_SOCKET) {
@@ -890,7 +488,7 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, unsigned int *pack
         if (header.op == US_OPCODE_PONG) {
             // TODO
             *packet = NULL;
-            *packet_len = 0;
+            *sz_packet = 0;
             return 0;
         }
         else if (header.op == US_OPCODE_PING) {
@@ -902,7 +500,7 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, unsigned int *pack
             }
 
             *packet = NULL;
-            *packet_len = 0;
+            *sz_packet = 0;
             return 0;
         }
         else if (header.op == US_OPCODE_CLOSE) {
@@ -979,10 +577,10 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, unsigned int *pack
 
             if (is_text) {
                 ((char *)packet_buf) [offset] = '\0';
-                *packet_len = offset + 1;
+                *sz_packet = offset + 1;
             }
             else {
-                *packet_len = offset;
+                *sz_packet = offset;
             }
 
             goto done;
@@ -1016,7 +614,7 @@ done:
     return 0;
 }
 
-int pcrdr_send_text_packet (pcrdr_conn* conn, const char* text, unsigned int len)
+int pcrdr_send_text_packet (pcrdr_conn* conn, const char* text, size_t len)
 {
     int retv = 0;
 
@@ -1024,7 +622,7 @@ int pcrdr_send_text_packet (pcrdr_conn* conn, const char* text, unsigned int len
         USFrameHeader header;
 
         if (len > PURCRDR_MAX_FRAME_PAYLOAD_SIZE) {
-            unsigned int left = len;
+            size_t left = len;
 
             do {
                 if (left == len) {
@@ -1097,6 +695,7 @@ int pcrdr_ping_server (pcrdr_conn* conn)
     return err_code;
 }
 
+#if 0
 static int wait_for_specific_call_result_packet (pcrdr_conn* conn, 
         const char* call_id, int time_expected, int *ret_code, char** ret_value);
 
@@ -1147,355 +746,6 @@ int pcrdr_call_procedure_and_wait (pcrdr_conn* conn, const char* endpoint,
 
     return wait_for_specific_call_result_packet (conn,
             call_id, time_expected, ret_code, ret_value);
-}
-
-static int my_register_procedure (pcrdr_conn* conn, const char* method_name,
-        const char* for_host, const char* for_app,
-        const struct method_handler_info* mhi)
-{
-    int n, err_code, ret_code;
-    char endpoint_name [PURCRDR_LEN_ENDPOINT_NAME + 1];
-    char normalized_method [PURCRDR_LEN_METHOD_NAME + 1];
-    char param_buff [PURCRDR_MIN_PACKET_BUFF_SIZE];
-    char* ret_value;
-
-    if (!pcrdr_is_valid_method_name (method_name))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    if (for_host == NULL) for_host = "*";
-    if (!pcrdr_is_valid_wildcard_pattern_list (for_host)) {
-        return PURCRDR_EC_INVALID_VALUE;
-    }
-
-    if (for_app == NULL) for_app = "*";
-    if (!pcrdr_is_valid_wildcard_pattern_list (for_app)) {
-        return PURCRDR_EC_INVALID_VALUE;
-    }
-    pcrdr_name_tolower_copy (method_name, normalized_method, PURCRDR_LEN_METHOD_NAME);
-
-    if (kvlist_get (&conn->method_list, normalized_method))
-        return PURCRDR_EC_DUPLICATED;
-
-    n = snprintf (param_buff, sizeof (param_buff), 
-            "{"
-            "\"methodName\": \"%s\","
-            "\"forHost\": \"%s\","
-            "\"forApp\": \"%s\""
-            "}",
-            normalized_method,
-            for_host, for_app);
-
-    if (n < 0) {
-        return PURCRDR_EC_UNEXPECTED;
-    }
-    else if ((size_t)n >= sizeof (param_buff))
-        return PURCRDR_EC_TOO_SMALL_BUFF;
-
-    pcrdr_assemble_endpoint_name (conn->srv_host_name,
-            PURCRDR_APP_HIBUS, PURCRDR_RUNNER_BUILITIN, endpoint_name);
-
-    if ((err_code = pcrdr_call_procedure_and_wait (conn, endpoint_name,
-                    "registerProcedure", param_buff,
-                    PURCRDR_DEF_TIME_EXPECTED, &ret_code, &ret_value))) {
-        return err_code;
-    }
-
-    if (ret_code == PURCRDR_SC_OK) {
-        kvlist_set (&conn->method_list, normalized_method, mhi);
-        if (ret_value)
-            free (ret_value);
-    }
-
-    return 0;
-}
-
-int pcrdr_register_procedure (pcrdr_conn* conn, const char* method_name,
-        const char* for_host, const char* for_app,
-        pcrdr_method_handler method_handler)
-{
-    struct method_handler_info mhi = { MHT_STRING, method_handler };
-
-    return my_register_procedure (conn, method_name, for_host, for_app, &mhi);
-}
-
-int pcrdr_register_procedure_const (pcrdr_conn* conn, const char* method_name,
-        const char* for_host, const char* for_app,
-        pcrdr_method_handler_const method_handler)
-{
-    struct method_handler_info mhi = { MHT_CONST_STRING, method_handler };
-
-    return my_register_procedure (conn, method_name, for_host, for_app, &mhi);
-}
-
-
-int pcrdr_revoke_procedure (pcrdr_conn* conn, const char* method_name)
-{
-    int n, err_code, ret_code;
-    char endpoint_name [PURCRDR_LEN_ENDPOINT_NAME + 1];
-    char normalized_method [PURCRDR_LEN_METHOD_NAME + 1];
-    char param_buff [PURCRDR_MIN_PACKET_BUFF_SIZE];
-    char* ret_value;
-
-    if (!pcrdr_is_valid_method_name (method_name))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    pcrdr_name_tolower_copy (method_name, normalized_method, PURCRDR_LEN_METHOD_NAME);
-
-    if (!kvlist_get (&conn->method_list, normalized_method))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    n = snprintf (param_buff, sizeof (param_buff), 
-            "{"
-            "\"methodName\": \"%s\""
-            "}",
-            normalized_method);
-
-    if (n < 0) {
-        return PURCRDR_EC_UNEXPECTED;
-    }
-    else if ((size_t)n >= sizeof (param_buff))
-        return PURCRDR_EC_TOO_SMALL_BUFF;
-
-    pcrdr_assemble_endpoint_name (conn->srv_host_name,
-            PURCRDR_APP_HIBUS, PURCRDR_RUNNER_BUILITIN, endpoint_name);
-
-    if ((err_code = pcrdr_call_procedure_and_wait (conn, endpoint_name,
-                    "revokeProcedure", param_buff,
-                    PURCRDR_DEF_TIME_EXPECTED, &ret_code, &ret_value))) {
-        return err_code;
-    }
-
-    if (ret_code == PURCRDR_SC_OK) {
-        kvlist_delete (&conn->method_list, normalized_method);
-
-        if (ret_value)
-            free (ret_value);
-    }
-
-    return 0;
-}
-
-int pcrdr_register_event (pcrdr_conn* conn, const char* bubble_name,
-        const char* for_host, const char* for_app)
-{
-    int n, err_code, ret_code;
-    char endpoint_name [PURCRDR_LEN_ENDPOINT_NAME + 1];
-    char normalized_bubble [PURCRDR_LEN_BUBBLE_NAME + 1];
-    char param_buff [PURCRDR_MIN_PACKET_BUFF_SIZE];
-    char* ret_value;
-
-    if (!pcrdr_is_valid_bubble_name (bubble_name))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    if (for_host == NULL) for_host = "*";
-    if (!pcrdr_is_valid_wildcard_pattern_list (for_host)) {
-        return PURCRDR_EC_INVALID_VALUE;
-    }
-
-    if (for_app == NULL) for_app = "*";
-    if (!pcrdr_is_valid_wildcard_pattern_list (for_app)) {
-        return PURCRDR_EC_INVALID_VALUE;
-    }
-
-    pcrdr_name_toupper_copy (bubble_name, normalized_bubble, PURCRDR_LEN_BUBBLE_NAME);
-    if (kvlist_get (&conn->bubble_list, normalized_bubble))
-        return PURCRDR_EC_DUPLICATED;
-
-    n = snprintf (param_buff, sizeof (param_buff), 
-            "{"
-            "\"bubbleName\": \"%s\","
-            "\"forHost\": \"%s\","
-            "\"forApp\": \"%s\""
-            "}",
-            normalized_bubble,
-            for_host, for_app);
-
-    if (n < 0) {
-        return PURCRDR_EC_UNEXPECTED;
-    }
-    else if ((size_t)n >= sizeof (param_buff))
-        return PURCRDR_EC_TOO_SMALL_BUFF;
-
-    pcrdr_assemble_endpoint_name (conn->srv_host_name,
-            PURCRDR_APP_HIBUS, PURCRDR_RUNNER_BUILITIN, endpoint_name);
-
-    if ((err_code = pcrdr_call_procedure_and_wait (conn, endpoint_name,
-                    "registerEvent", param_buff,
-                    PURCRDR_DEF_TIME_EXPECTED, &ret_code, &ret_value))) {
-        return err_code;
-    }
-
-    if (ret_code == PURCRDR_SC_OK) {
-        kvlist_set (&conn->bubble_list, normalized_bubble, pcrdr_register_event);
-
-        if (ret_value)
-            free (ret_value);
-    }
-    else {
-        err_code = PURCRDR_EC_SERVER_ERROR;
-    }
-
-    return err_code;
-}
-
-int pcrdr_revoke_event (pcrdr_conn* conn, const char* bubble_name)
-{
-    int n, err_code, ret_code;
-    char endpoint_name [PURCRDR_LEN_ENDPOINT_NAME + 1];
-    char normalized_bubble [PURCRDR_LEN_BUBBLE_NAME + 1];
-    char param_buff [PURCRDR_MIN_PACKET_BUFF_SIZE];
-    char* ret_value;
-
-    if (!pcrdr_is_valid_bubble_name (bubble_name))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    pcrdr_name_toupper_copy (bubble_name, normalized_bubble, PURCRDR_LEN_BUBBLE_NAME);
-    if (!kvlist_get (&conn->bubble_list, normalized_bubble))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    n = snprintf (param_buff, sizeof (param_buff), 
-            "{"
-            "\"bubbleName\": \"%s\""
-            "}",
-            normalized_bubble);
-
-    if (n < 0) {
-        return PURCRDR_EC_UNEXPECTED;
-    }
-    else if ((size_t)n >= sizeof (param_buff))
-        return PURCRDR_EC_TOO_SMALL_BUFF;
-
-    pcrdr_assemble_endpoint_name (conn->srv_host_name,
-            PURCRDR_APP_HIBUS, PURCRDR_RUNNER_BUILITIN, endpoint_name);
-
-    if ((err_code = pcrdr_call_procedure_and_wait (conn, endpoint_name,
-                    "revokeEvent", param_buff,
-                    PURCRDR_DEF_TIME_EXPECTED, &ret_code, &ret_value))) {
-        return err_code;
-    }
-
-    if (ret_code == PURCRDR_SC_OK) {
-        kvlist_delete (&conn->bubble_list, normalized_bubble);
-
-        if (ret_value)
-            free (ret_value);
-    }
-    else {
-        err_code = PURCRDR_EC_SERVER_ERROR;
-    }
-
-    return 0;
-}
-
-int pcrdr_subscribe_event (pcrdr_conn* conn,
-        const char* endpoint, const char* bubble_name,
-        pcrdr_event_handler event_handler)
-{
-    int n, err_code, ret_code;
-    char builtin_name [PURCRDR_LEN_ENDPOINT_NAME + 1];
-    char param_buff [PURCRDR_MIN_PACKET_BUFF_SIZE];
-    char event_name [PURCRDR_LEN_ENDPOINT_NAME + PURCRDR_LEN_BUBBLE_NAME + 2];
-    char* ret_value;
-
-    if (!pcrdr_is_valid_endpoint_name (endpoint))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    if (!pcrdr_is_valid_bubble_name (bubble_name))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    n = pcrdr_name_tolower_copy (endpoint, event_name, PURCRDR_LEN_ENDPOINT_NAME);
-    event_name [n++] = '/';
-    event_name [n] = '\0';
-    pcrdr_name_toupper_copy (bubble_name, event_name + n, PURCRDR_LEN_BUBBLE_NAME);
-    if (kvlist_get (&conn->subscribed_list, event_name))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    n = snprintf (param_buff, sizeof (param_buff), 
-            "{"
-            "\"endpointName\": \"%s\","
-            "\"bubbleName\": \"%s\""
-            "}",
-            endpoint,
-            bubble_name);
-
-    if (n < 0) {
-        return PURCRDR_EC_UNEXPECTED;
-    }
-    else if ((size_t)n >= sizeof (param_buff))
-        return PURCRDR_EC_TOO_SMALL_BUFF;
-
-    pcrdr_assemble_endpoint_name (conn->srv_host_name,
-            PURCRDR_APP_HIBUS, PURCRDR_RUNNER_BUILITIN, builtin_name);
-
-    if ((err_code = pcrdr_call_procedure_and_wait (conn, builtin_name,
-                    "subscribeEvent", param_buff,
-                    PURCRDR_DEF_TIME_EXPECTED, &ret_code, &ret_value))) {
-        return err_code;
-    }
-
-    if (ret_code == PURCRDR_SC_OK) {
-        kvlist_set (&conn->subscribed_list, event_name, &event_handler);
-
-        if (ret_value)
-            free (ret_value);
-    }
-
-    return 0;
-}
-
-int pcrdr_unsubscribe_event (pcrdr_conn* conn,
-        const char* endpoint, const char* bubble_name)
-{
-    int n, err_code, ret_code;
-    char builtin_name [PURCRDR_LEN_ENDPOINT_NAME + 1];
-    char param_buff [PURCRDR_MIN_PACKET_BUFF_SIZE];
-    char event_name [PURCRDR_LEN_ENDPOINT_NAME + PURCRDR_LEN_BUBBLE_NAME + 2];
-    char* ret_value;
-
-    if (!pcrdr_is_valid_endpoint_name (endpoint))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    if (!pcrdr_is_valid_bubble_name (bubble_name))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    n = pcrdr_name_tolower_copy (endpoint, event_name, PURCRDR_LEN_ENDPOINT_NAME);
-    event_name [n++] = '/';
-    event_name [n] = '\0';
-    pcrdr_name_toupper_copy (bubble_name, event_name + n, PURCRDR_LEN_BUBBLE_NAME);
-    if (!kvlist_get (&conn->subscribed_list, event_name))
-        return PURCRDR_EC_INVALID_VALUE;
-
-    n = snprintf (param_buff, sizeof (param_buff), 
-            "{"
-            "\"endpointName\": \"%s\","
-            "\"bubbleName\": \"%s\""
-            "}",
-            endpoint,
-            bubble_name);
-
-    if (n < 0) {
-        return PURCRDR_EC_UNEXPECTED;
-    }
-    else if ((size_t)n >= sizeof (param_buff))
-        return PURCRDR_EC_TOO_SMALL_BUFF;
-
-    pcrdr_assemble_endpoint_name (conn->srv_host_name,
-            PURCRDR_APP_HIBUS, PURCRDR_RUNNER_BUILITIN, builtin_name);
-
-    if ((err_code = pcrdr_call_procedure_and_wait (conn, builtin_name,
-                    "unsubscribeEvent", param_buff,
-                    PURCRDR_DEF_TIME_EXPECTED, &ret_code, &ret_value))) {
-        return err_code;
-    }
-
-    if (ret_code == PURCRDR_SC_OK) {
-        kvlist_delete (&conn->subscribed_list, event_name);
-
-        if (ret_value)
-            free (ret_value);
-    }
-
-    return 0;
 }
 
 int pcrdr_call_procedure (pcrdr_conn* conn,
@@ -1559,361 +809,6 @@ int pcrdr_call_procedure (pcrdr_conn* conn,
     return retv;
 }
 
-int pcrdr_fire_event (pcrdr_conn* conn,
-        const char* bubble_name, const char* bubble_data)
-{
-    int n;
-    char normalized_bubble [PURCRDR_LEN_BUBBLE_NAME + 1];
-    char event_id [PURCRDR_LEN_UNIQUE_ID + 1];
-
-    char buff_in_stack [PURCRDR_DEF_PACKET_BUFF_SIZE];
-    char* packet_buff = buff_in_stack;
-    size_t len_data = bubble_data ? (strlen (bubble_data) * 2 + 1) : 0;
-    size_t sz_packet_buff = sizeof (buff_in_stack);
-    char* escaped_data;
-    int err_code = 0;
-
-    if (!pcrdr_is_valid_bubble_name (bubble_name)) {
-        err_code = PURCRDR_EC_INVALID_VALUE;
-        return PURCRDR_EC_INVALID_VALUE;
-    }
-
-    pcrdr_name_toupper_copy (bubble_name, normalized_bubble, PURCRDR_LEN_BUBBLE_NAME);
-    if (!kvlist_get (&conn->bubble_list, normalized_bubble)) {
-        err_code = PURCRDR_EC_INVALID_VALUE;
-        return PURCRDR_EC_INVALID_VALUE;
-    }
-
-    if (len_data > PURCRDR_MIN_PACKET_BUFF_SIZE) {
-        sz_packet_buff = PURCRDR_MIN_PACKET_BUFF_SIZE + len_data;
-        packet_buff = malloc (PURCRDR_MIN_PACKET_BUFF_SIZE + len_data);
-        if (packet_buff == NULL) {
-            err_code = PURCRDR_EC_NOMEM;
-            return PURCRDR_EC_NOMEM;
-        }
-    }
-
-    if (bubble_data) {
-        escaped_data = pcrdr_escape_string_for_json (bubble_data);
-        if (escaped_data == NULL) {
-            err_code = PURCRDR_EC_NOMEM;
-            return PURCRDR_EC_NOMEM;
-        }
-    }
-    else
-        escaped_data = NULL;
-
-    pcrdr_generate_unique_id (event_id, "event");
-    n = snprintf (packet_buff, sz_packet_buff, 
-            "{"
-            "\"packetType\": \"event\","
-            "\"eventId\": \"%s\","
-            "\"bubbleName\": \"%s\","
-            "\"bubbleData\": \"%s\""
-            "}",
-            event_id,
-            normalized_bubble,
-            escaped_data ? escaped_data : "");
-    if (escaped_data)
-        free (escaped_data);
-
-    if (n < 0) {
-        err_code = PURCRDR_EC_UNEXPECTED;
-    }
-    else if ((size_t)n >= sz_packet_buff) {
-        err_code = PURCRDR_EC_TOO_SMALL_BUFF;
-    }
-    else
-        err_code = pcrdr_send_text_packet (conn, packet_buff, n);
-
-    if (packet_buff && packet_buff != buff_in_stack) {
-        free (packet_buff);
-    }
-
-    return err_code;
-}
-
-static int dispatch_call_packet (pcrdr_conn* conn, const pcrdr_json *jo)
-{
-    pcrdr_json *jo_tmp;
-    const char* from_endpoint = NULL, *call_id=NULL, *result_id = NULL;
-    const char* to_method;
-    const char* parameter;
-    char normalized_name [PURCRDR_LEN_METHOD_NAME + 1];
-    void *data;
-    char *ret_value = NULL;
-    int err_code = 0;
-    char buff_in_stack [PURCRDR_DEF_PACKET_BUFF_SIZE];
-    char* packet_buff = buff_in_stack;
-    size_t sz_packet_buff = sizeof (buff_in_stack);
-    char* escaped_value = NULL;
-    int n = 0, ret_code = 0;
-    double time_consumed = 0.0f;
-
-    if (json_object_object_get_ex (jo, "fromEndpoint", &jo_tmp) &&
-            (from_endpoint = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        err_code = PURCRDR_EC_PROTOCOL;
-        goto done;
-    }
-
-    if (json_object_object_get_ex (jo, "toMethod", &jo_tmp) &&
-            (to_method = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        err_code = PURCRDR_EC_PROTOCOL;
-        goto done;
-    }
-
-    if (json_object_object_get_ex (jo, "callId", &jo_tmp) &&
-            (call_id = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        err_code = PURCRDR_EC_PROTOCOL;
-        goto done;
-    }
-
-    if (json_object_object_get_ex (jo, "resultId", &jo_tmp) &&
-            (result_id = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        err_code = PURCRDR_EC_PROTOCOL;
-        goto done;
-    }
-
-    if (json_object_object_get_ex (jo, "parameter", &jo_tmp) &&
-            (parameter = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        parameter = "";
-    }
-
-    pcrdr_name_tolower_copy (to_method, normalized_name, PURCRDR_LEN_METHOD_NAME);
-    if ((data = kvlist_get (&conn->method_list, normalized_name)) == NULL) {
-        err_code = PURCRDR_EC_UNKNOWN_METHOD;
-        goto done;
-    }
-    else {
-        struct timespec ts;
-        struct method_handler_info mhi;
-        const char *ret_value_const = NULL;
-
-        mhi = *(struct method_handler_info *)data;
-
-        clock_gettime (CLOCK_MONOTONIC, &ts);
-        if (mhi.type == MHT_CONST_STRING) {
-            pcrdr_method_handler_const method_handler = mhi.handler;
-            ret_value_const = method_handler (conn, from_endpoint,
-                    normalized_name, parameter, &err_code);
-        }
-        else {
-            pcrdr_method_handler method_handler = mhi.handler;
-            ret_value = method_handler (conn, from_endpoint,
-                    normalized_name, parameter, &err_code);
-            ret_value_const = ret_value;
-        }
-
-        time_consumed = pcrdr_get_elapsed_seconds (&ts, NULL);
-
-        if (err_code == 0) {
-            size_t len_value;
-
-            if (ret_value_const) {
-                escaped_value = pcrdr_escape_string_for_json (ret_value_const);
-                if (escaped_value == NULL) {
-                    err_code = PURCRDR_EC_NOMEM;
-                    goto done;
-                }
-            }
-            else
-                escaped_value = NULL;
-
-            len_value = escaped_value ? (strlen (escaped_value) + 2) : 2;
-            if (len_value > PURCRDR_MIN_PACKET_BUFF_SIZE) {
-                sz_packet_buff = PURCRDR_MIN_PACKET_BUFF_SIZE + len_value;
-                packet_buff = malloc (PURCRDR_MIN_PACKET_BUFF_SIZE + len_value);
-                if (packet_buff == NULL) {
-                    packet_buff = buff_in_stack;
-                    sz_packet_buff = sizeof (buff_in_stack);
-
-                    err_code = PURCRDR_EC_NOMEM;
-                    goto done;
-                }
-            }
-        }
-    }
-
-done:
-    if (ret_value)
-        free (ret_value);
-
-    ret_code = pcrdr_errcode_to_retcode (err_code);
-    n = snprintf (packet_buff, sz_packet_buff, 
-            "{"
-            "\"packetType\": \"result\","
-            "\"resultId\": \"%s\","
-            "\"callId\": \"%s\","
-            "\"fromMethod\": \"%s\","
-            "\"timeConsumed\": %.9f,"
-            "\"retCode\": %d,"
-            "\"retMsg\": \"%s\","
-            "\"retValue\": \"%s\""
-            "}",
-            result_id, call_id,
-            normalized_name,
-            time_consumed,
-            ret_code,
-            pcrdr_get_ret_message (ret_code),
-            escaped_value ? escaped_value : "");
-    if (escaped_value)
-        free (escaped_value);
-
-    if (n < 0) {
-        err_code = PURCRDR_EC_UNEXPECTED;
-    }
-    else if ((size_t)n >= sz_packet_buff) {
-        err_code = PURCRDR_EC_TOO_SMALL_BUFF;
-    }
-    else
-        pcrdr_send_text_packet (conn, packet_buff, n);
-
-    if (packet_buff && packet_buff != buff_in_stack) {
-        free (packet_buff);
-    }
-
-    return err_code;
-}
-
-static int dispatch_result_packet (pcrdr_conn* conn, const pcrdr_json *jo)
-{
-    pcrdr_json *jo_tmp;
-    const char* result_id = NULL, *call_id = NULL;
-    const char* from_endpoint = NULL;
-    const char* from_method = NULL;
-    const char* ret_value;
-    void *data;
-    pcrdr_result_handler result_handler;
-    int ret_code;
-    double time_consumed;
-
-    if (json_object_object_get_ex (jo, "resultId", &jo_tmp) &&
-            (result_id = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        ULOG_WARN ("No resultId\n");
-    }
-
-    if (json_object_object_get_ex (jo, "callId", &jo_tmp) &&
-            (call_id = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    data = kvlist_get (&conn->call_list, call_id);
-    if (data == NULL) {
-        ULOG_ERR ("Not found result handler for callId: %s\n", call_id);
-        return PURCRDR_EC_INVALID_VALUE;
-    }
-
-    result_handler = *(pcrdr_result_handler *)data;
-    if (result_handler == NULL) {
-        /* ignore the result */
-        return 0;
-    }
-
-    if (json_object_object_get_ex (jo, "fromEndpoint", &jo_tmp) &&
-            (from_endpoint = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    if (json_object_object_get_ex (jo, "fromMethod", &jo_tmp) &&
-            (from_method = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    if (json_object_object_get_ex (jo, "timeConsumed", &jo_tmp) &&
-            (time_consumed = json_object_get_double (jo_tmp))) {
-    }
-    else {
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    if (json_object_object_get_ex (jo, "retCode", &jo_tmp) &&
-            (ret_code = json_object_get_int (jo_tmp))) {
-        conn->last_ret_code = ret_code;
-    }
-    else {
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    if (json_object_object_get_ex (jo, "retValue", &jo_tmp) &&
-            (ret_value = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    if (result_handler (conn, from_endpoint, from_method, call_id,
-                ret_code, ret_value) == 0)
-        kvlist_delete (&conn->call_list, call_id);
-
-    return 0;
-}
-
-static int dispatch_event_packet (pcrdr_conn* conn, const pcrdr_json *jo)
-{
-    pcrdr_json *jo_tmp;
-    const char* from_endpoint = NULL;
-    const char* from_bubble = NULL;
-    const char* bubble_data;
-    char event_name [PURCRDR_LEN_ENDPOINT_NAME + PURCRDR_LEN_BUBBLE_NAME + 2];
-    pcrdr_event_handler event_handler;
-    int n;
-    void *data;
-
-    if (json_object_object_get_ex (jo, "fromEndpoint", &jo_tmp) &&
-            (from_endpoint = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    if (json_object_object_get_ex (jo, "fromBubble", &jo_tmp) &&
-            (from_bubble = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        return PURCRDR_EC_PROTOCOL;
-    }
-
-    if (json_object_object_get_ex (jo, "bubbleData", &jo_tmp) &&
-            (bubble_data = json_object_get_string (jo_tmp))) {
-    }
-    else {
-        bubble_data = "";
-    }
-
-    n = pcrdr_name_tolower_copy (from_endpoint, event_name, PURCRDR_LEN_ENDPOINT_NAME);
-    event_name [n++] = '/';
-    event_name [n] = '\0';
-    pcrdr_name_toupper_copy (from_bubble, event_name + n, PURCRDR_LEN_BUBBLE_NAME);
-    if ((data = kvlist_get (&conn->subscribed_list, event_name)) == NULL) {
-        fprintf (stderr, "Got a unsubscribed event: %s\n", event_name);
-        return PURCRDR_EC_UNKNOWN_EVENT;
-    }
-    else {
-        event_handler = *(pcrdr_event_handler *)data;
-        event_handler (conn, from_endpoint, from_bubble, bubble_data);
-    }
-
-    return 0;
-}
-
 static int wait_for_specific_call_result_packet (pcrdr_conn* conn, 
         const char* call_id, int time_expected, int *ret_code, char** ret_value)
 {
@@ -1948,7 +843,7 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
             err_code = PURCRDR_EC_BAD_SYSTEM_CALL;
         }
         else if (retval) {
-            err_code = pcrdr_read_packet_alloc (conn, &packet, &data_len);
+            err_code = pcrdr_read_packet_alloc (conn, &message, &data_len);
 
             if (err_code) {
                 ULOG_ERR ("Failed to read packet\n");
@@ -1958,7 +853,7 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
             if (data_len == 0)
                 continue;
 
-            retval = pcrdr_json_packet_to_object (packet, data_len, &jo);
+            retval = pcrdr_json_packet_to_object (message, data_len, &jo);
             free (packet);
 
             if (retval < 0) {
@@ -2071,11 +966,13 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
     return err_code;
 }
 
+#endif
+
 int pcrdr_read_and_dispatch_packet (pcrdr_conn* conn)
 {
     void* packet;
-    unsigned int data_len;
-    pcrdr_json* jo = NULL;
+    size_t data_len;
+    pcrdr_msg* msg = NULL;
     int err_code, retval;
 
     err_code = pcrdr_read_packet_alloc (conn, &packet, &data_len);
@@ -2088,46 +985,24 @@ int pcrdr_read_and_dispatch_packet (pcrdr_conn* conn)
         return 0;
     }
 
-    retval = pcrdr_json_packet_to_object (packet, data_len, &jo);
+    retval = pcrdr_parse_packet (packet, data_len, &msg);
     free (packet);
 
     if (retval < 0) {
         ULOG_ERR ("Failed to parse JSON packet; quit...\n");
         err_code = PURCRDR_EC_BAD_PACKET;
     }
-    else if (retval == JPT_ERROR) {
-        ULOG_ERR ("The server gives an error packet\n");
-        if (conn->error_handler) {
-            conn->error_handler (conn, jo);
+    else if (retval == PCRDR_MSG_TYPE_EVENT) {
+        ULOG_INFO ("The server gives an event packet\n");
+        if (conn->event_handler) {
+            conn->event_handler (conn, msg);
         }
-        err_code = PURCRDR_EC_SERVER_ERROR;
     }
-    else if (retval == JPT_AUTH) {
-        ULOG_WARN ("Should not be here for packetType `auth`; quit...\n");
-        err_code = PURCRDR_EC_UNEXPECTED;
+    else if (retval == PCRDR_MSG_TYPE_REQUEST) {
+        ULOG_INFO ("The server gives a request packet\n");
     }
-    else if (retval == JPT_CALL) {
-        err_code = dispatch_call_packet (conn, jo);
-    }
-    else if (retval == JPT_RESULT) {
-        err_code = dispatch_result_packet (conn, jo);
-    }
-    else if (retval == JPT_RESULT_SENT) {
-        err_code = 0;
-    }
-    else if (retval == JPT_EVENT) {
-        err_code = dispatch_event_packet (conn, jo);
-    }
-    else if (retval == JPT_EVENT_SENT) {
-        err_code = 0;
-    }
-    else if (retval == JPT_AUTH_PASSED) {
-        ULOG_WARN ("Unexpected authPassed packet\n");
-        err_code = PURCRDR_EC_UNEXPECTED;
-    }
-    else if (retval == JPT_AUTH_FAILED) {
-        ULOG_WARN ("Unexpected authFailed packet\n");
-        err_code = PURCRDR_EC_UNEXPECTED;
+    else if (retval == PCRDR_MSG_TYPE_RESPONSE) {
+        ULOG_INFO ("The server gives a response packet\n");
     }
     else {
         ULOG_ERR ("Unknown packet type; quit...\n");
@@ -2135,8 +1010,8 @@ int pcrdr_read_and_dispatch_packet (pcrdr_conn* conn)
     }
 
 done:
-    if (jo)
-        json_object_put (jo);
+    if (msg)
+        pcrdr_release_message (msg);
 
     return err_code;
 }

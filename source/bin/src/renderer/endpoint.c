@@ -24,7 +24,8 @@
 #include <string.h>
 #include <assert.h>
 
-#include "ulog.h"
+#include "lib/hiboxcompat.h"
+
 #include "endpoint.h"
 #include "unixsocket.h"
 #include "websocket.h"

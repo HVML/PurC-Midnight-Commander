@@ -167,38 +167,27 @@ typedef enum {
 } pcrdr_msg_type;
 
 typedef enum {
-    PCRDR_DATA_TYPE_VOID = 0,
-    PCRDR_DATA_TYPE_EJSON,
-    PCRDR_DATA_TYPE_TEXT,
-    PCRDR_DATA_TYPE_RESULT,
-    PCRDR_DATA_TYPE_RESULT_EXTRA,
-} pcrdr_data_type;
+    PCRDR_MSG_TARGET_SESSION = 0,
+    PCRDR_MSG_TARGET_WINDOW,
+    PCRDR_MSG_TARGET_TAB,
+    PCRDR_MSG_TARGET_DOM,
+} pcrdr_msg_target;
 
-#define PCRDR_TARGET_SESSION    "session"
-#define PCRDR_TARGET_WINDOW     "window"
-#define PCRDR_TARGET_TAB        "tab"
-#define PCRDR_TARGET_DOM        "dom"
+typedef enum {
+    PCRDR_MSG_DATA_TYPE_VOID = 0,
+    PCRDR_MSG_DATA_TYPE_EJSON,
+    PCRDR_MSG_DATA_TYPE_TEXT,
+    PCRDR_MSG_DATA_TYPE_RESULT,
+    PCRDR_MSG_DATA_TYPE_RESULT_EXTRA,
+} pcrdr_msg_data_type;
 
-#define PCRDR_RESVAL_INITIAL    "_initial"
-#define PCRDR_RESVAL_DEFAULT    "_default"
-#define PCRDR_RESVAL_VOID       "_void"
+typedef enum {
+    PCRDR_MSG_ELEMENT_TYPE_CSS = 0,
+    PCRDR_MSG_ELEMENT_TYPE_XPATH,
+    PCRDR_MSG_ELEMENT_TYPE_HANDLES,
+} pcrdr_msg_element_type;
 
-struct _pcrdr_msg {
-    pcrdr_msg_type  type;
-    pcrdr_data_type dataType;
-
-    const char*     target;
-    const char*     operation;
-    const char*     element;
-    const char*     property;
-    const char*     event;
-
-    char*           requestId;
-
-    size_t          dataLen;
-    char*           data;
-};
-
+struct _pcrdr_msg;
 typedef struct _pcrdr_msg pcrdr_msg;
 
 struct _pcrdr_conn;
@@ -342,7 +331,8 @@ bool pcrdr_is_valid_md5_id(const char *id);
  *
  * Since: 1.0
  */
-double pcrdr_get_elapsed_seconds(const struct timespec *ts1, const struct timespec *ts2);
+double pcrdr_get_elapsed_seconds(const struct timespec *ts1,
+        const struct timespec *ts2);
 
 /**@}*/
 
@@ -359,7 +349,7 @@ double pcrdr_get_elapsed_seconds(const struct timespec *ts1, const struct timesp
  * @param path_to_socket: the path to the unix socket.
  * @param app_name: the app name.
  * @param runner_name: the runner name.
- * @param conn: the pointer to a pcrdr_conn* to return the PurCRDR connection.
+ * @param conn: the pointer to a pcrdr_conn* to return the purcrdr connection.
  *
  * Connects to a PurCRDR server via WebSocket.
  *
@@ -377,7 +367,7 @@ int pcrdr_connect_via_unix_socket(const char *path_to_socket,
  * @param port: the port.
  * @param app_name: the app name.
  * @param runner_name: the runner name.
- * @param conn: the pointer to a pcrdr_conn* to return the PurCRDR connection.
+ * @param conn: the pointer to a pcrdr_conn* to return the purcrdr connection.
  *
  * Connects to a PurCRDR server via WebSocket.
  *
@@ -391,9 +381,9 @@ int pcrdr_connect_via_web_socket(const char *srv_host_name, int port,
 /**
  * Disconnect to the server.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
- * Disconnects the PurCRDR connection.
+ * Disconnects the purcrdr connection.
  *
  * Returns: the error code; zero means everything is ok.
  *
@@ -404,7 +394,7 @@ int pcrdr_disconnect(pcrdr_conn* conn);
 /**
  * Free a connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
  * Frees the space used by the connection, including the connection itself.
  *
@@ -415,44 +405,44 @@ int pcrdr_disconnect(pcrdr_conn* conn);
 int pcrdr_free_connection(pcrdr_conn* conn);
 
 /**
- * The prototype of an error handler.
+ * The prototype of an event handler.
  *
- * @param conn: the pointer to the PurCRDR connection.
- * @param jo: the json object contains the error information.
+ * @param conn: the pointer to the purcrdr connection.
+ * @param msg: the event message object.
  *
  * Since: 1.0
  */
-typedef void (*pcrdr_error_handler)(pcrdr_conn* conn, const pcrdr_msg *msg);
+typedef void (*pcrdr_event_handler)(pcrdr_conn* conn, const pcrdr_msg *msg);
 
 /**
- * pcrdr_conn_get_error_handler:
- * @param conn: the pointer to the PurCRDR connection.
+ * pcrdr_conn_get_event_handler:
+ * @param conn: the pointer to the purcrdr connection.
  *
- * Returns the current error handler of the PurCRDR connection.
+ * Returns the current error handler of the purcrdr connection.
  *
  * Since: 1.0
  */
-pcrdr_error_handler pcrdr_conn_get_error_handler(pcrdr_conn* conn);
+pcrdr_event_handler pcrdr_conn_get_event_handler(pcrdr_conn* conn);
 
 /**
  * Set the error handler of the connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
- * @param error_handler: the new error handler.
+ * @param conn: the pointer to the purcrdr connection.
+ * @param event_handler: the new error handler.
  *
- * Sets the error handler of the PurCRDR connection, and returns the old one.
+ * Sets the error handler of the purcrdr connection, and returns the old one.
  *
  * Since: 1.0
  */
-pcrdr_error_handler pcrdr_conn_set_error_handler(pcrdr_conn* conn,
-        pcrdr_error_handler error_handler);
+pcrdr_event_handler pcrdr_conn_set_event_handler(pcrdr_conn* conn,
+        pcrdr_event_handler event_handler);
 
 /**
  * Get the user data associated with the connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
- * Returns the current user data (a pointer) bound with the PurCRDR connection.
+ * Returns the current user data (a pointer) bound with the purcrdr connection.
  *
  * Since: 1.0
  */
@@ -461,10 +451,10 @@ void *pcrdr_conn_get_user_data(pcrdr_conn* conn);
 /**
  * Set the user data associated with the connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  * @param user_data: the new user data (a pointer).
  *
- * Sets the user data of the PurCRDR connection, and returns the old one.
+ * Sets the user data of the purcrdr connection, and returns the old one.
  *
  * Since: 1.0
  */
@@ -473,9 +463,9 @@ void *pcrdr_conn_set_user_data(pcrdr_conn* conn, void* user_data);
 /**
  * Get the last return code from the server.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
- * Returns the last return code of PurCRDR result or error packet.
+ * Returns the last return code of PurCRDR result or error message.
  *
  * Since: 1.0
  */
@@ -484,7 +474,7 @@ int pcrdr_conn_get_last_ret_code(pcrdr_conn* conn);
 /**
  * Get the server host name of a connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
  * Returns the host name of the PurCRDR server.
  *
@@ -495,7 +485,7 @@ const char *pcrdr_conn_srv_host_name(pcrdr_conn* conn);
 /**
  * Get the own host name of a connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
  * Returns the host name of the current PurCRDR client.
  *
@@ -506,7 +496,7 @@ const char *pcrdr_conn_own_host_name(pcrdr_conn* conn);
 /**
  * Get the app name of a connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
  * Returns the app name of the current PurCRDR client.
  *
@@ -517,7 +507,7 @@ const char *pcrdr_conn_app_name(pcrdr_conn* conn);
 /**
  * Get the runner name of a connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
  * Returns the runner name of the current PurCRDR client.
  *
@@ -528,9 +518,9 @@ const char *pcrdr_conn_runner_name(pcrdr_conn* conn);
 /**
  * Get the file descriptor of the connection.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
- * Returns the file descriptor of the PurCRDR connection socket.
+ * Returns the file descriptor of the purcrdr connection socket.
  *
  * Returns: the file descriptor.
  *
@@ -541,9 +531,9 @@ int pcrdr_conn_socket_fd(pcrdr_conn* conn);
 /**
  * Get the connnection socket type.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
- * Returns the socket type of the PurCRDR connection.
+ * Returns the socket type of the purcrdr connection.
  *
  * Returns: \a CT_UNIX_SOCKET for UnixSocket, and \a CT_WEB_SOCKET for WebSocket.
  *
@@ -554,9 +544,10 @@ int pcrdr_conn_socket_type(pcrdr_conn* conn);
 /**
  * Read a packet (pre-allocation version).
  *
- * @param conn: the pointer to the PurCRDR connection.
- * @param packet_buf: the pointer to a buffer for saving the contents of the packet.
- * @param packet_len: the pointer to a unsigned integer for returning
+ * @param conn: the pointer to the purcrdr connection.
+ * @param packet_buf: the pointer to a buffer for saving the contents
+ *      of the packet.
+ * @param sz_packet: the pointer to a unsigned integer for returning
  *      the length of the packet.
  *
  * Reads a packet and saves the contents of the packet and returns
@@ -568,20 +559,20 @@ int pcrdr_conn_socket_type(pcrdr_conn* conn);
  * the next packet, and have a long enough buffer to save the
  * contents of the packet.
  *
- * Also note that if the length of the packet is 0, there is no data in the packet.
- * You should ignore the packet in this case.
+ * Also note that if the length of the packet is 0, there is no data in
+ * the packet. You should ignore the packet in this case.
  *
  * Since: 1.0
  */
-int pcrdr_read_packet(pcrdr_conn* conn, void* packet_buf, unsigned int *packet_len);
+int pcrdr_read_packet(pcrdr_conn* conn, char* packet_buf, size_t *sz_packet);
 
 /**
  * Read a packet (allocation version).
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  * @param packet: the pointer to a pointer to a buffer for returning
  *      the contents of the packet.
- * @param packet_len: the pointer to a unsigned integer for returning
+ * @param sz_packet: the pointer to a unsigned integer for returning
  *      the length of the packet.
  *
  * Reads a packet and allocates a buffer for the contents of the packet
@@ -596,12 +587,12 @@ int pcrdr_read_packet(pcrdr_conn* conn, void* packet_buf, unsigned int *packet_l
  *
  * Since: 1.0
  */
-int pcrdr_read_packet_alloc(pcrdr_conn* conn, void **packet, unsigned int *packet_len);
+int pcrdr_read_packet_alloc(pcrdr_conn* conn, void **packet, size_t *sz_packet);
 
 /**
  * Send a text packet to the server.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  * @param text: the pointer to the text to send.
  * @param txt_len: the length to send.
  *
@@ -611,12 +602,12 @@ int pcrdr_read_packet_alloc(pcrdr_conn* conn, void **packet, unsigned int *packe
  *
  * Since: 1.0
  */
-int pcrdr_send_text_packet(pcrdr_conn* conn, const char *text, unsigned int txt_len);
+int pcrdr_send_text_packet(pcrdr_conn* conn, const char *text, size_t txt_len);
 
 /**
  * Ping the server.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
  * Pings the PurCRDR server. The client should ping the server
  * about every 30 seconds to tell the server "I am alive".
@@ -631,36 +622,121 @@ int pcrdr_send_text_packet(pcrdr_conn* conn, const char *text, unsigned int txt_
 int pcrdr_ping_server(pcrdr_conn* conn);
 
 /**
- * The prototype of a result handler.
+ * Make a request message.
  *
- * @param conn: the pointer to the PurCRDR connection.
- * @param from_endpoint: the endpoint name of the result.
- * @param from_method: the method name of the result.
- * @param call_id: the call identifier.
- * @param ret_code: the return code of the result.
- * @param ret_value: the return value (a string) of the result.
+ * @param target: the target of the message.
+ * @param target_value: the value of the target object
+ * @param operation: the request operation.
+ * @param element_type: the element type of the request
+ * @param element: the pointer to the element(s) (nullable).
+ * @param property: the property (nullable).
+ * @param data_type: the data type of the request.
+ * @param data: the pointer to the data (nullable)
  *
- * Returns: 0 for finished the handle of the result; otherwise -1.
+ * Returns: The pointer to message object; NULL on error.
  *
  * Since: 1.0
  */
-typedef int (*pcrdr_result_handler)(pcrdr_conn* conn,
-        const char *from_endpoint, const char *from_method,
-        const char *call_id,
-        int ret_code, const char *ret_value);
+pcrdr_msg *pcrdr_make_request_message(
+        pcrdr_msg_target target, uintptr_t target_value,
+        const char *operation,
+        pcrdr_msg_element_type element_type, void *element,
+        const char *property,
+        pcrdr_msg_data_type data_type, const char* data);
 
 /**
- * Call a procedure and handle the result in a callback handler.
+ * Make a response message for a request message.
  *
- * @param conn: the pointer to the PurCRDR connection.
- * @param endpoint: the endpoint name of the procedure.
- * @param method: the method of the procedure.
- * @param method_param: the parameter of the method.
+ * @param request_msg: the request message.
+ * @param ret_code: the return code.
+ * @param result_value: the result value.
+ * @param extra_info: the extra information (nullable).
+ *
+ * Returns: The pointer to the response message object; NULL on error.
+ *
+ * Since: 1.0
+ */
+pcrdr_msg *pcrdr_make_response_message(
+        const pcrdr_msg *request_msg,
+        int ret_code, uintptr_t result_value,
+        const char *extra_info);
+
+/**
+ * Make an event message.
+ *
+ * @param target: the target of the message.
+ * @param target_value: the value of the target object
+ * @param event: the event name.
+ * @param element_type: the element type.
+ * @param element: the pointer to the element(s) (nullable).
+ * @param property: the property (nullable)
+ * @param data_type: the data type of the event.
+ * @param data: the pointer to the data (nullable)
+ *
+ * Returns: The pointer to the event message object; NULL on error.
+ *
+ * Since: 1.0
+ */
+pcrdr_msg *pcrdr_make_event_message(
+        pcrdr_msg_target target, uintptr_t target_value,
+        const char *event,
+        pcrdr_msg_element_type element_type, void *element,
+        const char *property,
+        pcrdr_msg_data_type data_type, const char* data);
+
+/**
+ * Parse a packet and make a corresponding message.
+ *
+ * @param packet_text: the pointer to the packet text buffer.
+ * @param sz_packet: the size of the packet.
+ * @param msg: The pointer to a pointer to return the parsed message object.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Note that this function may change the content in \a packet.
+ *
+ * Since: 1.0
+ */
+int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg);
+
+/**
+ * Release a message.
+ *
+ * @param msg: the poiter to the message to release.
+ *
+ * Returns: None.
+ *
+ * Since: 1.0
+ */
+void pcrdr_release_message(pcrdr_msg *msg);
+
+/**
+ * The prototype of a result handler.
+ *
+ * @param conn: the pointer to the purcrdr connection.
+ * @param request_msg: the original request message.
+ * @param response_msg: the response message.
+ *
+ * Returns: 0 for finished the handle of the result; otherwise -1.
+ *
+ * Note that after calling the result handler, the request message object
+ * and the response message object will be released.
+ * Since: 1.0
+ */
+typedef int (*pcrdr_result_handler)(pcrdr_conn* conn,
+        const pcrdr_msg *request_msg,
+        const pcrdr_msg *response_msg);
+
+/**
+ * Send a request and handle the result in a callback.
+ *
+ * @param conn: the pointer to the purcrdr connection.
+ * @param request_msg: the pointer to the request message.
  * @param time_expected: the expected return time in seconds.
  * @param result_handler: the result handler.
- * @param call_id (nullable): the buffer to store the call identifier.
+ * @param request_id (nullable): the buffer to store the request identifier.
  *
- * This function emits a call to a remote procedure and
+ * This function emits a request to the purcrdr server and
  * returns immediately. The result handler will be called
  * in subsequent calls of \a pcrdr_read_and_dispatch_packet().
  *
@@ -668,39 +744,30 @@ typedef int (*pcrdr_result_handler)(pcrdr_conn* conn,
  *
  * Since: 1.0
  */
-int pcrdr_call_procedure(pcrdr_conn* conn,
-        const char *endpoint,
-        const char *method, const char *method_param,
-        int time_expected, pcrdr_result_handler result_handler,
-        const char **call_id);
+int pcrdr_send_request(pcrdr_conn* conn, pcrdr_msg *request_msg,
+        int time_expected, pcrdr_result_handler result_handler);
 
 /**
- * Call a procedure and wait the result.
+ * Send a request and wait the response.
  *
- * @param conn: the pointer to the PurCRDR connection.
- * @param endpoint: the endpoint name of the procedure.
- * @param method_name: the method of the procedure.
- * @param method_param: the parameter of the method.
+ * @param conn: the pointer to the purcrdr connection.
+ * @param request_msg: the pointer to the request message.
  * @param time_expected: the expected return time in seconds.
- * @param ret_code: the pointer to an integer to return the return code
- *      of the result.
- * @param ret_value: the pointer to a pointer to return the value (a string)
- *      of the result.
+ * @param response_msg: the pointer to a pointer to return the response message.
  *
- * This function calls a remote procedure and wait for the result.
+ * This function send a request to the server and wait for the result.
  *
  * Returns: the error code; zero means everything is ok.
  *
  * Since: 1.0
  */
-int pcrdr_call_procedure_and_wait(pcrdr_conn* conn, const char *endpoint,
-        const char *method_name, const char *method_param,
-        int time_expected, int *ret_code, char** ret_value);
+int pcrdr_send_request_and_wait(pcrdr_conn* conn, const pcrdr_msg *request_msg,
+        int time_expected, pcrdr_msg **response_msg);
 
 /**
  * Read and dispatch the packet from the server.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  *
  * This function read a PurCRDR packet and dispatches the packet to
  * a event handler, method handler, or result handler.
@@ -714,7 +781,7 @@ int pcrdr_read_and_dispatch_packet(pcrdr_conn* conn);
 /**
  * Wait and dispatch the packet from the server.
  *
- * @param conn: the pointer to the PurCRDR connection.
+ * @param conn: the pointer to the purcrdr connection.
  * @param timeout_ms (not nullable): the timeout value in milliseconds.
  *
  * This function waits for a PurCRDR packet by calling select()

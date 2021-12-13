@@ -28,7 +28,7 @@
 #include <time.h>
 #include <assert.h>
 
-#include <hibox/ulog.h>
+#include "lib/hiboxcompat.h"
 #include "lib/list.h"
 #include "lib/md5.h"
 

@@ -168,6 +168,7 @@ list(APPEND purcsmg_SOURCES
 )
 
 set(purcsmg_LIBRARIES
+    PurcMC::PurcMC
 )
 
 PURCMC_COMPUTE_SOURCES(purcsmg)

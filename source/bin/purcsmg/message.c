@@ -24,16 +24,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <time.h>
-#include <errno.h>
 #include <assert.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/fcntl.h>
-#include <sys/un.h>
-#include <sys/time.h>
 
 #include "lib/hiboxcompat.h"
 #include "lib/md5.h"
@@ -61,23 +52,6 @@ static const char *data_type_names [] = {
 #define PCRDR_RESVAL_DEFAULT    "_default"
 #define PCRDR_RESVAL_VOID       "_void"
 
-
-struct _pcrdr_msg {
-    pcrdr_msg_type      type;
-    pcrdr_msg_data_type dataType;
-
-    const char*     target;
-    const char*     operation;
-    const char*     element;
-    const char*     property;
-    const char*     event;
-
-    char*           requestId;
-
-    size_t          dataLen;
-    char*           data;
-};
-
 pcrdr_msg *pcrdr_make_request_message(
         pcrdr_msg_target target, uintptr_t target_value,
         const char *operation,
@@ -85,6 +59,73 @@ pcrdr_msg *pcrdr_make_request_message(
         const char *property,
         pcrdr_msg_data_type data_type, const char* data)
 {
+    pcrdr_msg *msg = calloc(1, sizeof(pcrdr_msg));
+    if (msg == NULL)
+        return NULL;
+
+    msg->type = PCRDR_MSG_TYPE_REQUEST;
+    msg->target = target;
+    msg->targetValue = target_value;
+
+    assert(operation);
+    msg->operation = strdup(operation);
+    if (msg->operation == NULL)
+        goto failed;
+
+    msg->elementType = element_type;
+    if (element_type == PCRDR_MSG_ELEMENT_TYPE_VOID) {
+        msg->element = NULL;
+    }
+    else if (element_type == PCRDR_MSG_ELEMENT_TYPE_CSS ||
+            element_type == PCRDR_MSG_ELEMENT_TYPE_XPATH) {
+        assert(element);
+        msg->element = strdup(element);
+        if (msg->element == NULL)
+            goto failed;
+    }
+    else { /* PCRDR_MSG_ELEMENT_TYPE_HANDLES */
+        assert(element);
+
+        uintptr_t *handles = element;
+        size_t nr_handles = 0;
+        while (*handles) {
+            nr_handles++;
+            handles++;
+        }
+
+        msg->element = calloc(nr_handles + 1, sizeof(uintptr_t));
+        if (msg->element == NULL)
+            goto failed;
+
+        memcpy(msg->element, element, sizeof(uintptr_t) * (nr_handles + 1));
+    }
+
+    if (property) {
+        msg->property = strdup(property);
+        if (msg->property == NULL)
+            goto failed;
+    }
+
+    char request_id[PURCRDR_LEN_UNIQUE_ID + 1];
+    pcrdr_generate_unique_id(request_id, "REQ");
+    msg->requestId = strdup(request_id);
+    if (msg->requestId == NULL)
+        goto failed;
+
+    msg->dataType = data_type;
+    if (data_type != PCRDR_MSG_DATA_TYPE_VOID) {
+        assert(data);
+        msg->dataLen = strlen(data);
+        msg->data = strdup(data);
+        if (msg->data == NULL) {
+            goto failed;
+        }
+    }
+
+    return msg;
+
+failed:
+    pcrdr_release_message(msg);
     return NULL;
 }
 
@@ -93,26 +134,131 @@ pcrdr_msg *pcrdr_make_response_message(
         int ret_code, uintptr_t result_value,
         const char *extra_info)
 {
+    pcrdr_msg *msg = calloc(1, sizeof(pcrdr_msg));
+    if (msg == NULL)
+        return NULL;
+
+    assert(request_msg->type == PCRDR_MSG_TYPE_REQUEST);
+    assert(request_msg->requestId);
+
+    msg->type = PCRDR_MSG_TYPE_RESPONSE;
+    msg->requestId = strdup(request_msg->requestId);
+    if (msg->requestId == NULL)
+        goto failed;
+
+    if (extra_info) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_RESULT_EXTRA;
+
+        msg->dataLen = strlen(extra_info);
+        msg->data = strdup(extra_info);
+        if (msg->data == NULL) {
+            goto failed;
+        }
+    }
+    else {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_RESULT;
+    }
+
+    msg->retCode = ret_code;
+    msg->resultValue = result_value;
+
+    return msg;
+
+failed:
+    pcrdr_release_message(msg);
     return NULL;
 }
 
 pcrdr_msg *pcrdr_make_event_message(
         pcrdr_msg_target target, uintptr_t target_value,
-        const char *event,
+        const char *event_name,
         pcrdr_msg_element_type element_type, void *element,
         const char *property,
         pcrdr_msg_data_type data_type, const char* data)
 {
+    pcrdr_msg *msg = calloc(1, sizeof(pcrdr_msg));
+    if (msg == NULL)
+        return NULL;
+
+    msg->type = PCRDR_MSG_TYPE_EVENT;
+    msg->target = target;
+    msg->targetValue = target_value;
+
+    assert(event_name);
+    msg->eventName = strdup(event_name);
+    if (msg->eventName == NULL)
+        goto failed;
+
+    msg->elementType = element_type;
+    if (element_type == PCRDR_MSG_ELEMENT_TYPE_VOID) {
+        msg->element = NULL;
+    }
+    else if (element_type == PCRDR_MSG_ELEMENT_TYPE_CSS ||
+            element_type == PCRDR_MSG_ELEMENT_TYPE_XPATH) {
+        assert(element);
+        msg->element = strdup(element);
+        if (msg->element == NULL)
+            goto failed;
+    }
+    else { /* PCRDR_MSG_ELEMENT_TYPE_HANDLES */
+        assert(element);
+
+        uintptr_t *handles = element;
+        size_t nr_handles = 0;
+        while (*handles) {
+            nr_handles++;
+            handles++;
+        }
+
+        msg->element = calloc(nr_handles + 1, sizeof(uintptr_t));
+        if (msg->element == NULL)
+            goto failed;
+
+        memcpy(msg->element, element, sizeof(uintptr_t) * (nr_handles + 1));
+    }
+
+    if (property) {
+        msg->property = strdup(property);
+        if (msg->property == NULL)
+            goto failed;
+    }
+
+    msg->dataType = data_type;
+    if (data_type != PCRDR_MSG_DATA_TYPE_VOID) {
+        assert(data);
+        msg->dataLen = strlen(data);
+        msg->data = strdup(data);
+        if (msg->data == NULL) {
+            goto failed;
+        }
+    }
+
+    return msg;
+
+failed:
+    pcrdr_release_message(msg);
     return NULL;
 }
 
 
 void pcrdr_release_message(pcrdr_msg *msg)
 {
+    if (msg->operation)
+        free(msg->operation);
+
+    if (msg->element)
+        free(msg->element);
+
+    if (msg->property)
+        free(msg->property);
+
+    if (msg->eventName)
+        free(msg->eventName);
+
     if (msg->requestId)
         free(msg->requestId);
 
-    if (msg->dataLen && msg->data)
+    if (msg->data)
         free(msg->data);
 
     free(msg);

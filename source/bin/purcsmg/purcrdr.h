@@ -160,33 +160,6 @@ enum {
     PT_BINARY,
 };
 
-typedef enum {
-    PCRDR_MSG_TYPE_REQUEST = 0,
-    PCRDR_MSG_TYPE_RESPONSE,
-    PCRDR_MSG_TYPE_EVENT,
-} pcrdr_msg_type;
-
-typedef enum {
-    PCRDR_MSG_TARGET_SESSION = 0,
-    PCRDR_MSG_TARGET_WINDOW,
-    PCRDR_MSG_TARGET_TAB,
-    PCRDR_MSG_TARGET_DOM,
-} pcrdr_msg_target;
-
-typedef enum {
-    PCRDR_MSG_DATA_TYPE_VOID = 0,
-    PCRDR_MSG_DATA_TYPE_EJSON,
-    PCRDR_MSG_DATA_TYPE_TEXT,
-    PCRDR_MSG_DATA_TYPE_RESULT,
-    PCRDR_MSG_DATA_TYPE_RESULT_EXTRA,
-} pcrdr_msg_data_type;
-
-typedef enum {
-    PCRDR_MSG_ELEMENT_TYPE_CSS = 0,
-    PCRDR_MSG_ELEMENT_TYPE_XPATH,
-    PCRDR_MSG_ELEMENT_TYPE_HANDLES,
-} pcrdr_msg_element_type;
-
 struct _pcrdr_msg;
 typedef struct _pcrdr_msg pcrdr_msg;
 
@@ -620,6 +593,56 @@ int pcrdr_send_text_packet(pcrdr_conn* conn, const char *text, size_t txt_len);
  * Since: 1.0
  */
 int pcrdr_ping_server(pcrdr_conn* conn);
+
+typedef enum {
+    PCRDR_MSG_TYPE_REQUEST = 0,
+    PCRDR_MSG_TYPE_RESPONSE,
+    PCRDR_MSG_TYPE_EVENT,
+} pcrdr_msg_type;
+
+typedef enum {
+    PCRDR_MSG_TARGET_SESSION = 0,
+    PCRDR_MSG_TARGET_WINDOW,
+    PCRDR_MSG_TARGET_TAB,
+    PCRDR_MSG_TARGET_DOM,
+} pcrdr_msg_target;
+
+pcrdr_msg_type pcrdr_message_get_type(const pcrdr_msg *msg);
+
+typedef enum {
+    PCRDR_MSG_DATA_TYPE_VOID = 0,
+    PCRDR_MSG_DATA_TYPE_EJSON,
+    PCRDR_MSG_DATA_TYPE_TEXT,
+    PCRDR_MSG_DATA_TYPE_RESULT,
+    PCRDR_MSG_DATA_TYPE_RESULT_EXTRA,
+} pcrdr_msg_data_type;
+
+typedef enum {
+    PCRDR_MSG_ELEMENT_TYPE_VOID = 0,
+    PCRDR_MSG_ELEMENT_TYPE_CSS,
+    PCRDR_MSG_ELEMENT_TYPE_XPATH,
+    PCRDR_MSG_ELEMENT_TYPE_HANDLES,
+} pcrdr_msg_element_type;
+
+struct _pcrdr_msg {
+    pcrdr_msg_type          type;
+    pcrdr_msg_target        target;
+    pcrdr_msg_element_type  elementType;
+    pcrdr_msg_data_type     dataType;
+    int                     retCode;
+
+    uintptr_t       targetValue;
+    char *          operation;
+    void *          element;
+    char *          property;
+    char *          eventName;
+    char *          requestId;
+
+    uintptr_t       resultValue;
+
+    size_t          dataLen;
+    char *          data;
+};
 
 /**
  * Make a request message.

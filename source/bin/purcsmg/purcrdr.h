@@ -607,35 +607,34 @@ typedef enum {
     PCRDR_MSG_TARGET_DOM,
 } pcrdr_msg_target;
 
+typedef enum {
+    PCRDR_MSG_ELEMENT_TYPE_VOID = 0,
+    PCRDR_MSG_ELEMENT_TYPE_CSS,
+    PCRDR_MSG_ELEMENT_TYPE_XPATH,
+    PCRDR_MSG_ELEMENT_TYPE_HANDLE,
+} pcrdr_msg_element_type;
+
 pcrdr_msg_type pcrdr_message_get_type(const pcrdr_msg *msg);
 
 typedef enum {
     PCRDR_MSG_DATA_TYPE_VOID = 0,
     PCRDR_MSG_DATA_TYPE_EJSON,
     PCRDR_MSG_DATA_TYPE_TEXT,
-    PCRDR_MSG_DATA_TYPE_RESULT,
-    PCRDR_MSG_DATA_TYPE_RESULT_EXTRA,
 } pcrdr_msg_data_type;
-
-typedef enum {
-    PCRDR_MSG_ELEMENT_TYPE_VOID = 0,
-    PCRDR_MSG_ELEMENT_TYPE_CSS,
-    PCRDR_MSG_ELEMENT_TYPE_XPATH,
-    PCRDR_MSG_ELEMENT_TYPE_HANDLES,
-} pcrdr_msg_element_type;
 
 struct _pcrdr_msg {
     pcrdr_msg_type          type;
     pcrdr_msg_target        target;
     pcrdr_msg_element_type  elementType;
     pcrdr_msg_data_type     dataType;
-    int                     retCode;
+    unsigned int            retCode;
 
     uintptr_t       targetValue;
     char *          operation;
-    void *          element;
+    char *          element;
     char *          property;
-    char *          eventName;
+    char *          event;
+
     char *          requestId;
 
     uintptr_t       resultValue;
@@ -663,7 +662,7 @@ struct _pcrdr_msg {
 pcrdr_msg *pcrdr_make_request_message(
         pcrdr_msg_target target, uintptr_t target_value,
         const char *operation,
-        pcrdr_msg_element_type element_type, void *element,
+        pcrdr_msg_element_type element_type, const char *element,
         const char *property,
         pcrdr_msg_data_type data_type, const char* data);
 
@@ -680,9 +679,9 @@ pcrdr_msg *pcrdr_make_request_message(
  * Since: 1.0
  */
 pcrdr_msg *pcrdr_make_response_message(
-        const pcrdr_msg *request_msg,
-        int ret_code, uintptr_t result_value,
-        const char *extra_info);
+        const char *request_id,
+        unsigned int ret_code, uintptr_t result_value,
+        pcrdr_msg_data_type data_type, const char* data);
 
 /**
  * Make an event message.
@@ -703,7 +702,7 @@ pcrdr_msg *pcrdr_make_response_message(
 pcrdr_msg *pcrdr_make_event_message(
         pcrdr_msg_target target, uintptr_t target_value,
         const char *event,
-        pcrdr_msg_element_type element_type, void *element,
+        pcrdr_msg_element_type element_type, const char *element,
         const char *property,
         pcrdr_msg_data_type data_type, const char* data);
 
@@ -721,6 +720,21 @@ pcrdr_msg *pcrdr_make_event_message(
  * Since: 1.0
  */
 int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg);
+
+typedef ssize_t (*cb_write)(void *ctxt, const void *buf, size_t count);
+
+/**
+ * Serialize a message.
+ *
+ * @param msg: the poiter to the message to serialize.
+ * @param fn: the callback to write characters.
+ * @param ctxt: the context will be passed to fn.
+ *
+ * Returns: the error code; zero means everything is ok.
+ *
+ * Since: 1.0
+ */
+int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt);
 
 /**
  * Release a message.

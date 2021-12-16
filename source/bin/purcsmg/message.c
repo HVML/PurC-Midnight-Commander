@@ -467,27 +467,45 @@ static struct key_op_pair {
     const char *key;
     key_op      op;
 } key_ops[] = {
-    { STR_KEY_TYPE,         on_type },
-    { STR_KEY_TARGET,       on_target },
-    { STR_KEY_OPERATION,    on_operation },
+    { STR_KEY_DATA_LEN,     on_data_len },
+    { STR_KEY_DATA_TYPE,    on_data_type },
     { STR_KEY_ELEMENT,      on_element },
-    { STR_KEY_PROPERTY,     on_property },
     { STR_KEY_EVENT,        on_event },
+    { STR_KEY_OPERATION,    on_operation },
+    { STR_KEY_PROPERTY,     on_property },
     { STR_KEY_REQUEST_ID,   on_request_id },
     { STR_KEY_RESULT,       on_result },
-    { STR_KEY_DATA_TYPE,    on_data_type },
-    { STR_KEY_DATA_LEN,     on_data_len },
+    { STR_KEY_TARGET,       on_target },
+    { STR_KEY_TYPE,         on_type },
 };
 
 static key_op find_key_op(const char* key)
 {
-    for (int i = 0; i < sizeof(key_ops)/sizeof(key_ops[0]); i++) {
-        if (strcasecmp(key, key_ops[i].key) == 0) {
-            return key_ops[i].op;
+    static ssize_t max = sizeof(key_ops)/sizeof(key_ops[0]) - 1;
+
+    ssize_t low = 0, high = max, mid;
+    while (low <= high) {
+        int cmp;
+
+        mid = (low + high) / 2;
+        cmp = strcasecmp(key, key_ops[mid].key);
+        if (cmp == 0) {
+            goto found;
+        }
+        else {
+            if (cmp < 0) {
+                high = mid - 1;
+            }
+            else {
+                low = mid + 1;
+            }
         }
     }
 
     return NULL;
+
+found:
+    return key_ops[mid].op;
 }
 
 int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg_out)

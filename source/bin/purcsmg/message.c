@@ -277,6 +277,10 @@ static inline char *skip_left_spaces(char *str)
     return str;
 }
 
+#define STR_PAIR_SEPARATOR      ":"
+#define STR_LINE_SEPARATOR      "\n"
+#define STR_VALUE_SEPARATOR     "/"
+
 static bool on_type(pcrdr_msg *msg, char *value)
 {
     if (strcasecmp(value, "request")) {
@@ -300,11 +304,11 @@ static bool on_target(pcrdr_msg *msg, char *value)
     char *target, *target_value;
     char *saveptr;
 
-    target = strtok_r(value, "/", &saveptr);
+    target = strtok_r(value, STR_VALUE_SEPARATOR, &saveptr);
     if (target == NULL)
         return false;
 
-    target_value = strtok_r(NULL, "/", &saveptr);
+    target_value = strtok_r(NULL, STR_VALUE_SEPARATOR, &saveptr);
     if (target_value == NULL)
         return false;
 
@@ -355,7 +359,7 @@ static bool on_element(pcrdr_msg *msg, char *value)
     char *type;
     char *saveptr;
 
-    type = strtok_r(value, "/", &saveptr);
+    type = strtok_r(value, STR_VALUE_SEPARATOR, &saveptr);
     if (type == NULL)
         return false;
 
@@ -372,7 +376,7 @@ static bool on_element(pcrdr_msg *msg, char *value)
         return false;
     }
 
-    msg->element = strtok_r(NULL, "/", &saveptr);
+    msg->element = strtok_r(NULL, STR_VALUE_SEPARATOR, &saveptr);
     if (msg->element == NULL)
         return false;
 
@@ -396,7 +400,7 @@ static bool on_result(pcrdr_msg *msg, char *value)
     char *subtoken;
     char *saveptr;
 
-    subtoken = strtok_r(value, "/", &saveptr);
+    subtoken = strtok_r(value, STR_VALUE_SEPARATOR, &saveptr);
     if (subtoken == NULL)
         return false;
 
@@ -405,7 +409,7 @@ static bool on_result(pcrdr_msg *msg, char *value)
     if (errno)
         return false;
 
-    subtoken = strtok_r(NULL, "/", &saveptr);
+    subtoken = strtok_r(NULL, STR_VALUE_SEPARATOR, &saveptr);
     if (subtoken == NULL)
         return false;
 
@@ -466,13 +470,13 @@ static struct key_op_pair {
     { STR_KEY_TYPE,         on_type },
     { STR_KEY_TARGET,       on_target },
     { STR_KEY_OPERATION,    on_operation },
-    { STR_KEY_ELEMENT, on_element },
-    { STR_KEY_PROPERTY, on_property },
-    { STR_KEY_EVENT, on_event },
-    { STR_KEY_REQUEST_ID, on_request_id },
-    { STR_KEY_RESULT, on_result },
-    { STR_KEY_DATA_TYPE, on_data_type },
-    { STR_KEY_DATA_LEN, on_data_len },
+    { STR_KEY_ELEMENT,      on_element },
+    { STR_KEY_PROPERTY,     on_property },
+    { STR_KEY_EVENT,        on_event },
+    { STR_KEY_REQUEST_ID,   on_request_id },
+    { STR_KEY_RESULT,       on_result },
+    { STR_KEY_DATA_TYPE,    on_data_type },
+    { STR_KEY_DATA_LEN,     on_data_len },
 };
 
 static key_op find_key_op(const char* key)
@@ -497,24 +501,24 @@ int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg_out)
     memset(&msg, 0, sizeof(msg));
 
     for (str1 = packet; ; str1 = NULL) {
-        line = strtok_r(str1, "\n", &saveptr1);
+        line = strtok_r(str1, STR_LINE_SEPARATOR, &saveptr1);
         if (line == NULL) {
             goto failed;
         }
 
         if (is_blank_line(line)) {
-            msg.data = strtok_r(NULL, "\n", &saveptr1);
+            msg.data = strtok_r(NULL, STR_LINE_SEPARATOR, &saveptr1);
             break;
         }
 
         char *key, *value;
         char *saveptr2;
-        key = strtok_r(line, ":", &saveptr2);
+        key = strtok_r(line, STR_PAIR_SEPARATOR, &saveptr2);
         if (key == NULL) {
             goto failed;
         }
 
-        value = strtok_r(NULL, ":", &saveptr2);
+        value = strtok_r(NULL, STR_PAIR_SEPARATOR, &saveptr2);
         if (value == NULL) {
             goto failed;
         }
@@ -540,14 +544,6 @@ int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg_out)
                 msg.data);
     }
     else if (msg.type == PCRDR_MSG_TYPE_RESPONSE) {
-#if 0
-        if (msg.dataType == PCRDR_MSG_DATA_TYPE_RESULT ||
-                msg.dataType == PCRDR_MSG_DATA_TYPE_RESULT_EXTRA) {
-
-            msg.data = saveptr;
-        }
-#endif
-
         _msg = pcrdr_make_response_message(
                 msg.requestId,
                 msg.retCode, msg.resultValue,
@@ -573,10 +569,6 @@ int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg_out)
 failed:
     return PURCRDR_EC_BAD_PACKET;
 }
-
-#define STR_KV_SEPARATOR    ":"
-#define STR_LINE_SEPARATOR  "\n"
-#define STR_TOKEN_SEPARATOR "/"
 
 static const char *type_names [] = {
     "request",      /* PCRDR_MSG_TYPE_REQUEST */
@@ -611,16 +603,16 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
 
     /* type: <request | response | event> */
     fn(ctxt, STR_KEY_TYPE, sizeof(STR_KEY_TYPE) - 1);
-    fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+    fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
     fn(ctxt, type_names[msg->type], strlen(type_names[msg->type]));
     fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
 
     if (msg->type == PCRDR_MSG_TYPE_REQUEST) {
         /* target: <session | window | tab | dom>/<handle> */
         fn(ctxt, STR_KEY_TARGET, sizeof(STR_KEY_TARGET) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, target_names[msg->target], strlen(target_names[msg->target]));
-        fn(ctxt, STR_TOKEN_SEPARATOR, sizeof(STR_TOKEN_SEPARATOR) - 1);
+        fn(ctxt, STR_VALUE_SEPARATOR, sizeof(STR_VALUE_SEPARATOR) - 1);
 
         n = snprintf(buff, sizeof(buff),
                 "%llx", (unsigned long long int)msg->targetValue);
@@ -635,17 +627,17 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
 
         /* operation: <operation> */
         fn(ctxt, STR_KEY_OPERATION, sizeof(STR_KEY_OPERATION) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, msg->operation, strlen(msg->operation));
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
 
         if (msg->elementType != PCRDR_MSG_ELEMENT_TYPE_VOID) {
             /* element: <css | xpath | handle>/<element> */
             fn(ctxt, STR_KEY_ELEMENT, sizeof(STR_KEY_ELEMENT) - 1);
-            fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+            fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
             fn(ctxt, element_type_names[msg->target],
                     strlen(element_type_names[msg->target]));
-            fn(ctxt, STR_TOKEN_SEPARATOR, sizeof(STR_TOKEN_SEPARATOR) - 1);
+            fn(ctxt, STR_VALUE_SEPARATOR, sizeof(STR_VALUE_SEPARATOR) - 1);
             fn(ctxt, msg->element, strlen(msg->element));
             fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
         }
@@ -653,27 +645,27 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
         if (msg->property) {
             /* property: <property> */
             fn(ctxt, STR_KEY_PROPERTY, sizeof(STR_KEY_PROPERTY) - 1);
-            fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+            fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
             fn(ctxt, msg->property, strlen(msg->property));
             fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
         }
 
         /* requestId: <requestId> */
         fn(ctxt, STR_KEY_REQUEST_ID, sizeof(STR_KEY_REQUEST_ID) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, msg->requestId, strlen(msg->requestId));
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
 
         /* dataType: <void | ejson | text> */
         fn(ctxt, STR_KEY_DATA_TYPE, sizeof(STR_KEY_DATA_TYPE) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, data_type_names[msg->target],
                 strlen(data_type_names[msg->target]));
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
 
         /* dataLen: <data_length> */
         fn(ctxt, STR_KEY_DATA_LEN, sizeof(STR_KEY_DATA_LEN) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff), "%lu", (unsigned long int)msg->dataLen);
         if (n < 0)
             return PURCRDR_EC_UNEXPECTED;
@@ -693,20 +685,20 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
     else if (msg->type == PCRDR_MSG_TYPE_RESPONSE) {
         /* requestId: <requestId> */
         fn(ctxt, STR_KEY_REQUEST_ID, sizeof(STR_KEY_REQUEST_ID) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, msg->requestId, strlen(msg->requestId));
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
 
         /* dataType: <void | ejson | text> */
         fn(ctxt, STR_KEY_DATA_TYPE, sizeof(STR_KEY_DATA_TYPE) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, data_type_names[msg->target],
                 strlen(data_type_names[msg->target]));
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
 
         /* dataLen: <data_length> */
         fn(ctxt, STR_KEY_DATA_LEN, sizeof(STR_KEY_DATA_LEN) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff), "%lu", (unsigned long int)msg->dataLen);
         if (n < 0)
             return PURCRDR_EC_UNEXPECTED;
@@ -729,7 +721,7 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
             return PURCRDR_EC_TOO_SMALL_BUFF;
         }
         fn(ctxt, buff, n);
-        fn(ctxt, STR_TOKEN_SEPARATOR, sizeof(STR_TOKEN_SEPARATOR) - 1);
+        fn(ctxt, STR_VALUE_SEPARATOR, sizeof(STR_VALUE_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff),
                 "%llx", (unsigned long long int)msg->resultValue);
         if (n < 0)
@@ -747,9 +739,9 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
     else if (msg->type == PCRDR_MSG_TYPE_EVENT) {
         /* target: <session | window | tab | dom>/<handle> */
         fn(ctxt, STR_KEY_TARGET, sizeof(STR_KEY_TARGET) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, target_names[msg->target], strlen(target_names[msg->target]));
-        fn(ctxt, STR_TOKEN_SEPARATOR, sizeof(STR_TOKEN_SEPARATOR) - 1);
+        fn(ctxt, STR_VALUE_SEPARATOR, sizeof(STR_VALUE_SEPARATOR) - 1);
 
         n = snprintf(buff, sizeof(buff),
                 "%llx", (unsigned long long int)msg->targetValue);
@@ -764,17 +756,17 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
 
         /* event: <event> */
         fn(ctxt, STR_KEY_EVENT, sizeof(STR_KEY_EVENT) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, msg->event, strlen(msg->event));
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
 
         if (msg->elementType != PCRDR_MSG_ELEMENT_TYPE_VOID) {
             /* element: <css | xpath | handle>/<element> */
             fn(ctxt, STR_KEY_ELEMENT, sizeof(STR_KEY_ELEMENT) - 1);
-            fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+            fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
             fn(ctxt, element_type_names[msg->target],
                     strlen(element_type_names[msg->target]));
-            fn(ctxt, STR_TOKEN_SEPARATOR, sizeof(STR_TOKEN_SEPARATOR) - 1);
+            fn(ctxt, STR_VALUE_SEPARATOR, sizeof(STR_VALUE_SEPARATOR) - 1);
             fn(ctxt, msg->element, strlen(msg->element));
             fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
         }
@@ -782,21 +774,21 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
         if (msg->property) {
             /* property: <property> */
             fn(ctxt, STR_KEY_PROPERTY, sizeof(STR_KEY_PROPERTY) - 1);
-            fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+            fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
             fn(ctxt, msg->property, strlen(msg->property));
             fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
         }
 
         /* dataType: <void | ejson | text> */
         fn(ctxt, STR_KEY_DATA_TYPE, sizeof(STR_KEY_DATA_TYPE) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         fn(ctxt, data_type_names[msg->target],
                 strlen(data_type_names[msg->target]));
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
 
         /* dataLen: <data_length> */
         fn(ctxt, STR_KEY_DATA_LEN, sizeof(STR_KEY_DATA_LEN) - 1);
-        fn(ctxt, STR_KV_SEPARATOR, sizeof(STR_KV_SEPARATOR) - 1);
+        fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff), "%lu", (unsigned long int)msg->dataLen);
         if (n < 0)
             return PURCRDR_EC_UNEXPECTED;

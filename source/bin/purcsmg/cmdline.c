@@ -7,12 +7,12 @@
 **
 ** This file is part of PurC Midnight Commander.
 **
-** PurCRDR is free software: you can redistribute it and/or modify
+** PurCSMG is free software: you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
 ** the Free Software Foundation, either version 3 of the License, or
 ** (at your option) any later version.
 **
-** PurCRDR is distributed in the hope that it will be useful,
+** PurCSMG is distributed in the hope that it will be useful,
 ** but WITHOUT ANY WARRANTY; without even the implied warranty of
 ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ** GNU General Public License for more details.
@@ -83,15 +83,15 @@ static struct cmd_info {
         "exit",
         AT_NONE, AT_NONE, AT_NONE, AT_NONE },
     { CMD_LOAD_EMPTY,
-        "loadEmpty", "le", 
+        "loadEmpty", "le",
         "loadEmpty",
         AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
     { CMD_WRITE_MORE,
-        "writeMore", "w", 
+        "writeMore", "w",
         "writeMore <p>Hello, world!</p>",
         AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
     { CMD_LOAD_FROM_FILE,
-        "loadFromFile", "lff", 
+        "loadFromFile", "lff",
         "loadFromFile test.html",
         AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
 };
@@ -222,16 +222,16 @@ static void print_copying (void)
 {
     fprintf (stdout,
             "\n"
-            "PurCRDR - the data bus system for HybridOS.\n"
+            "PurCSMG - a simple markup generator for PurCRDR.\n"
             "\n"
-            "Copyright (C) 2020 FMSoft <https://www.fmsoft.cn>\n"
+            "Copyright (C) 2021 FMSoft <https://www.fmsoft.cn>\n"
             "\n"
-            "PurCRDR is free software: you can redistribute it and/or modify\n"
+            "PurCSMG is free software: you can redistribute it and/or modify\n"
             "it under the terms of the GNU General Public License as published by\n"
             "the Free Software Foundation, either version 3 of the License, or\n"
             "(at your option) any later version.\n"
             "\n"
-            "PurCRDR is distributed in the hope that it will be useful,\n"
+            "PurCSMG is distributed in the hope that it will be useful,\n"
             "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
             "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
             "GNU General Public License for more details.\n"
@@ -288,7 +288,7 @@ static void on_cmd_help (pcrdr_conn *conn)
     fprintf (stderr, "  <help | h>\n");
     fprintf (stderr, "    print this help message.\n");
     fprintf (stderr, "  <exit | x>\n");
-    fprintf (stderr, "    exit this PurCRDR command line program.\n");
+    fprintf (stderr, "    exit this PurCSMG command line program.\n");
     fprintf (stderr, "  <play | p> <game> <number of players> <parameters>\n");
     fprintf (stderr, "    play a game\n");
     fprintf (stderr, "  <registerMethod | rgm> <method> <app access pattern list>\n");
@@ -322,7 +322,7 @@ static void on_cmd_help (pcrdr_conn *conn)
     fprintf (stderr, "  <F1>\n    print this help message.\n");
     fprintf (stderr, "  <F2>\n    list all endpoints.\n");
     fprintf (stderr, "  <F3>\n    show history command.\n");
-    fprintf (stderr, "  <ESC>\n    exit this PurCRDR command line program.\n");
+    fprintf (stderr, "  <ESC>\n    exit this PurCSMG command line program.\n");
     //fprintf (stderr, "\t<TAB>\n\t\tauto complete the command.\n");
     fprintf (stderr, "  <UP>/<DOWN>\n   switch among history.\n");
     fprintf (stderr, "\n");
@@ -431,7 +431,7 @@ static void use_history_command (pcrdr_conn* conn, bool prev)
 {
     struct run_info *info = pcrdr_conn_get_user_data (conn);
     const char* cmd;
-   
+
     if (info->edited) {
         if (info->saved_buff)
             free (info->saved_buff);
@@ -765,15 +765,95 @@ static void format_current_time (char* buff, size_t sz)
     strftime (buff, sz, "%H:%M", &tm);
 }
 
-static int test_basic_functions (pcrdr_conn *conn)
+static char buffer_a[4096];
+static char buffer_b[4096];
+
+struct buff_info {
+    char *  buf;
+    size_t  size;
+    off_t   pos;
+};
+
+static ssize_t write_to_buf (void *ctxt, const void *buf, size_t count)
 {
+    struct buff_info *info = (struct buff_info *)ctxt;
+
+    if (info->pos + count <= info->size) {
+        memcpy (info->buf + info->pos, buf, count);
+        info->pos += count;
+        return count;
+    }
+    else {
+        ssize_t n = info->size - info->pos;
+
+        if (n > 0) {
+            memcpy (info->buf + info->pos, buf, n);
+            info->pos += n;
+            return n;
+        }
+
+        return 0;
+    }
+
+    return -1;
+}
+
+static int serialize_and_parse_again(const pcrdr_msg *msg)
+{
+    int ret;
+    pcrdr_msg *msg_parsed;
+    struct buff_info info_a = { buffer_a, sizeof (buffer_a), 0 };
+    struct buff_info info_b = { buffer_b, sizeof (buffer_b), 0 };
+
+    pcrdr_serialize_message (msg, write_to_buf, &info_a);
+    buffer_a[info_a.pos] = '\0';
+    puts ("Serialized Original message: \n");
+    puts (buffer_a);
+    puts ("<<<<<<<<\n");
+
+    if ((ret = pcrdr_parse_packet (buffer_a, info_a.pos, &msg_parsed))) {
+        printf ("Failed pcrdr_parse_packet: %s\n",
+                pcrdr_get_err_message (ret));
+        return ret;
+    }
+
+    pcrdr_serialize_message (msg_parsed, write_to_buf, &info_b);
+    buffer_b[info_b.pos] = '\0';
+    puts ("Serialized parsed message: \n");
+    puts (buffer_b);
+    puts ("<<<<<<<<\n");
+
+    ret = pcrdr_compare_messages(msg, msg_parsed);
+    pcrdr_release_message(msg_parsed);
+
+    return ret;
+}
+
+static int test_basic_functions (void)
+{
+    int ret;
+    pcrdr_msg *msg;
+
+    msg = pcrdr_make_request_message (PCRDR_MSG_TARGET_SESSION,
+            random(), "to_do_something", NULL,
+            PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+            PCRDR_MSG_DATA_TYPE_TEXT, "The data", 0);
+
+    ret = serialize_and_parse_again(msg);
+    pcrdr_release_message(msg);
+
+    if (ret) {
+        puts ("Failed serialize_and_parse_again\n");
+        return ret;
+    }
+
     return 0;
 }
 
 /* Command line help. */
 static void print_usage (void)
 {
-    printf ("PurCSMG (%s) - the command line for the simple markup generator\n\n",
+    printf ("PurCSMG (%s) - a simple markup generator for PurCRDR\n\n",
             MC_CURRENT_VERSION);
 
     printf (
@@ -848,11 +928,17 @@ int main (int argc, char **argv)
     print_copying ();
 
     if (read_option_args (argc, argv)) {
-        return EXIT_SUCCESS;
+        return EXIT_FAILURE;
     }
 
-    strcpy (the_client.app_name, PURCRDR_APP_PURCSMG);
-    strcpy (the_client.runner_name, PURCRDR_RUNNER_CMDLINE);
+    if (!the_client.app_name[0])
+        strcpy (the_client.app_name, PURCRDR_APP_PURCSMG);
+    if (!the_client.runner_name[0])
+        strcpy (the_client.runner_name, PURCRDR_RUNNER_CMDLINE);
+
+    if (test_basic_functions ()) {
+        return EXIT_FAILURE;
+    }
 
     kvlist_init (&the_client.ret_value_list, NULL);
     the_client.running = true;
@@ -875,9 +961,6 @@ int main (int argc, char **argv)
     the_client.ttyfd = ttyfd;
     the_client.curr_history_idx = -1;
     pcrdr_conn_set_user_data (conn, &the_client);
-
-    if (test_basic_functions (conn))
-        goto failed;
 
     format_current_time (curr_time, sizeof (curr_time) - 1);
 
@@ -943,6 +1026,6 @@ failed:
     if (cnnfd >= 0)
         pcrdr_disconnect (conn);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 

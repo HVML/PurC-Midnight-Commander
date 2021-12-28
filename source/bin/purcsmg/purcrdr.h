@@ -662,9 +662,10 @@ struct _pcrdr_msg {
 pcrdr_msg *pcrdr_make_request_message(
         pcrdr_msg_target target, uintptr_t target_value,
         const char *operation,
+        const char *request_id,
         pcrdr_msg_element_type element_type, const char *element,
         const char *property,
-        pcrdr_msg_data_type data_type, const char* data);
+        pcrdr_msg_data_type data_type, const char* data, size_t data_len);
 
 /**
  * Make a response message for a request message.
@@ -681,7 +682,7 @@ pcrdr_msg *pcrdr_make_request_message(
 pcrdr_msg *pcrdr_make_response_message(
         const char *request_id,
         unsigned int ret_code, uintptr_t result_value,
-        pcrdr_msg_data_type data_type, const char* data);
+        pcrdr_msg_data_type data_type, const char* data, size_t data_len);
 
 /**
  * Make an event message.
@@ -704,7 +705,7 @@ pcrdr_msg *pcrdr_make_event_message(
         const char *event,
         pcrdr_msg_element_type element_type, const char *element,
         const char *property,
-        pcrdr_msg_data_type data_type, const char* data);
+        pcrdr_msg_data_type data_type, const char* data, size_t data_len);
 
 /**
  * Parse a packet and make a corresponding message.
@@ -735,6 +736,18 @@ typedef ssize_t (*cb_write)(void *ctxt, const void *buf, size_t count);
  * Since: 1.0
  */
 int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt);
+
+/**
+ * Compare two messages.
+ *
+ * @param msga: the poiter to the first message.
+ * @param msga: the poiter to the second message.
+ *
+ * Returns: zero when the messages are identical.
+ *
+ * Since: 1.0
+ */
+int pcrdr_compare_messages(const pcrdr_msg *msg_a, const pcrdr_msg *msg_b);
 
 /**
  * Release a message.

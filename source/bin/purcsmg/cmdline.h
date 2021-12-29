@@ -25,6 +25,7 @@
 
 #include <termio.h>
 #include "lib/kvlist.h"
+#include "lib/purcrdr.h"
 
 #define NR_CMD_ARGS         4
 
@@ -67,8 +68,6 @@ struct run_info {
     int nr_players;
     char* ball_content;
 };
-
-int start_drum_game (pcrdr_conn* conn, int nr_players, const char *ball_content);
 
 #endif /* _PCRDR_CMDLIEN_H */
 

@@ -37,11 +37,13 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include "lib/hiboxcompat.h"
-#include "lib/purcrdr.h"
-
 #include "purcmc_version.h"
 #include "cmdline.h"
+
+#define ULOG_INFO(fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define ULOG_NOTE(fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define ULOG_WARN(fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define ULOG_ERR(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
 
 /* original terminal modes */
 static struct run_info the_client;
@@ -50,9 +52,17 @@ static struct run_info the_client;
 enum {
     CMD_HELP = 0,
     CMD_EXIT,
-    CMD_LOAD_EMPTY,
-    CMD_WRITE_MORE,
-    CMD_LOAD_FROM_FILE,
+    CMD_RESET,
+    CMD_WRITE,
+    CMD_LOAD,
+    CMD_UPDATE,
+    CMD_APPEND,
+    CMD_PREPEND,
+    CMD_INSERT_BEFORE,
+    CMD_INSERT_AFTER,
+    CMD_CLEAR,
+    CMD_ERASE,
+    CMD_SHOW,
 };
 
 /* argument type */
@@ -82,17 +92,49 @@ static struct cmd_info {
         "exit", "x",
         "exit",
         AT_NONE, AT_NONE, AT_NONE, AT_NONE },
-    { CMD_LOAD_EMPTY,
-        "loadEmpty", "le",
-        "loadEmpty",
+    { CMD_RESET,
+        "reset", "r",
+        "reset",
         AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
-    { CMD_WRITE_MORE,
-        "writeMore", "w",
-        "writeMore <p>Hello, world!</p>",
+    { CMD_WRITE,
+        "write", "w",
+        "write <p>Hello, world!</p>",
         AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
-    { CMD_LOAD_FROM_FILE,
-        "loadFromFile", "lff",
-        "loadFromFile test.html",
+    { CMD_LOAD,
+        "load", "l",
+        "load test.html",
+        AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
+    { CMD_UPDATE,
+        "update", "u",
+        "update 3456 textContent Hello, world",
+        AT_NONE, AT_STRING, AT_STRING, AT_STRING, },
+    { CMD_APPEND,
+        "append", "a",
+        "append 3456 <li>an item</li>",
+        AT_NONE, AT_NONE, AT_STRING, AT_STRING, },
+    { CMD_PREPEND,
+        "prepend", "p",
+        "prepend 3456 <li>an item</li>",
+        AT_NONE, AT_NONE, AT_STRING, AT_STRING, },
+    { CMD_INSERT_BEFORE,
+        "insertBefore", "ib",
+        "insertBefore 3456 <li>an item</li>",
+        AT_NONE, AT_NONE, AT_STRING, AT_STRING, },
+    { CMD_INSERT_AFTER,
+        "insertAfter", "ib",
+        "insertAfter 3456 <li>an item</li>",
+        AT_NONE, AT_NONE, AT_STRING, AT_STRING, },
+    { CMD_CLEAR,
+        "clear", "c",
+        "clear 3456",
+        AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
+    { CMD_ERASE,
+        "erase", "e",
+        "erase 3456",
+        AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
+    { CMD_SHOW,
+        "show", "s",
+        "show 3456",
         AT_NONE, AT_NONE, AT_NONE, AT_STRING, },
 };
 
@@ -285,45 +327,39 @@ static void console_print_prompt (pcrdr_conn *conn, bool reset_history)
 static void on_cmd_help (pcrdr_conn *conn)
 {
     fprintf (stderr, "Commands:\n\n");
-    fprintf (stderr, "  <help | h>\n");
+    fprintf (stderr, "  < help | h >\n");
     fprintf (stderr, "    print this help message.\n");
-    fprintf (stderr, "  <exit | x>\n");
+    fprintf (stderr, "  < exit | x >\n");
     fprintf (stderr, "    exit this PurCSMG command line program.\n");
-    fprintf (stderr, "  <play | p> <game> <number of players> <parameters>\n");
-    fprintf (stderr, "    play a game\n");
-    fprintf (stderr, "  <registerMethod | rgm> <method> <app access pattern list>\n");
-    fprintf (stderr, "    register a method\n");
-    fprintf (stderr, "  <revokeMethod | rvm> <method>\n");
-    fprintf (stderr, "    revoke a method\n");
-    fprintf (stderr, "  <setReturnValue | srv> <method> <return value>\n");
-    fprintf (stderr, "    set the return value of the specified method\n");
-    fprintf (stderr, "  <call | c> <endpoint> <method> <parameters>\n");
-    fprintf (stderr, "    call a procedure\n");
-    fprintf (stderr, "  <registerEvent | rge> <BUBBLE> <app access pattern list>\n");
-    fprintf (stderr, "    register an event\n");
-    fprintf (stderr, "  <revokeEvent | rve> <BUBBLE>\n");
-    fprintf (stderr, "    revoke an event\n");
-    fprintf (stderr, "  <fire | f> <BUBBLE> <parameters>\n");
-    fprintf (stderr, "    fire an event\n");
-    fprintf (stderr, "  <subscribe | sub> <endpoint> <BUBBLE>\n");
-    fprintf (stderr, "    suscribe an event.\n");
-    fprintf (stderr, "  <unsubscribe | unsub> <endpoint> <BUBBLE>\n");
-    fprintf (stderr, "    unsuscribe an event.\n");
-    fprintf (stderr, "  <listEndpoints | lep>\n");
-    fprintf (stderr, "    list all endpoints.\n");
-    fprintf (stderr, "  <listProcedures | lp> <endpoint>\n");
-    fprintf (stderr, "    list all procedures can be called by the specified endpoint.\n");
-    fprintf (stderr, "  <listEvents | le> <endpoint>\n");
-    fprintf (stderr, "    list all events can be subscribed by the specified endpoint.\n");
-    fprintf (stderr, "  <listSubscribers | ls> <endpoint> <BUBBLE>\n");
-    fprintf (stderr, "    list all subscribers of the specified endpint bubble.\n");
+    fprintf (stderr, "  < reset | r >\n");
+    fprintf (stderr, "    reset page content.\n");
+    fprintf (stderr, "  < write | w > <content>\n");
+    fprintf (stderr, "    write HTML content\n");
+    fprintf (stderr, "  < load | l > <file>\n");
+    fprintf (stderr, "    load HTML content from a file.\n");
+    fprintf (stderr, "  < update | u > <element handle> <property> <content>\n");
+    fprintf (stderr, "    update a property of an element.\n");
+    fprintf (stderr, "  < append | a > <element handle> <content>\n");
+    fprintf (stderr, "    append content in an element.\n");
+    fprintf (stderr, "  < prepend | p > <element handle> <content>\n");
+    fprintf (stderr, "    prepend content in an element.\n");
+    fprintf (stderr, "  < insertBefore | ib > <element handle> <content>\n");
+    fprintf (stderr, "    insert content before an element.\n");
+    fprintf (stderr, "  < insertAfter | ia > <element handle> <content>\n");
+    fprintf (stderr, "    insert content after an element.\n");
+    fprintf (stderr, "  < displace | d > <element handle> <content>\n");
+    fprintf (stderr, "    displace content of an element.\n");
+    fprintf (stderr, "  < clear | c > <element handle>\n");
+    fprintf (stderr, "    clear content of an element.\n");
+    fprintf (stderr, "  < erase | e > <element handle>\n");
+    fprintf (stderr, "    erase an element and its content.\n");
+    fprintf (stderr, "  < show | s > <element handle>\n");
+    fprintf (stderr, "    show an element and its content.\n");
     fprintf (stderr, "\n");
     fprintf (stderr, "Shortcuts:\n\n");
     fprintf (stderr, "  <F1>\n    print this help message.\n");
-    fprintf (stderr, "  <F2>\n    list all endpoints.\n");
     fprintf (stderr, "  <F3>\n    show history command.\n");
     fprintf (stderr, "  <ESC>\n    exit this PurCSMG command line program.\n");
-    //fprintf (stderr, "\t<TAB>\n\t\tauto complete the command.\n");
     fprintf (stderr, "  <UP>/<DOWN>\n   switch among history.\n");
     fprintf (stderr, "\n");
 }

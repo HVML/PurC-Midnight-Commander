@@ -295,6 +295,12 @@
 #define USE_SCROLL_DOWN                     1
 #define USE_SCROLL_UP                       1
 
+#ifdef NDEBUG
+#undef USE_MAINTAINER_MODE
+#else
+#define USE_MAINTAINER_MODE                 1
+#endif
+
 #undef USE_ANONYMOUS
 #undef USE_DEPRECATED_PARSER
 #undef USE_DISABLED
@@ -302,7 +308,6 @@
 #undef USE_GPM
 #undef USE_H
 #undef USE_MAGIC
-#undef USE_MAINTAINER_MODE
 #undef USE_MEMSET_IN_LCS
 #undef USE_MOVE
 #undef USE_NCURSESW

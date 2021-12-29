@@ -39,8 +39,7 @@
 #include "lib/hiboxcompat.h"
 #include "lib/md5.h"
 #include "lib/kvlist.h"
-
-#include "purcrdr.h"
+#include "lib/purcrdr.h"
 
 struct _pcrdr_conn {
     int type;

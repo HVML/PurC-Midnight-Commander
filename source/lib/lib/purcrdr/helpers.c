@@ -31,8 +31,7 @@
 #include "lib/hiboxcompat.h"
 #include "lib/list.h"
 #include "lib/md5.h"
-
-#include "purcrdr.h"
+#include "lib/purcrdr.h"
 
 /* Return Codes and Messages */
 #define UNKNOWN_RET_CODE    "Unknown Return Code"

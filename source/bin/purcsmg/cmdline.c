@@ -38,9 +38,9 @@
 #include <sys/wait.h>
 
 #include "lib/hiboxcompat.h"
+#include "lib/purcrdr.h"
 
 #include "purcmc_version.h"
-#include "purcrdr.h"
 #include "cmdline.h"
 
 /* original terminal modes */
@@ -807,7 +807,7 @@ static int serialize_and_parse_again(const pcrdr_msg *msg)
 
     pcrdr_serialize_message (msg, write_to_buf, &info_a);
     buffer_a[info_a.pos] = '\0';
-    puts ("Serialized Original message: \n");
+    puts ("Serialized original message: \n");
     puts (buffer_a);
     puts ("<<<<<<<<\n");
 

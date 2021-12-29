@@ -29,8 +29,7 @@
 
 #include "lib/hiboxcompat.h"
 #include "lib/md5.h"
-
-#include "purcrdr.h"
+#include "lib/purcrdr.h"
 
 pcrdr_msg *pcrdr_make_request_message(
         pcrdr_msg_target target, uintptr_t target_value,

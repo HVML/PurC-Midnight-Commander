@@ -315,7 +315,8 @@ frontend_dlg_run (WDialog * h)
 
         /* Clear interrupt flag */
         tty_got_interrupt ();
-        d_key = tty_get_event (&event, GROUP (h)->mouse_status == MOU_REPEAT, TRUE);
+        d_key = tty_get_event (&event, GROUP (h)->mouse_status == MOU_REPEAT,
+                FALSE); /* VW: tune for calling idle_hook continuously */
 
         dlg_process_event (h, d_key, &event);
 

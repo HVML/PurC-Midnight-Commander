@@ -2029,7 +2029,7 @@ tty_get_event (struct Gpm_Event *event, gboolean redo_event, gboolean block)
         {
             time_addr = &time_out;
             time_out.tv_sec = 0;
-            time_out.tv_usec = 0;
+            time_out.tv_usec = 10 * 1000; /* VW: 10ms */
         }
 
         tty_enable_interrupt_key ();

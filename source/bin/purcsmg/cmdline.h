@@ -20,8 +20,8 @@
  ** along with this program.  If not, see http://www.gnu.org/licenses/.
  */
 
-#ifndef _PURCRDR_CMDLIEN_H
-#define _PURCRDR_CMDLIEN_H
+#ifndef _PCRDR_CMDLIEN_H
+#define _PCRDR_CMDLIEN_H
 
 #include <termio.h>
 #include "lib/kvlist.h"
@@ -29,7 +29,7 @@
 #define NR_CMD_ARGS         4
 
 #define LEN_COMMAND         31
-#define LEN_NORMAL_ARG      PURCRDR_LEN_ENDPOINT_NAME
+#define LEN_NORMAL_ARG      PCRDR_LEN_ENDPOINT_NAME
 #define LEN_LAST_ARG        1023
 #define LEN_GAME_NAME       31
 
@@ -47,10 +47,10 @@ struct run_info {
 
     struct termios startup_termios;
 
-    char app_name [PURCRDR_LEN_APP_NAME + 1];
-    char runner_name [PURCRDR_LEN_RUNNER_NAME + 1];
-    char builtin_endpoint [PURCRDR_LEN_ENDPOINT_NAME + 1];
-    char self_endpoint [PURCRDR_LEN_ENDPOINT_NAME + 1];
+    char app_name [PCRDR_LEN_APP_NAME + 1];
+    char runner_name [PCRDR_LEN_RUNNER_NAME + 1];
+    char builtin_endpoint [PCRDR_LEN_ENDPOINT_NAME + 1];
+    char self_endpoint [PCRDR_LEN_ENDPOINT_NAME + 1];
 
     struct kvlist ret_value_list;
 
@@ -70,5 +70,5 @@ struct run_info {
 
 int start_drum_game (pcrdr_conn* conn, int nr_players, const char *ball_content);
 
-#endif /* _PURCRDR_CMDLIEN_H */
+#endif /* _PCRDR_CMDLIEN_H */
 

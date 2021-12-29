@@ -40,69 +40,69 @@ static struct  {
     int ret_code;
     const char* ret_msg;
 } ret_code_2_messages[] = {
-    { PURCRDR_SC_IOERR,               /* 1 */
+    { PCRDR_SC_IOERR,               /* 1 */
         "I/O Error" },
-    { PURCRDR_SC_OK,                  /* 200 */
+    { PCRDR_SC_OK,                  /* 200 */
         "Ok" },
-    { PURCRDR_SC_CREATED,             /* 201 */
+    { PCRDR_SC_CREATED,             /* 201 */
         "Created" },
-    { PURCRDR_SC_ACCEPTED,            /* 202 */
+    { PCRDR_SC_ACCEPTED,            /* 202 */
         "Accepted" },
-    { PURCRDR_SC_NO_CONTENT,          /* 204 */
+    { PCRDR_SC_NO_CONTENT,          /* 204 */
         "No Content" },
-    { PURCRDR_SC_RESET_CONTENT,       /* 205 */
+    { PCRDR_SC_RESET_CONTENT,       /* 205 */
         "Reset Content" },
-    { PURCRDR_SC_PARTIAL_CONTENT,     /* 206 */
+    { PCRDR_SC_PARTIAL_CONTENT,     /* 206 */
         "Partial Content" },
-    { PURCRDR_SC_BAD_REQUEST,         /* 400 */
+    { PCRDR_SC_BAD_REQUEST,         /* 400 */
         "Bad Request" },
-    { PURCRDR_SC_UNAUTHORIZED,        /* 401 */
+    { PCRDR_SC_UNAUTHORIZED,        /* 401 */
         "Unauthorized" },
-    { PURCRDR_SC_FORBIDDEN,           /* 403 */
+    { PCRDR_SC_FORBIDDEN,           /* 403 */
         "Forbidden" },
-    { PURCRDR_SC_NOT_FOUND,           /* 404 */
+    { PCRDR_SC_NOT_FOUND,           /* 404 */
         "Not Found" },
-    { PURCRDR_SC_METHOD_NOT_ALLOWED,  /* 405 */
+    { PCRDR_SC_METHOD_NOT_ALLOWED,  /* 405 */
         "Method Not Allowed" },
-    { PURCRDR_SC_NOT_ACCEPTABLE,      /* 406 */
+    { PCRDR_SC_NOT_ACCEPTABLE,      /* 406 */
         "Not Acceptable" },
-    { PURCRDR_SC_CONFLICT,            /* 409 */
+    { PCRDR_SC_CONFLICT,            /* 409 */
         "Conflict" },
-    { PURCRDR_SC_GONE,                /* 410 */
+    { PCRDR_SC_GONE,                /* 410 */
         "Gone" },
-    { PURCRDR_SC_PRECONDITION_FAILED, /* 412 */
+    { PCRDR_SC_PRECONDITION_FAILED, /* 412 */
         "Precondition Failed" },
-    { PURCRDR_SC_PACKET_TOO_LARGE,    /* 413 */
+    { PCRDR_SC_PACKET_TOO_LARGE,    /* 413 */
         "Packet Too Large" },
-    { PURCRDR_SC_EXPECTATION_FAILED,  /* 417 */
+    { PCRDR_SC_EXPECTATION_FAILED,  /* 417 */
         "Expectation Failed" },
-    { PURCRDR_SC_IM_A_TEAPOT,         /* 418 */
+    { PCRDR_SC_IM_A_TEAPOT,         /* 418 */
         "I'm a teapot" },
-    { PURCRDR_SC_UNPROCESSABLE_PACKET,    /* 422 */
+    { PCRDR_SC_UNPROCESSABLE_PACKET,    /* 422 */
         "Unprocessable Packet" },
-    { PURCRDR_SC_LOCKED,              /* 423 */
+    { PCRDR_SC_LOCKED,              /* 423 */
         "Locked" },
-    { PURCRDR_SC_FAILED_DEPENDENCY,   /* 424 */
+    { PCRDR_SC_FAILED_DEPENDENCY,   /* 424 */
         "Failed Dependency" },
-    { PURCRDR_SC_FAILED_DEPENDENCY,   /* 425 */
+    { PCRDR_SC_FAILED_DEPENDENCY,   /* 425 */
         "Failed Dependency" },
-    { PURCRDR_SC_UPGRADE_REQUIRED,    /* 426 */
+    { PCRDR_SC_UPGRADE_REQUIRED,    /* 426 */
         "Upgrade Required" },
-    { PURCRDR_SC_RETRY_WITH,          /* 449 */
+    { PCRDR_SC_RETRY_WITH,          /* 449 */
         "Retry With" },
-    { PURCRDR_SC_UNAVAILABLE_FOR_LEGAL_REASONS,   /* 451 */
+    { PCRDR_SC_UNAVAILABLE_FOR_LEGAL_REASONS,   /* 451 */
         "Unavailable For Legal Reasons" },
-    { PURCRDR_SC_INTERNAL_SERVER_ERROR,   /* 500 */
+    { PCRDR_SC_INTERNAL_SERVER_ERROR,   /* 500 */
         "Internal Server Error" },
-    { PURCRDR_SC_NOT_IMPLEMENTED,     /* 501 */
+    { PCRDR_SC_NOT_IMPLEMENTED,     /* 501 */
         "Not Implemented" },
-    { PURCRDR_SC_BAD_CALLEE,          /* 502 */
+    { PCRDR_SC_BAD_CALLEE,          /* 502 */
         "Bad Callee" },
-    { PURCRDR_SC_SERVICE_UNAVAILABLE, /* 503 */
+    { PCRDR_SC_SERVICE_UNAVAILABLE, /* 503 */
         "Service Unavailable" },
-    { PURCRDR_SC_CALLEE_TIMEOUT,      /* 504 */
+    { PCRDR_SC_CALLEE_TIMEOUT,      /* 504 */
         "Callee Timeout" },
-    { PURCRDR_SC_INSUFFICIENT_STORAGE,    /* 507 */
+    { PCRDR_SC_INSUFFICIENT_STORAGE,    /* 507 */
         "Insufficient Storage" },
 };
 
@@ -139,51 +139,51 @@ const char* pcrdr_get_ret_message (int ret_code)
 static const char* err_messages [] = {
     /* 0 */
     "Everything Ok",
-    /* PURCRDR_EC_IO (-1) */
+    /* PCRDR_EC_IO (-1) */
     "IO Error",
-    /* PURCRDR_EC_CLOSED (-2) */
+    /* PCRDR_EC_CLOSED (-2) */
     "Peer Closed",
-    /* PURCRDR_EC_NOMEM (-3) */
+    /* PCRDR_EC_NOMEM (-3) */
     "No Enough Memory",
-    /* PURCRDR_EC_TOO_LARGE (-4) */
+    /* PCRDR_EC_TOO_LARGE (-4) */
     "Too Large",
-    /* PURCRDR_EC_PROTOCOL (-5) */
+    /* PCRDR_EC_PROTOCOL (-5) */
     "Protocol",
-    /* PURCRDR_EC_UPPER (-6) */
+    /* PCRDR_EC_UPPER (-6) */
     "Upper",
-    /* PURCRDR_EC_NOT_IMPLEMENTED (-7) */
+    /* PCRDR_EC_NOT_IMPLEMENTED (-7) */
     "Not Implemented",
-    /* PURCRDR_EC_INVALID_VALUE (-8) */
+    /* PCRDR_EC_INVALID_VALUE (-8) */
     "Invalid Value",
-    /* PURCRDR_EC_DUPLICATED (-9) */
+    /* PCRDR_EC_DUPLICATED (-9) */
     "Duplicated",
-    /* PURCRDR_EC_TOO_SMALL_BUFF (-10) */
+    /* PCRDR_EC_TOO_SMALL_BUFF (-10) */
     "Too Small Buffer",
-    /* PURCRDR_EC_BAD_SYSTEM_CALL (-11) */
+    /* PCRDR_EC_BAD_SYSTEM_CALL (-11) */
     "Bad System Call",
-    /* PURCRDR_EC_AUTH_FAILED (-12) */
+    /* PCRDR_EC_AUTH_FAILED (-12) */
     "Authentication Failed",
-    /* PURCRDR_EC_SERVER_ERROR (-13) */
+    /* PCRDR_EC_SERVER_ERROR (-13) */
     "Server Error",
-    /* PURCRDR_EC_TIMEOUT (-14) */
+    /* PCRDR_EC_TIMEOUT (-14) */
     "Timeout",
-    /* PURCRDR_EC_UNKNOWN_EVENT (-15) */
+    /* PCRDR_EC_UNKNOWN_EVENT (-15) */
     "Unknown Event",
-    /* PURCRDR_EC_UNKNOWN_RESULT (-16) */
+    /* PCRDR_EC_UNKNOWN_RESULT (-16) */
     "Unknown Result",
-    /* PURCRDR_EC_UNKNOWN_METHOD (-17) */
+    /* PCRDR_EC_UNKNOWN_METHOD (-17) */
     "Unknown Method",
-    /* PURCRDR_EC_UNEXPECTED (-18) */
+    /* PCRDR_EC_UNEXPECTED (-18) */
     "Unexpected",
-    /* PURCRDR_EC_SERVER_REFUSED (-19) */
+    /* PCRDR_EC_SERVER_REFUSED (-19) */
     "Server Refused",
-    /* PURCRDR_EC_BAD_PACKET (-20) */
+    /* PCRDR_EC_BAD_PACKET (-20) */
     "Bad Packet",
-    /* PURCRDR_EC_BAD_CONNECTION (-21) */
+    /* PCRDR_EC_BAD_CONNECTION (-21) */
     "Bad Connection",
-    /* PURCRDR_EC_CANT_LOAD (-22) */
+    /* PCRDR_EC_CANT_LOAD (-22) */
     "Cannot Load Resource",
-    /* PURCRDR_EC_BAD_KEY (-23) */
+    /* PCRDR_EC_BAD_KEY (-23) */
     "Bad Key",
 };
 
@@ -203,46 +203,46 @@ int pcrdr_errcode_to_retcode (int err_code)
 {
     switch (err_code) {
         case 0:
-            return PURCRDR_SC_OK;
-        case PURCRDR_EC_IO:
-            return PURCRDR_SC_IOERR;
-        case PURCRDR_EC_CLOSED:
-            return PURCRDR_SC_SERVICE_UNAVAILABLE;
-        case PURCRDR_EC_NOMEM:
-            return PURCRDR_SC_INSUFFICIENT_STORAGE;
-        case PURCRDR_EC_TOO_LARGE:
-            return PURCRDR_SC_PACKET_TOO_LARGE;
-        case PURCRDR_EC_PROTOCOL:
-            return PURCRDR_SC_UNPROCESSABLE_PACKET;
-        case PURCRDR_EC_UPPER:
-            return PURCRDR_SC_INTERNAL_SERVER_ERROR;
-        case PURCRDR_EC_NOT_IMPLEMENTED:
-            return PURCRDR_SC_NOT_IMPLEMENTED;
-        case PURCRDR_EC_INVALID_VALUE:
-            return PURCRDR_SC_BAD_REQUEST;
-        case PURCRDR_EC_DUPLICATED:
-            return PURCRDR_SC_CONFLICT;
-        case PURCRDR_EC_TOO_SMALL_BUFF:
-            return PURCRDR_SC_INSUFFICIENT_STORAGE;
-        case PURCRDR_EC_BAD_SYSTEM_CALL:
-            return PURCRDR_SC_INTERNAL_SERVER_ERROR;
-        case PURCRDR_EC_AUTH_FAILED:
-            return PURCRDR_SC_UNAUTHORIZED;
-        case PURCRDR_EC_SERVER_ERROR:
-            return PURCRDR_SC_INTERNAL_SERVER_ERROR;
-        case PURCRDR_EC_TIMEOUT:
-            return PURCRDR_SC_CALLEE_TIMEOUT;
-        case PURCRDR_EC_UNKNOWN_EVENT:
-            return PURCRDR_SC_NOT_FOUND;
-        case PURCRDR_EC_UNKNOWN_RESULT:
-            return PURCRDR_SC_NOT_FOUND;
-        case PURCRDR_EC_UNKNOWN_METHOD:
-            return PURCRDR_SC_NOT_FOUND;
+            return PCRDR_SC_OK;
+        case PCRDR_EC_IO:
+            return PCRDR_SC_IOERR;
+        case PCRDR_EC_CLOSED:
+            return PCRDR_SC_SERVICE_UNAVAILABLE;
+        case PCRDR_EC_NOMEM:
+            return PCRDR_SC_INSUFFICIENT_STORAGE;
+        case PCRDR_EC_TOO_LARGE:
+            return PCRDR_SC_PACKET_TOO_LARGE;
+        case PCRDR_EC_PROTOCOL:
+            return PCRDR_SC_UNPROCESSABLE_PACKET;
+        case PCRDR_EC_UPPER:
+            return PCRDR_SC_INTERNAL_SERVER_ERROR;
+        case PCRDR_EC_NOT_IMPLEMENTED:
+            return PCRDR_SC_NOT_IMPLEMENTED;
+        case PCRDR_EC_INVALID_VALUE:
+            return PCRDR_SC_BAD_REQUEST;
+        case PCRDR_EC_DUPLICATED:
+            return PCRDR_SC_CONFLICT;
+        case PCRDR_EC_TOO_SMALL_BUFF:
+            return PCRDR_SC_INSUFFICIENT_STORAGE;
+        case PCRDR_EC_BAD_SYSTEM_CALL:
+            return PCRDR_SC_INTERNAL_SERVER_ERROR;
+        case PCRDR_EC_AUTH_FAILED:
+            return PCRDR_SC_UNAUTHORIZED;
+        case PCRDR_EC_SERVER_ERROR:
+            return PCRDR_SC_INTERNAL_SERVER_ERROR;
+        case PCRDR_EC_TIMEOUT:
+            return PCRDR_SC_CALLEE_TIMEOUT;
+        case PCRDR_EC_UNKNOWN_EVENT:
+            return PCRDR_SC_NOT_FOUND;
+        case PCRDR_EC_UNKNOWN_RESULT:
+            return PCRDR_SC_NOT_FOUND;
+        case PCRDR_EC_UNKNOWN_METHOD:
+            return PCRDR_SC_NOT_FOUND;
         default:
             break;
     }
 
-    return PURCRDR_SC_INTERNAL_SERVER_ERROR;
+    return PCRDR_SC_INTERNAL_SERVER_ERROR;
 }
 
 bool pcrdr_is_valid_token (const char* token, int max_len)
@@ -267,6 +267,237 @@ bool pcrdr_is_valid_token (const char* token, int max_len)
     return true;
 }
 
+bool pcrdr_is_valid_endpoint_name (const char* endpoint_name)
+{
+    char host_name [PCRDR_LEN_HOST_NAME + 1];
+    char app_name [PCRDR_LEN_APP_NAME + 1];
+    char runner_name [PCRDR_LEN_RUNNER_NAME + 1];
+
+    if ( pcrdr_extract_host_name (endpoint_name, host_name) <= 0)
+        return false;
+
+    if ( pcrdr_extract_app_name (endpoint_name, app_name) <= 0)
+        return false;
+
+    if ( pcrdr_extract_runner_name (endpoint_name, runner_name) <= 0)
+        return false;
+
+    return pcrdr_is_valid_host_name (host_name) &&
+        pcrdr_is_valid_app_name (app_name) &&
+        pcrdr_is_valid_runner_name (runner_name);
+}
+
+/* @<host_name>/<app_name>/<runner_name> */
+int pcrdr_extract_host_name (const char* endpoint, char* host_name)
+{
+    int len;
+    char* slash;
+
+    if (endpoint [0] != '@' || (slash = strchr (endpoint, '/')) == NULL)
+        return 0;
+
+    endpoint++;
+    len = (uintptr_t)slash - (uintptr_t)endpoint;
+    if (len <= 0 || len > PCRDR_LEN_APP_NAME)
+        return 0;
+
+    strncpy (host_name, endpoint, len);
+    host_name [len] = '\0';
+
+    return len;
+}
+
+char* pcrdr_extract_host_name_alloc (const char* endpoint)
+{
+    char* host_name;
+    if ((host_name = malloc (PCRDR_LEN_HOST_NAME + 1)) == NULL)
+        return NULL;
+
+    if ( pcrdr_extract_host_name (endpoint, host_name) > 0)
+        return host_name;
+
+    free (host_name);
+    return NULL;
+}
+
+/* @<host_name>/<app_name>/<runner_name> */
+int pcrdr_extract_app_name (const char* endpoint, char* app_name)
+{
+    int len;
+    char *first_slash, *second_slash;
+
+    if (endpoint [0] != '@' || (first_slash = strchr (endpoint, '/')) == 0 ||
+            (second_slash = strrchr (endpoint, '/')) == 0 ||
+            first_slash == second_slash)
+        return 0;
+
+    first_slash++;
+    len = (uintptr_t)second_slash - (uintptr_t)first_slash;
+    if (len <= 0 || len > PCRDR_LEN_APP_NAME)
+        return 0;
+
+    strncpy (app_name, first_slash, len);
+    app_name [len] = '\0';
+
+    return len;
+}
+
+char* pcrdr_extract_app_name_alloc (const char* endpoint)
+{
+    char* app_name;
+
+    if ((app_name = malloc (PCRDR_LEN_APP_NAME + 1)) == NULL)
+        return NULL;
+
+    if ( pcrdr_extract_app_name (endpoint, app_name) > 0)
+        return app_name;
+
+    free (app_name);
+    return NULL;
+}
+
+int pcrdr_extract_runner_name (const char* endpoint, char* runner_name)
+{
+    int len;
+    char *second_slash;
+
+    if (endpoint [0] != '@' ||
+            (second_slash = strrchr (endpoint, '/')) == 0)
+        return 0;
+
+    second_slash++;
+    len = strlen (second_slash);
+    if (len > PCRDR_LEN_RUNNER_NAME)
+        return 0;
+
+    strcpy (runner_name, second_slash);
+
+    return len;
+}
+
+char* pcrdr_extract_runner_name_alloc (const char* endpoint)
+{
+    char* runner_name;
+
+    if ((runner_name = malloc (PCRDR_LEN_RUNNER_NAME + 1)) == NULL)
+        return NULL;
+
+    if ( pcrdr_extract_runner_name (endpoint, runner_name) > 0)
+        return runner_name;
+
+    free (runner_name);
+    return NULL;
+}
+
+int pcrdr_assemble_endpoint_name (const char* host_name, const char* app_name,
+        const char* runner_name, char* buff)
+{
+    int host_len, app_len, runner_len;
+
+    if ((host_len = strlen (host_name)) > PCRDR_LEN_HOST_NAME)
+        return 0;
+
+    if ((app_len = strlen (app_name)) > PCRDR_LEN_APP_NAME)
+        return 0;
+
+    if ((runner_len = strlen (runner_name)) > PCRDR_LEN_RUNNER_NAME)
+        return 0;
+
+    buff [0] = '@';
+    buff [1] = '\0';
+    strcat (buff, host_name);
+    buff [host_len + 1] = '/';
+    buff [host_len + 2] = '\0';
+
+    strcat (buff, app_name);
+    buff [host_len + app_len + 2] = '/';
+    buff [host_len + app_len + 3] = '\0';
+
+    strcat (buff, runner_name);
+
+    return host_len + app_len + runner_len + 3;
+}
+
+char* pcrdr_assemble_endpoint_name_alloc (const char* host_name, const char* app_name,
+        const char* runner_name)
+{
+    char* endpoint;
+    int host_len, app_len, runner_len;
+
+    if ((host_len = strlen (host_name)) > PCRDR_LEN_HOST_NAME)
+        return NULL;
+
+    if ((app_len = strlen (app_name)) > PCRDR_LEN_APP_NAME)
+        return NULL;
+
+    if ((runner_len = strlen (runner_name)) > PCRDR_LEN_RUNNER_NAME)
+        return NULL;
+
+    if ((endpoint = malloc (host_len + app_len + runner_len + 4)) == NULL)
+        return NULL;
+
+    endpoint [0] = '@';
+    endpoint [1] = '\0';
+    strcat (endpoint, host_name);
+    endpoint [host_len + 1] = '/';
+    endpoint [host_len + 2] = '\0';
+
+    strcat (endpoint, app_name);
+    endpoint [host_len + app_len + 2] = '/';
+    endpoint [host_len + app_len + 3] = '\0';
+
+    strcat (endpoint, runner_name);
+
+    return endpoint;
+}
+
+bool pcrdr_is_valid_host_name (const char* host_name)
+{
+    // TODO
+    (void)host_name;
+    return true;
+}
+
+/* cn.fmsoft.hybridos.aaa */
+bool pcrdr_is_valid_app_name (const char* app_name)
+{
+    int len, max_len = PCRDR_LEN_APP_NAME;
+    const char *start;
+    char *end;
+
+    start = app_name;
+    while (*start) {
+        char saved;
+        end = strchr (start, '.');
+        if (end == NULL) {
+            saved = 0;
+            end += strlen (start);
+        }
+        else {
+            saved = '.';
+            *end = 0;
+        }
+
+        if (end == start)
+            return false;
+
+        if ((len = pcrdr_is_valid_token (start, max_len)) <= 0)
+            return false;
+
+        max_len -= len;
+        if (saved) {
+            start = end + 1;
+            *end = saved;
+            max_len--;
+        }
+        else {
+            break;
+        }
+    }
+
+    return true;
+}
+
 void pcrdr_generate_unique_id (char* id_buff, const char* prefix)
 {
     static unsigned long accumulator;
@@ -284,7 +515,7 @@ void pcrdr_generate_unique_id (char* id_buff, const char* prefix)
     my_prefix [8] = '\0';
 
     clock_gettime (CLOCK_REALTIME, &tp);
-    snprintf (id_buff, PURCRDR_LEN_UNIQUE_ID + 1,
+    snprintf (id_buff, PCRDR_LEN_UNIQUE_ID + 1,
             "%s-%016lX-%016lX-%016lX",
             my_prefix, tp.tv_sec, tp.tv_nsec, accumulator);
     accumulator++;
@@ -316,7 +547,7 @@ bool pcrdr_is_valid_unique_id (const char* id)
     int n = 0;
 
     while (id [n]) {
-        if (n > PURCRDR_LEN_UNIQUE_ID)
+        if (n > PCRDR_LEN_UNIQUE_ID)
             return false;
 
         if (!isalnum (id [n]) && id [n] != '-')

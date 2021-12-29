@@ -2014,7 +2014,7 @@ ws_realloc_frm_payload (WSClient * client, WSFrame * frm, WSMessage * msg)
 
   newlen = msg->payloadsz + frm->payloadlen;
   /* check the maximal size of the message body here. */
-  if (newlen >= SERVER_MAX_INMEM_PAYLOAD_SIZE) {
+  if (newlen >= PCRDR_MAX_INMEM_PAYLOAD_SIZE) {
     free (msg->payload);
     msg->payload = NULL;
     goto failed;
@@ -2116,7 +2116,7 @@ read_client_data (WSServer * server, WSClient * client)
       if (!(client->status & WS_CLOSE) && server->on_accepted) {
           int ret_code;
           ret_code = server->on_accepted (server, (SockClient *)client);
-          if (ret_code != SERVER_SC_OK) {
+          if (ret_code != PCRDR_SC_OK) {
               ULOG_WARN ("Internal error after accepted this WebSocket client (%d): %d\n",
                       client->fd, ret_code);
 

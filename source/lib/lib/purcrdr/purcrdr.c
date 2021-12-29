@@ -36,10 +36,14 @@
 #include <sys/un.h>
 #include <sys/time.h>
 
-#include "lib/hiboxcompat.h"
 #include "lib/md5.h"
 #include "lib/kvlist.h"
 #include "lib/purcrdr.h"
+
+#define ULOG_INFO(fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define ULOG_NOTE(fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define ULOG_WARN(fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define ULOG_ERR(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
 
 struct _pcrdr_conn {
     int type;
@@ -142,7 +146,7 @@ failed:
 int pcrdr_connect_via_unix_socket (const char* path_to_socket,
         const char* app_name, const char* runner_name, pcrdr_conn** conn)
 {
-    int fd, len, err_code = PURCRDR_EC_BAD_CONNECTION;
+    int fd, len, err_code = PCRDR_EC_BAD_CONNECTION;
     struct sockaddr_un unix_addr;
     char peer_name [33];
     char *ch_code = NULL;
@@ -150,14 +154,14 @@ int pcrdr_connect_via_unix_socket (const char* path_to_socket,
     if ((*conn = calloc (1, sizeof (pcrdr_conn))) == NULL) {
         ULOG_ERR ("Failed to callocate space for connection: %s\n",
                 strerror (errno));
-        return PURCRDR_EC_NOMEM;
+        return PCRDR_EC_NOMEM;
     }
 
     /* create a Unix domain stream socket */
     if ((fd = socket (AF_UNIX, SOCK_STREAM, 0)) < 0) {
         ULOG_ERR ("Failed to call `socket` in pcrdr_connect_via_unix_socket: %s\n",
                 strerror (errno));
-        return PURCRDR_EC_IO;
+        return PCRDR_EC_IO;
     }
 
     {
@@ -206,7 +210,7 @@ int pcrdr_connect_via_unix_socket (const char* path_to_socket,
     (*conn)->type = CT_UNIX_SOCKET;
     (*conn)->fd = fd;
     (*conn)->srv_host_name = NULL;
-    (*conn)->own_host_name = strdup (PURCRDR_LOCALHOST);
+    (*conn)->own_host_name = strdup (PCRDR_LOCALHOST);
     (*conn)->app_name = strdup (app_name);
     (*conn)->runner_name = strdup (runner_name);
 
@@ -251,7 +255,7 @@ error:
 int pcrdr_connect_via_web_socket (const char* host_name, int port,
         const char* app_name, const char* runner_name, pcrdr_conn** conn)
 {
-    return PURCRDR_EC_NOT_IMPLEMENTED;
+    return PCRDR_EC_NOT_IMPLEMENTED;
 }
 
 const char* pcrdr_conn_srv_host_name (pcrdr_conn* conn)
@@ -290,7 +294,7 @@ static inline int conn_read (int fd, void *buff, ssize_t sz)
         return 0;
     }
 
-    return PURCRDR_EC_IO;
+    return PCRDR_EC_IO;
 }
 
 static inline int conn_write (int fd, const void *data, ssize_t sz)
@@ -299,7 +303,7 @@ static inline int conn_write (int fd, const void *data, ssize_t sz)
         return 0;
     }
 
-    return PURCRDR_EC_IO;
+    return PCRDR_EC_IO;
 }
 
 int pcrdr_free_connection (pcrdr_conn* conn)
@@ -332,15 +336,15 @@ int pcrdr_disconnect (pcrdr_conn* conn)
         header.sz_payload = 0;
         if (conn_write (conn->fd, &header, sizeof (USFrameHeader))) {
             ULOG_ERR ("Error when wirting to Unix Socket: %s\n", strerror (errno));
-            err_code = PURCRDR_EC_IO;
+            err_code = PCRDR_EC_IO;
         }
     }
     else if (conn->type == CT_WEB_SOCKET) {
         /* TODO */
-        err_code = PURCRDR_EC_NOT_IMPLEMENTED;
+        err_code = PCRDR_EC_NOT_IMPLEMENTED;
     }
     else {
-        err_code = PURCRDR_EC_INVALID_VALUE;
+        err_code = PCRDR_EC_INVALID_VALUE;
     }
 
     pcrdr_free_connection (conn);
@@ -358,7 +362,7 @@ int pcrdr_read_packet (pcrdr_conn* conn, char* packet_buf, size_t *sz_packet)
 
         if (conn_read (conn->fd, &header, sizeof (USFrameHeader))) {
             ULOG_ERR ("Failed to read frame header from Unix socket\n");
-            err_code = PURCRDR_EC_IO;
+            err_code = PCRDR_EC_IO;
             goto done;
         }
 
@@ -371,7 +375,7 @@ int pcrdr_read_packet (pcrdr_conn* conn, char* packet_buf, size_t *sz_packet)
             header.op = US_OPCODE_PONG;
             header.sz_payload = 0;
             if (conn_write (conn->fd, &header, sizeof (USFrameHeader))) {
-                err_code = PURCRDR_EC_IO;
+                err_code = PCRDR_EC_IO;
                 goto done;
             }
             *sz_packet = 0;
@@ -379,15 +383,15 @@ int pcrdr_read_packet (pcrdr_conn* conn, char* packet_buf, size_t *sz_packet)
         }
         else if (header.op == US_OPCODE_CLOSE) {
             ULOG_WARN ("Peer closed\n");
-            err_code = PURCRDR_EC_CLOSED;
+            err_code = PCRDR_EC_CLOSED;
             goto done;
         }
         else if (header.op == US_OPCODE_TEXT ||
                 header.op == US_OPCODE_BIN) {
             unsigned int left;
 
-            if (header.fragmented > PURCRDR_MAX_INMEM_PAYLOAD_SIZE) {
-                err_code = PURCRDR_EC_TOO_LARGE;
+            if (header.fragmented > PCRDR_MAX_INMEM_PAYLOAD_SIZE) {
+                err_code = PCRDR_EC_TOO_LARGE;
                 goto done;
             }
 
@@ -401,7 +405,7 @@ int pcrdr_read_packet (pcrdr_conn* conn, char* packet_buf, size_t *sz_packet)
 
             if (conn_read (conn->fd, packet_buf, header.sz_payload)) {
                 ULOG_ERR ("Failed to read packet from Unix socket\n");
-                err_code = PURCRDR_EC_IO;
+                err_code = PCRDR_EC_IO;
                 goto done;
             }
 
@@ -414,20 +418,20 @@ int pcrdr_read_packet (pcrdr_conn* conn, char* packet_buf, size_t *sz_packet)
             while (left > 0) {
                 if (conn_read (conn->fd, &header, sizeof (USFrameHeader))) {
                     ULOG_ERR ("Failed to read frame header from Unix socket\n");
-                    err_code = PURCRDR_EC_IO;
+                    err_code = PCRDR_EC_IO;
                     goto done;
                 }
 
                 if (header.op != US_OPCODE_CONTINUATION &&
                         header.op != US_OPCODE_END) {
                     ULOG_ERR ("Not a continuation frame\n");
-                    err_code = PURCRDR_EC_PROTOCOL;
+                    err_code = PCRDR_EC_PROTOCOL;
                     goto done;
                 }
 
                 if (conn_read (conn->fd, packet_buf + offset, header.sz_payload)) {
                     ULOG_ERR ("Failed to read packet from Unix socket\n");
-                    err_code = PURCRDR_EC_IO;
+                    err_code = PCRDR_EC_IO;
                     goto done;
                 }
 
@@ -449,15 +453,15 @@ int pcrdr_read_packet (pcrdr_conn* conn, char* packet_buf, size_t *sz_packet)
         }
         else {
             ULOG_ERR ("Bad packet op code: %d\n", header.op);
-            err_code = PURCRDR_EC_PROTOCOL;
+            err_code = PCRDR_EC_PROTOCOL;
         }
     }
     else if (conn->type == CT_WEB_SOCKET) {
         /* TODO */
-        err_code = PURCRDR_EC_NOT_IMPLEMENTED;
+        err_code = PCRDR_EC_NOT_IMPLEMENTED;
     }
     else {
-        err_code = PURCRDR_EC_INVALID_VALUE;
+        err_code = PCRDR_EC_INVALID_VALUE;
     }
 
 done:
@@ -480,7 +484,7 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, size_t *sz_packet)
 
         if (conn_read (conn->fd, &header, sizeof (USFrameHeader))) {
             ULOG_ERR ("Failed to read frame header from Unix socket\n");
-            err_code = PURCRDR_EC_IO;
+            err_code = PCRDR_EC_IO;
             goto done;
         }
 
@@ -494,7 +498,7 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, size_t *sz_packet)
             header.op = US_OPCODE_PONG;
             header.sz_payload = 0;
             if (conn_write (conn->fd, &header, sizeof (USFrameHeader))) {
-                err_code = PURCRDR_EC_IO;
+                err_code = PCRDR_EC_IO;
                 goto done;
             }
 
@@ -504,7 +508,7 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, size_t *sz_packet)
         }
         else if (header.op == US_OPCODE_CLOSE) {
             ULOG_WARN ("Peer closed\n");
-            err_code = PURCRDR_EC_CLOSED;
+            err_code = PCRDR_EC_CLOSED;
             goto done;
         }
         else if (header.op == US_OPCODE_TEXT ||
@@ -513,8 +517,8 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, size_t *sz_packet)
             unsigned int offset;
             int is_text;
 
-            if (header.fragmented > PURCRDR_MAX_INMEM_PAYLOAD_SIZE) {
-                err_code = PURCRDR_EC_TOO_LARGE;
+            if (header.fragmented > PCRDR_MAX_INMEM_PAYLOAD_SIZE) {
+                err_code = PCRDR_EC_TOO_LARGE;
                 goto done;
             }
 
@@ -537,33 +541,33 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, size_t *sz_packet)
             }
 
             if ((packet_buf = malloc (total_len + 1)) == NULL) {
-                err_code = PURCRDR_EC_NOMEM;
+                err_code = PCRDR_EC_NOMEM;
                 goto done;
             }
 
             if (conn_read (conn->fd, packet_buf, header.sz_payload)) {
                 ULOG_ERR ("Failed to read packet from Unix socket\n");
-                err_code = PURCRDR_EC_IO;
+                err_code = PCRDR_EC_IO;
                 goto done;
             }
 
             while (left > 0) {
                 if (conn_read (conn->fd, &header, sizeof (USFrameHeader))) {
                     ULOG_ERR ("Failed to read frame header from Unix socket\n");
-                    err_code = PURCRDR_EC_IO;
+                    err_code = PCRDR_EC_IO;
                     goto done;
                 }
 
                 if (header.op != US_OPCODE_CONTINUATION &&
                         header.op != US_OPCODE_END) {
                     ULOG_ERR ("Not a continuation frame\n");
-                    err_code = PURCRDR_EC_PROTOCOL;
+                    err_code = PCRDR_EC_PROTOCOL;
                     goto done;
                 }
 
                 if (conn_read (conn->fd, packet_buf + offset, header.sz_payload)) {
                     ULOG_ERR ("Failed to read packet from Unix socket\n");
-                    err_code = PURCRDR_EC_IO;
+                    err_code = PCRDR_EC_IO;
                     goto done;
                 }
 
@@ -586,18 +590,18 @@ int pcrdr_read_packet_alloc (pcrdr_conn* conn, void **packet, size_t *sz_packet)
         }
         else {
             ULOG_ERR ("Bad packet op code: %d\n", header.op);
-            err_code = PURCRDR_EC_PROTOCOL;
+            err_code = PCRDR_EC_PROTOCOL;
             goto done;
         }
     }
     else if (conn->type == CT_WEB_SOCKET) {
         /* TODO */
-        err_code = PURCRDR_EC_NOT_IMPLEMENTED;
+        err_code = PCRDR_EC_NOT_IMPLEMENTED;
         goto done;
     }
     else {
         assert (0);
-        err_code = PURCRDR_EC_INVALID_VALUE;
+        err_code = PCRDR_EC_INVALID_VALUE;
         goto done;
     }
 
@@ -620,21 +624,21 @@ int pcrdr_send_text_packet (pcrdr_conn* conn, const char* text, size_t len)
     if (conn->type == CT_UNIX_SOCKET) {
         USFrameHeader header;
 
-        if (len > PURCRDR_MAX_FRAME_PAYLOAD_SIZE) {
+        if (len > PCRDR_MAX_FRAME_PAYLOAD_SIZE) {
             size_t left = len;
 
             do {
                 if (left == len) {
                     header.op = US_OPCODE_TEXT;
                     header.fragmented = len;
-                    header.sz_payload = PURCRDR_MAX_FRAME_PAYLOAD_SIZE;
-                    left -= PURCRDR_MAX_FRAME_PAYLOAD_SIZE;
+                    header.sz_payload = PCRDR_MAX_FRAME_PAYLOAD_SIZE;
+                    left -= PCRDR_MAX_FRAME_PAYLOAD_SIZE;
                 }
-                else if (left > PURCRDR_MAX_FRAME_PAYLOAD_SIZE) {
+                else if (left > PCRDR_MAX_FRAME_PAYLOAD_SIZE) {
                     header.op = US_OPCODE_CONTINUATION;
                     header.fragmented = 0;
-                    header.sz_payload = PURCRDR_MAX_FRAME_PAYLOAD_SIZE;
-                    left -= PURCRDR_MAX_FRAME_PAYLOAD_SIZE;
+                    header.sz_payload = PCRDR_MAX_FRAME_PAYLOAD_SIZE;
+                    left -= PCRDR_MAX_FRAME_PAYLOAD_SIZE;
                 }
                 else {
                     header.op = US_OPCODE_END;
@@ -660,10 +664,10 @@ int pcrdr_send_text_packet (pcrdr_conn* conn, const char* text, size_t len)
     }
     else if (conn->type == CT_WEB_SOCKET) {
         /* TODO */
-        retv = PURCRDR_EC_NOT_IMPLEMENTED;
+        retv = PCRDR_EC_NOT_IMPLEMENTED;
     }
     else
-        retv = PURCRDR_EC_INVALID_VALUE;
+        retv = PCRDR_EC_INVALID_VALUE;
 
     return retv;
 }
@@ -680,15 +684,15 @@ int pcrdr_ping_server (pcrdr_conn* conn)
         header.sz_payload = 0;
         if (conn_write (conn->fd, &header, sizeof (USFrameHeader))) {
             ULOG_ERR ("Error when wirting to Unix Socket: %s\n", strerror (errno));
-            err_code = PURCRDR_EC_IO;
+            err_code = PCRDR_EC_IO;
         }
     }
     else if (conn->type == CT_WEB_SOCKET) {
         /* TODO */
-        err_code = PURCRDR_EC_NOT_IMPLEMENTED;
+        err_code = PCRDR_EC_NOT_IMPLEMENTED;
     }
     else {
-        err_code = PURCRDR_EC_INVALID_VALUE;
+        err_code = PCRDR_EC_INVALID_VALUE;
     }
 
     return err_code;
@@ -703,16 +707,16 @@ int pcrdr_call_procedure_and_wait (pcrdr_conn* conn, const char* endpoint,
         int time_expected, int *ret_code, char** ret_value)
 {
     int n;
-    char call_id [PURCRDR_LEN_UNIQUE_ID + 1];
-    char buff [PURCRDR_DEF_PACKET_BUFF_SIZE];
+    char call_id [PCRDR_LEN_UNIQUE_ID + 1];
+    char buff [PCRDR_DEF_PACKET_BUFF_SIZE];
     char* escaped_param;
 
     if (!pcrdr_is_valid_method_name (method_name))
-        return PURCRDR_EC_INVALID_VALUE;
+        return PCRDR_EC_INVALID_VALUE;
 
     escaped_param = pcrdr_escape_string_for_json (method_param);
     if (escaped_param == NULL)
-        return PURCRDR_EC_NOMEM;
+        return PCRDR_EC_NOMEM;
 
     pcrdr_generate_unique_id (call_id, "call");
 
@@ -733,14 +737,14 @@ int pcrdr_call_procedure_and_wait (pcrdr_conn* conn, const char* endpoint,
     free (escaped_param);
 
     if (n < 0) {
-        return PURCRDR_EC_UNEXPECTED;
+        return PCRDR_EC_UNEXPECTED;
     }
     else if ((size_t)n >= sizeof (buff)) {
-        return PURCRDR_EC_TOO_SMALL_BUFF;
+        return PCRDR_EC_TOO_SMALL_BUFF;
     }
 
     if (pcrdr_send_text_packet (conn, buff, n)) {
-        return PURCRDR_EC_IO;
+        return PCRDR_EC_IO;
     }
 
     return wait_for_specific_call_result_packet (conn,
@@ -754,19 +758,19 @@ int pcrdr_call_procedure (pcrdr_conn* conn,
         const char** call_id)
 {
     int n, retv;
-    char call_id_buf [PURCRDR_LEN_UNIQUE_ID + 1];
-    char buff [PURCRDR_DEF_PACKET_BUFF_SIZE];
+    char call_id_buf [PCRDR_LEN_UNIQUE_ID + 1];
+    char buff [PCRDR_DEF_PACKET_BUFF_SIZE];
     char* escaped_param;
 
     if (!pcrdr_is_valid_endpoint_name (endpoint))
-        return PURCRDR_EC_INVALID_VALUE;
+        return PCRDR_EC_INVALID_VALUE;
 
     if (!pcrdr_is_valid_method_name (method_name))
-        return PURCRDR_EC_INVALID_VALUE;
+        return PCRDR_EC_INVALID_VALUE;
 
     escaped_param = pcrdr_escape_string_for_json (method_param);
     if (escaped_param == NULL)
-        return PURCRDR_EC_NOMEM;
+        return PCRDR_EC_NOMEM;
 
     pcrdr_generate_unique_id (call_id_buf, "call");
 
@@ -787,10 +791,10 @@ int pcrdr_call_procedure (pcrdr_conn* conn,
     free (escaped_param);
 
     if (n < 0) {
-        return PURCRDR_EC_UNEXPECTED;
+        return PCRDR_EC_UNEXPECTED;
     }
     else if ((size_t)n >= sizeof (buff)) {
-        return PURCRDR_EC_TOO_SMALL_BUFF;
+        return PCRDR_EC_TOO_SMALL_BUFF;
     }
 
     if ((retv = pcrdr_send_text_packet (conn, buff, n)) == 0) {
@@ -802,7 +806,7 @@ int pcrdr_call_procedure (pcrdr_conn* conn,
             }
         }
         else
-            retv = PURCRDR_EC_NOMEM;
+            retv = PCRDR_EC_NOMEM;
     }
 
     return retv;
@@ -823,7 +827,7 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
     *ret_value = NULL;
 
     if (time_expected <= 0) {
-        time_to_return = pcrdr_get_monotoic_time () + PURCRDR_DEF_TIME_EXPECTED;
+        time_to_return = pcrdr_get_monotoic_time () + PCRDR_DEF_TIME_EXPECTED;
     }
     else {
         time_to_return = pcrdr_get_monotoic_time () + time_expected;
@@ -839,7 +843,7 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
 
         if (retval == -1) {
             ULOG_ERR ("Failed to call select(): %s\n", strerror (errno));
-            err_code = PURCRDR_EC_BAD_SYSTEM_CALL;
+            err_code = PCRDR_EC_BAD_SYSTEM_CALL;
         }
         else if (retval) {
             err_code = pcrdr_read_packet_alloc (conn, &message, &data_len);
@@ -857,7 +861,7 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
 
             if (retval < 0) {
                 ULOG_ERR ("Failed to parse JSON packet;\n");
-                err_code = PURCRDR_EC_BAD_PACKET;
+                err_code = PCRDR_EC_BAD_PACKET;
             }
             else if (retval == JPT_RESULT) {
                 pcrdr_json *jo_tmp;
@@ -870,11 +874,11 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
                         *ret_code = json_object_get_int (jo_tmp);
                     }
                     else {
-                        *ret_code = PURCRDR_SC_INTERNAL_SERVER_ERROR;
+                        *ret_code = PCRDR_SC_INTERNAL_SERVER_ERROR;
                     }
                     conn->last_ret_code = *ret_code;
 
-                    if (*ret_code == PURCRDR_SC_OK) {
+                    if (*ret_code == PCRDR_SC_OK) {
                         if (json_object_object_get_ex (jo, "retValue", &jo_tmp)) {
                             str_tmp = json_object_get_string (jo_tmp);
                             if (str_tmp) {
@@ -892,7 +896,7 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
                         err_code = 0;
                         break;
                     }
-                    else if (*ret_code == PURCRDR_SC_ACCEPTED) {
+                    else if (*ret_code == PCRDR_SC_ACCEPTED) {
                         // wait for ok
                         err_code = 0;
                     }
@@ -908,11 +912,11 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
                     *ret_code = json_object_get_int (jo_tmp);
                 }
                 else {
-                    *ret_code = PURCRDR_SC_INTERNAL_SERVER_ERROR;
+                    *ret_code = PCRDR_SC_INTERNAL_SERVER_ERROR;
                 }
 
                 conn->last_ret_code = *ret_code;
-                err_code = PURCRDR_EC_SERVER_ERROR;
+                err_code = PCRDR_EC_SERVER_ERROR;
 
                 if (json_object_object_get_ex (jo, "causedBy", &jo_tmp) &&
                         strcasecmp (json_object_get_string (jo_tmp), "call") == 0 &&
@@ -939,22 +943,22 @@ static int wait_for_specific_call_result_packet (pcrdr_conn* conn,
             }
             else if (retval == JPT_AUTH_PASSED) {
                 ULOG_WARN ("Unexpected authPassed packet\n");
-                err_code = PURCRDR_EC_UNEXPECTED;
+                err_code = PCRDR_EC_UNEXPECTED;
             }
             else if (retval == JPT_AUTH_FAILED) {
                 ULOG_WARN ("Unexpected authFailed packet\n");
-                err_code = PURCRDR_EC_UNEXPECTED;
+                err_code = PCRDR_EC_UNEXPECTED;
             }
             else {
                 ULOG_ERR ("Unknown packet type; quit...\n");
-                err_code = PURCRDR_EC_PROTOCOL;
+                err_code = PCRDR_EC_PROTOCOL;
             }
 
             json_object_put (jo);
             jo = NULL;
         }
         else {
-            err_code = PURCRDR_EC_TIMEOUT;
+            err_code = PCRDR_EC_TIMEOUT;
             break;
         }
     }
@@ -989,23 +993,23 @@ int pcrdr_read_and_dispatch_packet (pcrdr_conn* conn)
 
     if (retval < 0) {
         ULOG_ERR ("Failed to parse JSON packet; quit...\n");
-        err_code = PURCRDR_EC_BAD_PACKET;
+        err_code = PCRDR_EC_BAD_PACKET;
     }
-    else if (retval == PCRDR_MSG_TYPE_EVENT) {
+    else if (msg->type == PCRDR_MSG_TYPE_EVENT) {
         ULOG_INFO ("The server gives an event packet\n");
         if (conn->event_handler) {
             conn->event_handler (conn, msg);
         }
     }
-    else if (retval == PCRDR_MSG_TYPE_REQUEST) {
+    else if (msg->type == PCRDR_MSG_TYPE_REQUEST) {
         ULOG_INFO ("The server gives a request packet\n");
     }
-    else if (retval == PCRDR_MSG_TYPE_RESPONSE) {
+    else if (msg->type == PCRDR_MSG_TYPE_RESPONSE) {
         ULOG_INFO ("The server gives a response packet\n");
     }
     else {
         ULOG_ERR ("Unknown packet type; quit...\n");
-        err_code = PURCRDR_EC_PROTOCOL;
+        err_code = PCRDR_EC_PROTOCOL;
     }
 
 done:
@@ -1035,13 +1039,13 @@ int pcrdr_wait_and_dispatch_packet (pcrdr_conn* conn, int timeout_ms)
     }
 
     if (retval == -1) {
-        err_code = PURCRDR_EC_BAD_SYSTEM_CALL;
+        err_code = PCRDR_EC_BAD_SYSTEM_CALL;
     }
     else if (retval) {
         err_code = pcrdr_read_and_dispatch_packet (conn);
     }
     else {
-        err_code = PURCRDR_EC_TIMEOUT;
+        err_code = PCRDR_EC_TIMEOUT;
     }
 
     return err_code;

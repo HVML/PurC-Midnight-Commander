@@ -1,5 +1,6 @@
 /*
-** message.c -- The implementation of API to make or release a message.
+** message.c -- The implementation of API to make, parse, serialize,
+**      and release a message.
 **
 ** Copyright (c) 2021 FMSoft (http://www.fmsoft.cn)
 **
@@ -92,7 +93,7 @@ pcrdr_msg *pcrdr_make_request_message(
     }
 
     if (request_id == NULL) {
-        char id_buf[PURCRDR_LEN_UNIQUE_ID + 1];
+        char id_buf[PCRDR_LEN_UNIQUE_ID + 1];
         pcrdr_generate_unique_id(id_buf, "REQ");
         msg->requestId = strdup(id_buf);
         if (msg->requestId == NULL)
@@ -671,6 +672,7 @@ int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg_out)
         }
 
         if ((msg.data = is_blank_line(line))) {
+            printf ("Encounter the blank line\n");
             break;
         }
 
@@ -685,6 +687,8 @@ int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg_out)
         if (value == NULL) {
             goto failed;
         }
+
+        printf ("key: %s; value: %s\n", key, value);
 
         key_op op = find_key_op(key);
         if (op == NULL) {
@@ -728,7 +732,7 @@ int pcrdr_parse_packet(char *packet, size_t sz_packet, pcrdr_msg **msg_out)
     return 0;
 
 failed:
-    return PURCRDR_EC_BAD_PACKET;
+    return PCRDR_EC_BAD_PACKET;
 }
 
 static const char *type_names [] = {
@@ -778,10 +782,10 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
         n = snprintf(buff, sizeof(buff),
                 "%llx", (unsigned long long int)msg->targetValue);
         if (n < 0)
-            return PURCRDR_EC_UNEXPECTED;
+            return PCRDR_EC_UNEXPECTED;
         else if ((size_t)n >= sizeof (buff)) {
             ULOG_ERR ("Too small buffer for serialize message.\n");
-            return PURCRDR_EC_TOO_SMALL_BUFF;
+            return PCRDR_EC_TOO_SMALL_BUFF;
         }
         fn(ctxt, buff, n);
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
@@ -829,10 +833,10 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
         fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff), "%lu", (unsigned long int)msg->dataLen);
         if (n < 0)
-            return PURCRDR_EC_UNEXPECTED;
+            return PCRDR_EC_UNEXPECTED;
         else if ((size_t)n >= sizeof (buff)) {
             ULOG_ERR ("Too small buffer for serialize message.\n");
-            return PURCRDR_EC_TOO_SMALL_BUFF;
+            return PCRDR_EC_TOO_SMALL_BUFF;
         }
         fn(ctxt, buff, n);
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
@@ -855,20 +859,20 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
         fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff), "%u", msg->retCode);
         if (n < 0)
-            return PURCRDR_EC_UNEXPECTED;
+            return PCRDR_EC_UNEXPECTED;
         else if ((size_t)n >= sizeof (buff)) {
             ULOG_ERR ("Too small buffer for serialize message.\n");
-            return PURCRDR_EC_TOO_SMALL_BUFF;
+            return PCRDR_EC_TOO_SMALL_BUFF;
         }
         fn(ctxt, buff, n);
         fn(ctxt, STR_VALUE_SEPARATOR, sizeof(STR_VALUE_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff),
                 "%llx", (unsigned long long int)msg->resultValue);
         if (n < 0)
-            return PURCRDR_EC_UNEXPECTED;
+            return PCRDR_EC_UNEXPECTED;
         else if ((size_t)n >= sizeof (buff)) {
             ULOG_ERR ("Too small buffer for serialize message.\n");
-            return PURCRDR_EC_TOO_SMALL_BUFF;
+            return PCRDR_EC_TOO_SMALL_BUFF;
         }
         fn(ctxt, buff, n);
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
@@ -885,10 +889,10 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
         fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff), "%lu", (unsigned long int)msg->dataLen);
         if (n < 0)
-            return PURCRDR_EC_UNEXPECTED;
+            return PCRDR_EC_UNEXPECTED;
         else if ((size_t)n >= sizeof (buff)) {
             ULOG_ERR ("Too small buffer for serialize message.\n");
-            return PURCRDR_EC_TOO_SMALL_BUFF;
+            return PCRDR_EC_TOO_SMALL_BUFF;
         }
         fn(ctxt, buff, n);
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
@@ -909,10 +913,10 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
         n = snprintf(buff, sizeof(buff),
                 "%llx", (unsigned long long int)msg->targetValue);
         if (n < 0)
-            return PURCRDR_EC_UNEXPECTED;
+            return PCRDR_EC_UNEXPECTED;
         else if ((size_t)n >= sizeof (buff)) {
             ULOG_ERR ("Too small buffer for serialize message.\n");
-            return PURCRDR_EC_TOO_SMALL_BUFF;
+            return PCRDR_EC_TOO_SMALL_BUFF;
         }
         fn(ctxt, buff, n);
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
@@ -954,10 +958,10 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
         fn(ctxt, STR_PAIR_SEPARATOR, sizeof(STR_PAIR_SEPARATOR) - 1);
         n = snprintf(buff, sizeof(buff), "%lu", (unsigned long int)msg->dataLen);
         if (n < 0)
-            return PURCRDR_EC_UNEXPECTED;
+            return PCRDR_EC_UNEXPECTED;
         else if ((size_t)n >= sizeof (buff)) {
             ULOG_ERR ("Too small buffer for serialize message.\n");
-            return PURCRDR_EC_TOO_SMALL_BUFF;
+            return PCRDR_EC_TOO_SMALL_BUFF;
         }
         fn(ctxt, buff, n);
         fn(ctxt, STR_LINE_SEPARATOR, sizeof(STR_LINE_SEPARATOR) - 1);
@@ -973,5 +977,48 @@ int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt)
     }
 
     return 0;
+}
+
+struct buff_info {
+    char *  buf;    /* buffer address */
+    size_t  size;   /* size of buffer */
+
+    size_t  n;      /* number of characters will be written */
+    off_t   pos;    /* current position */
+};
+
+static ssize_t write_to_buff (void *ctxt, const void *buf, size_t count)
+{
+    struct buff_info *info = (struct buff_info *)ctxt;
+
+    info->n += count;
+    if (info->pos + count <= info->size) {
+        memcpy (info->buf + info->pos, buf, count);
+        info->pos += count;
+        return count;
+    }
+    else {
+        ssize_t n = info->size - info->pos;
+
+        if (n > 0) {
+            memcpy (info->buf + info->pos, buf, n);
+            info->pos += n;
+            return n;
+        }
+
+        return 0;
+    }
+
+    return -1;
+}
+
+size_t pcrdr_serialize_message_to_buffer(const pcrdr_msg *msg,
+        void *buff, size_t sz)
+{
+    struct buff_info buff_info = { buff, sz, 0, 0 };
+
+    pcrdr_serialize_message(msg, write_to_buff, &buff_info);
+
+    return buff_info.n;
 }
 

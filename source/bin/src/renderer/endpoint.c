@@ -81,7 +81,7 @@ Endpoint* new_endpoint (Server* srv, int type, void* client)
 
 int del_endpoint (Server* srv, Endpoint* endpoint, int cause)
 {
-    char endpoint_name [SERVER_LEN_ENDPOINT_NAME + 1];
+    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
 
     if (assemble_endpoint_name (endpoint, endpoint_name) > 0) {
         ULOG_INFO ("Deleting an endpoint: %s (%p)\n", endpoint_name, endpoint);
@@ -147,7 +147,7 @@ bool make_endpoint_ready (Server* srv,
             return false;
         }
 
-        endpoint->t_living = server_get_monotoic_time ();
+        endpoint->t_living = pcrdr_get_monotoic_time ();
         endpoint->avl.key = endpoint;
         if (avl_insert (&srv->living_avl, &endpoint->avl)) {
             ULOG_ERR ("Failed to insert to the living AVL tree: %s\n", endpoint_name);
@@ -193,7 +193,7 @@ int check_no_responding_endpoints (Server *srv)
         Endpoint* endpoint = *(Endpoint **)data;
 
         if (endpoint->type != ET_BUILTIN &&
-                ts.tv_sec > endpoint->t_living + SERVER_MAX_NO_RESPONDING_TIME) {
+                ts.tv_sec > endpoint->t_living + PCRDR_MAX_NO_RESPONDING_TIME) {
             kvlist_delete (&srv->endpoint_list, name);
             cleanup_endpoint_client (srv, endpoint);
             del_endpoint (srv, endpoint, CDE_NO_RESPONDING);
@@ -202,18 +202,18 @@ int check_no_responding_endpoints (Server *srv)
     }
 #endif
 
-    time_t t_curr = server_get_monotoic_time ();
+    time_t t_curr = pcrdr_get_monotoic_time ();
     Endpoint *endpoint, *tmp;
 
     ULOG_INFO ("Checking no responding endpoints...\n");
 
     avl_for_each_element_safe (&srv->living_avl, endpoint, avl, tmp) {
-        char name [SERVER_LEN_ENDPOINT_NAME + 1];
+        char name [PCRDR_LEN_ENDPOINT_NAME + 1];
 
         assert (endpoint->type != ET_BUILTIN);
 
         assemble_endpoint_name (endpoint, name);
-        if (t_curr > endpoint->t_living + SERVER_MAX_NO_RESPONDING_TIME) {
+        if (t_curr > endpoint->t_living + PCRDR_MAX_NO_RESPONDING_TIME) {
 
             kvlist_delete (&srv->endpoint_list, name);
             cleanup_endpoint_client (srv, endpoint);
@@ -223,7 +223,7 @@ int check_no_responding_endpoints (Server *srv)
 
             ULOG_INFO ("A no-responding client: %s\n", name);
         }
-        else if (t_curr > endpoint->t_living + SERVER_MAX_PING_TIME) {
+        else if (t_curr > endpoint->t_living + PCRDR_MAX_PING_TIME) {
             if (endpoint->type == ET_UNIX_SOCKET) {
                 us_ping_client (srv->us_srv, (USClient *)endpoint->entity.client);
             }
@@ -246,14 +246,14 @@ int check_no_responding_endpoints (Server *srv)
 int check_dangling_endpoints (Server *srv)
 {
     int n = 0;
-    time_t t_curr = server_get_monotoic_time ();
+    time_t t_curr = pcrdr_get_monotoic_time ();
     gs_list* node = srv->dangling_endpoints;
 
     while (node) {
         gs_list *next = node->next;
         Endpoint* endpoint = (Endpoint *)node->data;
 
-        if (t_curr > endpoint->t_created + SERVER_MAX_NO_RESPONDING_TIME) {
+        if (t_curr > endpoint->t_created + PCRDR_MAX_NO_RESPONDING_TIME) {
             gslist_remove_node (&srv->dangling_endpoints, node);
             cleanup_endpoint_client (srv, endpoint);
             del_endpoint (srv, endpoint, CDE_NO_RESPONDING);
@@ -279,5 +279,37 @@ int send_packet_to_endpoint (Server* srv,
     }
 
     return -1;
+}
+
+int send_initial_response (Server* srv, Endpoint* endpoint)
+{
+    int retv = PCRDR_SC_OK;
+    pcrdr_msg *msg = NULL;
+    char buff [PCRDR_DEF_PACKET_BUFF_SIZE];
+    size_t n;
+
+    msg = pcrdr_make_response_message ("0",
+            PCRDR_SC_OK, 0,
+            PCRDR_MSG_DATA_TYPE_TEXT, SERVER_FEATURES,
+            sizeof (SERVER_FEATURES) - 1);
+    if (msg == NULL) {
+        retv = PCRDR_SC_INTERNAL_SERVER_ERROR;
+        goto failed;
+    }
+
+    n = pcrdr_serialize_message_to_buffer (msg, buff, sizeof(buff));
+    if (n > sizeof(buff)) {
+        ULOG_ERR ("The size of buffer for packet is too small.\n");
+        retv = PCRDR_SC_INTERNAL_SERVER_ERROR;
+    }
+    else if (send_packet_to_endpoint (srv, endpoint, buff, n)) {
+        endpoint->status = ES_CLOSING;
+        retv = PCRDR_SC_IOERR;
+    }
+
+    pcrdr_release_message (msg);
+
+failed:
+    return retv;
 }
 

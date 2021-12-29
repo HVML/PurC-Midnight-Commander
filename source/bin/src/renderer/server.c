@@ -58,17 +58,15 @@ on_accepted (void* sock_srv, SockClient* client)
             client);
 
     if (endpoint == NULL)
-        return SERVER_SC_INSUFFICIENT_STORAGE;
+        return PCRDR_SC_INSUFFICIENT_STORAGE;
 
-#if 0
     int ret_code;
-    // send challenge code
-    ret_code = send_challenge_code (&the_server, endpoint);
-    if (ret_code != SERVER_SC_OK)
+    // send initial response
+    ret_code = send_initial_response (&the_server, endpoint);
+    if (ret_code != PCRDR_SC_OK)
         return ret_code;
-#endif
 
-    return SERVER_SC_OK;
+    return PCRDR_SC_OK;
 }
 
 static int
@@ -86,10 +84,10 @@ on_packet (void* sock_srv, SockClient* client,
     }
     else {
         /* discard all packet in binary */
-        return SERVER_SC_NOT_ACCEPTABLE;
+        return PCRDR_SC_NOT_ACCEPTABLE;
     }
 
-    return SERVER_SC_OK;
+    return PCRDR_SC_OK;
 }
 
 #if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
@@ -170,7 +168,7 @@ on_close (void* sock_srv, SockClient* client)
 
     if (client->entity) {
         Endpoint *endpoint = container_of (client->entity, Endpoint, entity);
-        char endpoint_name [SERVER_LEN_ENDPOINT_NAME + 1];
+        char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
 
         if (endpoint->status == ES_AUTHING) {
             remove_dangling_endpoint (&the_server, endpoint);
@@ -197,21 +195,21 @@ static void
 on_error (void* sock_srv, SockClient* client, int err_code)
 {
     int n;
-    char buff [SERVER_MIN_PACKET_BUFF_SIZE];
+    char buff [PCRDR_MIN_PACKET_BUFF_SIZE];
 
-    if (err_code == SERVER_SC_IOERR)
+    if (err_code == PCRDR_SC_IOERR)
         return;
 
-    n = snprintf (buff, sizeof (buff), 
-            "{"
-            "\"packetType\":\"error\","
-            "\"protocolName\":\"%s\","
-            "\"protocolVersion\":%d,"
-            "\"retCode\":%d,"
-            "\"retMsg\":\"%s\""
-            "}",
-            SERVER_PROTOCOL_NAME, SERVER_PROTOCOL_VERSION,
-            err_code, server_get_ret_message (err_code));
+    n = snprintf (buff, sizeof (buff),
+            "type:response\n"
+            "requestId:0\n"
+            "result:%d/0\n"
+            "dataType:text\n"
+            "dataLen:%d\n"
+            " \n"
+            "%s\n",
+            err_code,
+            (int)sizeof (SERVER_FEATURES) - 1, SERVER_FEATURES);
 
     if (n < 0 || (size_t)n >= sizeof (buff)) {
         // should never reach here
@@ -230,7 +228,7 @@ static inline void
 update_endpoint_living_time (Server *srv, Endpoint* endpoint)
 {
     if (endpoint && endpoint->avl.key) {
-        time_t t_curr = server_get_monotoic_time ();
+        time_t t_curr = pcrdr_get_monotoic_time ();
 
         if (endpoint->t_living != t_curr) {
             endpoint->t_living = t_curr;
@@ -250,7 +248,7 @@ prepare_server (void)
     struct epoll_event ev;
 #endif
     the_server.us_listener = the_server.ws_listener = -1;
-    the_server.t_start = server_get_monotoic_time ();
+    the_server.t_start = pcrdr_get_monotoic_time ();
     the_server.t_elapsed = the_server.t_elapsed_last = 0;
 
     // create unix socket
@@ -351,7 +349,7 @@ again:
         goto error;
     }
     else if (nfds == 0) {
-        the_server.t_elapsed = server_get_monotoic_time () - the_server.t_start;
+        the_server.t_elapsed = pcrdr_get_monotoic_time () - the_server.t_start;
         if (the_server.t_elapsed != the_server.t_elapsed_last) {
             if (the_server.t_elapsed % 10 == 0) {
                 check_no_responding_endpoints (&the_server);
@@ -500,7 +498,7 @@ again:
         goto error;
     }
     else if (retval == 0) {
-        the_server.t_elapsed = server_get_monotoic_time () - the_server.t_start;
+        the_server.t_elapsed = pcrdr_get_monotoic_time () - the_server.t_start;
         if (the_server.t_elapsed != the_server.t_elapsed_last) {
             if (the_server.t_elapsed % 10 == 0) {
                 check_no_responding_endpoints (&the_server);
@@ -648,19 +646,19 @@ init_server (void)
 #endif
 
     if (srvcfg.unixsocket == NULL) {
-        srvcfg.unixsocket = g_strdup(SERVER_US_PATH);
+        srvcfg.unixsocket = g_strdup(PCRDR_US_PATH);
     }
 
     if (srvcfg.addr == NULL) {
-        srvcfg.addr = g_strdup(SERVER_LOCALHOST);
+        srvcfg.addr = g_strdup(PCRDR_LOCALHOST);
     }
 
     if (srvcfg.port == NULL) {
-        srvcfg.port = g_strdup(SERVER_WS_PORT);
+        srvcfg.port = g_strdup(PCRDR_WS_PORT);
     }
 
     if (srvcfg.max_frm_size == 0) {
-        srvcfg.max_frm_size = SERVER_MAX_FRAME_PAYLOAD_SIZE;
+        srvcfg.max_frm_size = PCRDR_MAX_FRAME_PAYLOAD_SIZE;
     }
 
     if (srvcfg.backlog == 0) {
@@ -671,7 +669,7 @@ init_server (void)
     the_server.running = true;
 
     /* TODO for host name */
-    the_server.server_name = strdup (SERVER_LOCALHOST);
+    the_server.server_name = strdup (PCRDR_LOCALHOST);
     kvlist_init (&the_server.endpoint_list, NULL);
     avl_init (&the_server.living_avl, comp_living_time, true, NULL);
 
@@ -786,7 +784,7 @@ purcmc_rdr_server_init (void)
 
     if ((retval = init_server ())) {
         ULOG_ERR ("Error during init_server: %s\n",
-                server_get_ret_message (retval));
+                pcrdr_get_ret_message (retval));
         goto error;
     }
 

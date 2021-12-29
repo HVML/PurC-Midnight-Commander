@@ -51,13 +51,13 @@ int check_dangling_endpoints (Server *srv);
 
 int send_packet_to_endpoint (Server* srv,
         Endpoint* endpoint, const char* body, int len_body);
-int send_challenge_code (Server* srv, Endpoint* endpoint);
+int send_initial_response (Server* srv, Endpoint* endpoint);
 
 static inline int
 assemble_endpoint_name (Endpoint *endpoint, char *buff)
 {
     if (endpoint->host_name && endpoint->app_name && endpoint->runner_name) {
-        return server_assemble_endpoint_name (endpoint->host_name,
+        return pcrdr_assemble_endpoint_name (endpoint->host_name,
                 endpoint->app_name, endpoint->runner_name, buff);
     }
 

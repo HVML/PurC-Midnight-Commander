@@ -223,14 +223,14 @@ us_handle_accept (USServer* server)
 
     if (server->nr_clients > MAX_CLIENTS_EACH) {
         ULOG_WARN ("Too many clients (maximal clients allowed: %d)\n", MAX_CLIENTS_EACH);
-        server->on_error (server, (SockClient *)usc, SERVER_SC_SERVICE_UNAVAILABLE);
+        server->on_error (server, (SockClient *)usc, PCRDR_SC_SERVICE_UNAVAILABLE);
         goto cleanup;
     }
 
     if (server->on_accepted) {
         int ret_code;
         ret_code = server->on_accepted (server, (SockClient *)usc);
-        if (ret_code != SERVER_SC_OK) {
+        if (ret_code != PCRDR_SC_OK) {
             ULOG_WARN ("Internal error after accepted this client (%d): %d\n",
                     newfd, ret_code);
 
@@ -440,7 +440,7 @@ static int try_to_read_payload (USServer* server, USClient* usc)
                 < usc->header.sz_payload) {
             ULOG_ERR ("Failed to read payload from Unix socket: %s\n",
                     strerror (errno));
-            return SERVER_EC_IO;
+            return PCRDR_EC_IO;
         }
 
         usc->sz_read = usc->header.sz_payload;
@@ -453,14 +453,14 @@ static int try_to_read_payload (USServer* server, USClient* usc)
     case US_OPCODE_END:
         if (usc->packet == NULL ||
                 (usc->sz_read + usc->header.sz_payload) > usc->sz_packet) {
-            return SERVER_EC_PROTOCOL;
+            return PCRDR_EC_PROTOCOL;
         }
 
         if ((n = read (usc->fd, usc->packet + usc->sz_read,
                 usc->header.sz_payload)) < usc->header.sz_payload) {
             ULOG_ERR ("Failed to read payload from Unix socket: %s\n",
                     strerror (errno));
-            return SERVER_EC_IO;
+            return PCRDR_EC_IO;
         }
 
         usc->sz_read += usc->header.sz_payload;
@@ -470,7 +470,7 @@ static int try_to_read_payload (USServer* server, USClient* usc)
         break;
 
     default:
-        return SERVER_EC_PROTOCOL;
+        return PCRDR_EC_PROTOCOL;
     }
 
     return 0;
@@ -494,7 +494,7 @@ int us_handle_reads (USServer* server, USClient* usc)
         }
         else if (retv < 0) {
             err_code = retv;
-            sta_code = SERVER_SC_EXPECTATION_FAILED;
+            sta_code = PCRDR_SC_EXPECTATION_FAILED;
             goto done;
         }
     }
@@ -502,8 +502,8 @@ int us_handle_reads (USServer* server, USClient* usc)
         n = read (usc->fd, &usc->header, sizeof (USFrameHeader));
         if (n < (ssize_t)sizeof (USFrameHeader)) {
             ULOG_ERR ("Failed to read frame header from Unix socket.\n");
-            err_code = SERVER_EC_IO;
-            sta_code = SERVER_SC_EXPECTATION_FAILED;
+            err_code = PCRDR_EC_IO;
+            sta_code = PCRDR_SC_EXPECTATION_FAILED;
             goto done;
         }
 
@@ -516,15 +516,15 @@ int us_handle_reads (USServer* server, USClient* usc)
             n = us_write (server, usc, &header, sizeof (USFrameHeader));
             if (n < 0) {
                 ULOG_ERR ("Error when wirting socket: %s\n", strerror (errno));
-                err_code = SERVER_EC_IO;
-                sta_code = SERVER_SC_IOERR;
+                err_code = PCRDR_EC_IO;
+                sta_code = PCRDR_SC_IOERR;
             }
             break;
         }
 
         case US_OPCODE_CLOSE:
             ULOG_WARN ("Peer closed\n");
-            err_code = SERVER_EC_CLOSED;
+            err_code = PCRDR_EC_CLOSED;
             sta_code = 0;
             break;
 
@@ -538,11 +538,11 @@ int us_handle_reads (USServer* server, USClient* usc)
                 usc->sz_packet = usc->header.sz_payload;
             }
 
-            if (usc->sz_packet > SERVER_MAX_INMEM_PAYLOAD_SIZE ||
+            if (usc->sz_packet > PCRDR_MAX_INMEM_PAYLOAD_SIZE ||
                     usc->sz_packet == 0 ||
                     usc->header.sz_payload == 0) {
-                err_code = SERVER_EC_PROTOCOL;
-                sta_code = SERVER_SC_PACKET_TOO_LARGE;
+                err_code = PCRDR_EC_PROTOCOL;
+                sta_code = PCRDR_SC_PACKET_TOO_LARGE;
                 break;
             }
 
@@ -557,8 +557,8 @@ int us_handle_reads (USServer* server, USClient* usc)
             if (usc->packet == NULL) {
                 ULOG_ERR ("Failed to allocate memory for packet (size: %u)\n",
                         usc->sz_packet);
-                err_code = SERVER_EC_NOMEM;
-                sta_code = SERVER_SC_INSUFFICIENT_STORAGE;
+                err_code = PCRDR_EC_NOMEM;
+                sta_code = PCRDR_SC_INSUFFICIENT_STORAGE;
                 break;
             }
 
@@ -571,13 +571,13 @@ int us_handle_reads (USServer* server, USClient* usc)
             else if (retv == 0) {
                 goto done;
             }
-            else if (retv == SERVER_EC_IO) {
+            else if (retv == PCRDR_EC_IO) {
                 usc->status |= US_WATING_FOR_PAYLOAD;
                 goto done;
             }
             else {
                 err_code = retv;
-                sta_code = SERVER_SC_EXPECTATION_FAILED;
+                sta_code = PCRDR_SC_EXPECTATION_FAILED;
                 goto done;
             }
             break;
@@ -586,8 +586,8 @@ int us_handle_reads (USServer* server, USClient* usc)
         case US_OPCODE_CONTINUATION:
         case US_OPCODE_END:
             if (usc->header.sz_payload == 0) {
-                err_code = SERVER_EC_PROTOCOL;
-                sta_code = SERVER_SC_PACKET_TOO_LARGE;
+                err_code = PCRDR_EC_PROTOCOL;
+                sta_code = PCRDR_SC_PACKET_TOO_LARGE;
                 break;
             }
 
@@ -598,13 +598,13 @@ int us_handle_reads (USServer* server, USClient* usc)
             else if (retv == 0) {
                 goto done;
             }
-            else if (retv == SERVER_EC_IO) {
+            else if (retv == PCRDR_EC_IO) {
                 usc->status |= US_WATING_FOR_PAYLOAD;
                 goto done;
             }
             else {
                 err_code = retv;
-                sta_code = SERVER_SC_EXPECTATION_FAILED;
+                sta_code = PCRDR_SC_EXPECTATION_FAILED;
                 goto done;
             }
             break;
@@ -621,8 +621,8 @@ int us_handle_reads (USServer* server, USClient* usc)
 
         default:
             ULOG_ERR ("Unknown frame opcode: %d\n", usc->header.op);
-            err_code = SERVER_EC_PROTOCOL;
-            sta_code = SERVER_SC_EXPECTATION_FAILED;
+            err_code = PCRDR_EC_PROTOCOL;
+            sta_code = PCRDR_SC_EXPECTATION_FAILED;
             break;
         }
     }
@@ -649,11 +649,11 @@ got_packet:
     usc->sz_read = 0;
     update_upper_entity_stats (usc->entity, usc->sz_pending, usc->sz_packet);
 
-    if (sta_code != SERVER_SC_OK) {
+    if (sta_code != PCRDR_SC_OK) {
         ULOG_WARN ("Internal error after got a packet: %d\n", sta_code);
 
         server->on_error (server, (SockClient*)usc, sta_code);
-        err_code = SERVER_EC_UPPER;
+        err_code = PCRDR_EC_UPPER;
 
         us_cleanup_client (server, usc);
     }
@@ -742,7 +742,7 @@ int us_send_packet (USServer* server, USClient* usc,
             return -1;
     }
 
-    if (sz > SERVER_MAX_FRAME_PAYLOAD_SIZE) {
+    if (sz > PCRDR_MAX_FRAME_PAYLOAD_SIZE) {
         const char* buff = data;
         unsigned int left = sz;
 
@@ -750,14 +750,14 @@ int us_send_packet (USServer* server, USClient* usc,
             if (left == sz) {
                 header.op = op;
                 header.fragmented = sz;
-                header.sz_payload = SERVER_MAX_FRAME_PAYLOAD_SIZE;
-                left -= SERVER_MAX_FRAME_PAYLOAD_SIZE;
+                header.sz_payload = PCRDR_MAX_FRAME_PAYLOAD_SIZE;
+                left -= PCRDR_MAX_FRAME_PAYLOAD_SIZE;
             }
-            else if (left > SERVER_MAX_FRAME_PAYLOAD_SIZE) {
+            else if (left > PCRDR_MAX_FRAME_PAYLOAD_SIZE) {
                 header.op = US_OPCODE_CONTINUATION;
                 header.fragmented = 0;
-                header.sz_payload = SERVER_MAX_FRAME_PAYLOAD_SIZE;
-                left -= SERVER_MAX_FRAME_PAYLOAD_SIZE;
+                header.sz_payload = PCRDR_MAX_FRAME_PAYLOAD_SIZE;
+                left -= PCRDR_MAX_FRAME_PAYLOAD_SIZE;
             }
             else {
                 header.op = US_OPCODE_END;

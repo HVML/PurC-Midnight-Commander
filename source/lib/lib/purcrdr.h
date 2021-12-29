@@ -32,102 +32,103 @@
 #include <time.h>
 
 /* Constants */
-#define PURCRDR_PROTOCOL_NAME             "PURCRDR"
-#define PURCRDR_PROTOCOL_VERSION          100
-#define PURCRDR_MINIMAL_PROTOCOL_VERSION  100
+#define PCRDR_PROTOCOL_NAME             "PURCRDR"
+#define PCRDR_PROTOCOL_VERSION_STRING   "100"
+#define PCRDR_PROTOCOL_VERSION          100
+#define PCRDR_MINIMAL_PROTOCOL_VERSION  100
 
-#define PURCRDR_US_PATH                   "/var/tmp/purcrdr.sock"
-#define PURCRDR_WS_PORT                   "7702"
-#define PURCRDR_WS_PORT_RESERVED          "7703"
+#define PCRDR_US_PATH                   "/var/tmp/purcrdr.sock"
+#define PCRDR_WS_PORT                   "7702"
+#define PCRDR_WS_PORT_RESERVED          "7703"
 
-#define PURCRDR_LOCALHOST                 "localhost"
-#define PURCRDR_APP_PURCSMG               "cn.fmsoft.hybridos.purcsmg"
-#define PURCRDR_RUNNER_CMDLINE            "cmdline"
+#define PCRDR_LOCALHOST                 "localhost"
+#define PCRDR_APP_PURCSMG               "cn.fmsoft.hybridos.purcsmg"
+#define PCRDR_RUNNER_CMDLINE            "cmdline"
 
-#define PURCRDR_NOT_AVAILABLE             "<N/A>"
+#define PCRDR_NOT_AVAILABLE             "<N/A>"
 
 /* Status Codes */
-#define PURCRDR_SC_IOERR                  1
-#define PURCRDR_SC_OK                     200
-#define PURCRDR_SC_CREATED                201
-#define PURCRDR_SC_ACCEPTED               202
-#define PURCRDR_SC_NO_CONTENT             204
-#define PURCRDR_SC_RESET_CONTENT          205
-#define PURCRDR_SC_PARTIAL_CONTENT        206
-#define PURCRDR_SC_BAD_REQUEST            400
-#define PURCRDR_SC_UNAUTHORIZED           401
-#define PURCRDR_SC_FORBIDDEN              403
-#define PURCRDR_SC_NOT_FOUND              404
-#define PURCRDR_SC_METHOD_NOT_ALLOWED     405
-#define PURCRDR_SC_NOT_ACCEPTABLE         406
-#define PURCRDR_SC_CONFLICT               409
-#define PURCRDR_SC_GONE                   410
-#define PURCRDR_SC_PRECONDITION_FAILED    412
-#define PURCRDR_SC_PACKET_TOO_LARGE       413
-#define PURCRDR_SC_EXPECTATION_FAILED     417
-#define PURCRDR_SC_IM_A_TEAPOT            418
-#define PURCRDR_SC_UNPROCESSABLE_PACKET   422
-#define PURCRDR_SC_LOCKED                 423
-#define PURCRDR_SC_FAILED_DEPENDENCY      424
-#define PURCRDR_SC_TOO_EARLY              425
-#define PURCRDR_SC_UPGRADE_REQUIRED       426
-#define PURCRDR_SC_RETRY_WITH             449
-#define PURCRDR_SC_UNAVAILABLE_FOR_LEGAL_REASONS             451
-#define PURCRDR_SC_INTERNAL_SERVER_ERROR  500
-#define PURCRDR_SC_NOT_IMPLEMENTED        501
-#define PURCRDR_SC_BAD_CALLEE             502
-#define PURCRDR_SC_SERVICE_UNAVAILABLE    503
-#define PURCRDR_SC_CALLEE_TIMEOUT         504
-#define PURCRDR_SC_INSUFFICIENT_STORAGE   507
+#define PCRDR_SC_IOERR                  1
+#define PCRDR_SC_OK                     200
+#define PCRDR_SC_CREATED                201
+#define PCRDR_SC_ACCEPTED               202
+#define PCRDR_SC_NO_CONTENT             204
+#define PCRDR_SC_RESET_CONTENT          205
+#define PCRDR_SC_PARTIAL_CONTENT        206
+#define PCRDR_SC_BAD_REQUEST            400
+#define PCRDR_SC_UNAUTHORIZED           401
+#define PCRDR_SC_FORBIDDEN              403
+#define PCRDR_SC_NOT_FOUND              404
+#define PCRDR_SC_METHOD_NOT_ALLOWED     405
+#define PCRDR_SC_NOT_ACCEPTABLE         406
+#define PCRDR_SC_CONFLICT               409
+#define PCRDR_SC_GONE                   410
+#define PCRDR_SC_PRECONDITION_FAILED    412
+#define PCRDR_SC_PACKET_TOO_LARGE       413
+#define PCRDR_SC_EXPECTATION_FAILED     417
+#define PCRDR_SC_IM_A_TEAPOT            418
+#define PCRDR_SC_UNPROCESSABLE_PACKET   422
+#define PCRDR_SC_LOCKED                 423
+#define PCRDR_SC_FAILED_DEPENDENCY      424
+#define PCRDR_SC_TOO_EARLY              425
+#define PCRDR_SC_UPGRADE_REQUIRED       426
+#define PCRDR_SC_RETRY_WITH             449
+#define PCRDR_SC_UNAVAILABLE_FOR_LEGAL_REASONS             451
+#define PCRDR_SC_INTERNAL_SERVER_ERROR  500
+#define PCRDR_SC_NOT_IMPLEMENTED        501
+#define PCRDR_SC_BAD_CALLEE             502
+#define PCRDR_SC_SERVICE_UNAVAILABLE    503
+#define PCRDR_SC_CALLEE_TIMEOUT         504
+#define PCRDR_SC_INSUFFICIENT_STORAGE   507
 
-#define PURCRDR_EC_IO                     (-1)
-#define PURCRDR_EC_CLOSED                 (-2)
-#define PURCRDR_EC_NOMEM                  (-3)
-#define PURCRDR_EC_TOO_LARGE              (-4)
-#define PURCRDR_EC_PROTOCOL               (-5)
-#define PURCRDR_EC_UPPER                  (-6)
-#define PURCRDR_EC_NOT_IMPLEMENTED        (-7)
-#define PURCRDR_EC_INVALID_VALUE          (-8)
-#define PURCRDR_EC_DUPLICATED             (-9)
-#define PURCRDR_EC_TOO_SMALL_BUFF         (-10)
-#define PURCRDR_EC_BAD_SYSTEM_CALL        (-11)
-#define PURCRDR_EC_AUTH_FAILED            (-12)
-#define PURCRDR_EC_SERVER_ERROR           (-13)
-#define PURCRDR_EC_TIMEOUT                (-14)
-#define PURCRDR_EC_UNKNOWN_EVENT          (-15)
-#define PURCRDR_EC_UNKNOWN_RESULT         (-16)
-#define PURCRDR_EC_UNKNOWN_METHOD         (-17)
-#define PURCRDR_EC_UNEXPECTED             (-18)
-#define PURCRDR_EC_SERVER_REFUSED         (-19)
-#define PURCRDR_EC_BAD_PACKET             (-20)
-#define PURCRDR_EC_BAD_CONNECTION         (-21)
-#define PURCRDR_EC_CANT_LOAD              (-22)
-#define PURCRDR_EC_BAD_KEY                (-23)
+#define PCRDR_EC_IO                     (-1)
+#define PCRDR_EC_CLOSED                 (-2)
+#define PCRDR_EC_NOMEM                  (-3)
+#define PCRDR_EC_TOO_LARGE              (-4)
+#define PCRDR_EC_PROTOCOL               (-5)
+#define PCRDR_EC_UPPER                  (-6)
+#define PCRDR_EC_NOT_IMPLEMENTED        (-7)
+#define PCRDR_EC_INVALID_VALUE          (-8)
+#define PCRDR_EC_DUPLICATED             (-9)
+#define PCRDR_EC_TOO_SMALL_BUFF         (-10)
+#define PCRDR_EC_BAD_SYSTEM_CALL        (-11)
+#define PCRDR_EC_AUTH_FAILED            (-12)
+#define PCRDR_EC_SERVER_ERROR           (-13)
+#define PCRDR_EC_TIMEOUT                (-14)
+#define PCRDR_EC_UNKNOWN_EVENT          (-15)
+#define PCRDR_EC_UNKNOWN_RESULT         (-16)
+#define PCRDR_EC_UNKNOWN_METHOD         (-17)
+#define PCRDR_EC_UNEXPECTED             (-18)
+#define PCRDR_EC_SERVER_REFUSED         (-19)
+#define PCRDR_EC_BAD_PACKET             (-20)
+#define PCRDR_EC_BAD_CONNECTION         (-21)
+#define PCRDR_EC_CANT_LOAD              (-22)
+#define PCRDR_EC_BAD_KEY                (-23)
 
-#define PURCRDR_LEN_HOST_NAME             127
-#define PURCRDR_LEN_APP_NAME              127
-#define PURCRDR_LEN_RUNNER_NAME           63
-#define PURCRDR_LEN_METHOD_NAME           63
-#define PURCRDR_LEN_BUBBLE_NAME           63
-#define PURCRDR_LEN_ENDPOINT_NAME         \
-    (PURCRDR_LEN_HOST_NAME + PURCRDR_LEN_APP_NAME + PURCRDR_LEN_RUNNER_NAME + 3)
-#define PURCRDR_LEN_UNIQUE_ID             63
+#define PCRDR_LEN_HOST_NAME             127
+#define PCRDR_LEN_APP_NAME              127
+#define PCRDR_LEN_RUNNER_NAME           63
+#define PCRDR_LEN_METHOD_NAME           63
+#define PCRDR_LEN_BUBBLE_NAME           63
+#define PCRDR_LEN_ENDPOINT_NAME         \
+    (PCRDR_LEN_HOST_NAME + PCRDR_LEN_APP_NAME + PCRDR_LEN_RUNNER_NAME + 3)
+#define PCRDR_LEN_UNIQUE_ID             63
 
-#define PURCRDR_MIN_PACKET_BUFF_SIZE      512
-#define PURCRDR_DEF_PACKET_BUFF_SIZE      1024
-#define PURCRDR_DEF_TIME_EXPECTED         5   /* 5 seconds */
+#define PCRDR_MIN_PACKET_BUFF_SIZE      512
+#define PCRDR_DEF_PACKET_BUFF_SIZE      1024
+#define PCRDR_DEF_TIME_EXPECTED         5   /* 5 seconds */
 
 /* the maximal size of a payload in a frame (4KiB) */
-#define PURCRDR_MAX_FRAME_PAYLOAD_SIZE    4096
+#define PCRDR_MAX_FRAME_PAYLOAD_SIZE    4096
 
 /* the maximal size of a payload which will be held in memory (40KiB) */
-#define PURCRDR_MAX_INMEM_PAYLOAD_SIZE    40960
+#define PCRDR_MAX_INMEM_PAYLOAD_SIZE    40960
 
 /* the maximal time to ping client (60 seconds) */
-#define PURCRDR_MAX_PING_TIME             60
+#define PCRDR_MAX_PING_TIME             60
 
 /* the maximal no responding time (90 seconds) */
-#define PURCRDR_MAX_NO_RESPONDING_TIME    90
+#define PCRDR_MAX_NO_RESPONDING_TIME    90
 
 /* Connection types */
 enum {
@@ -738,6 +739,21 @@ typedef ssize_t (*cb_write)(void *ctxt, const void *buf, size_t count);
 int pcrdr_serialize_message(const pcrdr_msg *msg, cb_write fn, void *ctxt);
 
 /**
+ * Serialize a message to buffer.
+ *
+ * @param msg: the poiter to the message to serialize.
+ * @param buff: the pointer to the buffer.
+ * @param sz: the size of the buffer.
+ *
+ * Returns: the number of characters should be written to the buffer.
+ * A return value more than @sz means that the output was truncated.
+ *
+ * Since: 1.0
+ */
+size_t pcrdr_serialize_message_to_buffer(const pcrdr_msg *msg,
+        void *buff, size_t sz);
+
+/**
  * Compare two messages.
  *
  * @param msga: the poiter to the first message.
@@ -965,6 +981,26 @@ static inline time_t pcrdr_get_monotoic_time(void)
 
     clock_gettime(CLOCK_MONOTONIC, &tp);
     return tp.tv_sec;
+}
+
+bool pcrdr_is_valid_host_name(const char *host_name);
+bool pcrdr_is_valid_app_name(const char *app_name);
+bool pcrdr_is_valid_endpoint_name(const char *endpoint_name);
+int pcrdr_extract_host_name(const char *endpoint, char *buff);
+int pcrdr_extract_app_name(const char *endpoint, char *buff);
+int pcrdr_extract_runner_name(const char *endpoint, char *buff);
+char *pcrdr_extract_host_name_alloc(const char *endpoint);
+char *pcrdr_extract_app_name_alloc(const char *endpoint);
+char *pcrdr_extract_runner_name_alloc(const char *endpoint);
+int pcrdr_assemble_endpoint_name(const char *host_name, const char *app_name,
+        const char *runner_name, char *buff);
+char *pcrdr_assemble_endpoint_name_alloc(const char *host_name,
+        const char *app_name, const char *runner_name);
+
+static inline bool
+pcrdr_is_valid_runner_name(const char *runner_name)
+{
+    return pcrdr_is_valid_token(runner_name, PCRDR_LEN_RUNNER_NAME);
 }
 
 /**@}*/

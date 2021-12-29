@@ -894,11 +894,11 @@ static int read_option_args (int argc, char **argv)
                 fprintf (stdout, "PurCSMG: %s\n", MC_CURRENT_VERSION);
                 return -1;
             case 'a':
-                if (strlen (optarg) < PURCRDR_LEN_APP_NAME)
+                if (strlen (optarg) < PCRDR_LEN_APP_NAME)
                     strcpy (the_client.app_name, optarg);
                 break;
             case 'r':
-                if (strlen (optarg) < PURCRDR_LEN_RUNNER_NAME)
+                if (strlen (optarg) < PCRDR_LEN_RUNNER_NAME)
                     strcpy (the_client.runner_name, optarg);
                 break;
             case '?':
@@ -932,9 +932,9 @@ int main (int argc, char **argv)
     }
 
     if (!the_client.app_name[0])
-        strcpy (the_client.app_name, PURCRDR_APP_PURCSMG);
+        strcpy (the_client.app_name, PCRDR_APP_PURCSMG);
     if (!the_client.runner_name[0])
-        strcpy (the_client.runner_name, PURCRDR_RUNNER_CMDLINE);
+        strcpy (the_client.runner_name, PCRDR_RUNNER_CMDLINE);
 
     if (test_basic_functions ()) {
         return EXIT_FAILURE;
@@ -949,7 +949,7 @@ int main (int argc, char **argv)
     if ((ttyfd = setup_tty ()) < 0)
         goto failed;
 
-    cnnfd = pcrdr_connect_via_unix_socket (PURCRDR_US_PATH,
+    cnnfd = pcrdr_connect_via_unix_socket (PCRDR_US_PATH,
             the_client.app_name, the_client.runner_name, &conn);
 
     if (cnnfd < 0) {
@@ -990,7 +990,7 @@ int main (int argc, char **argv)
                 if (err_code) {
                     fprintf (stderr, "Failed to read and dispatch message: %s\n",
                             pcrdr_get_err_message (err_code));
-                    if (err_code == PURCRDR_EC_IO)
+                    if (err_code == PCRDR_EC_IO)
                         break;
                 }
 

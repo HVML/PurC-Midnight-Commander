@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 #include <inttypes.h>           /* PRIuMAX */
 
-#include <purc/purc-edom.h>
+#include <purc/purc-dom.h>
 
 #include "lib/global.h"
 #include "lib/unixcompat.h"
@@ -61,7 +61,7 @@ struct WDOMAttrs
 {
     Widget widget;
     int bol;        /* the begin of the line */
-    pcedom_node_t *node;
+    pcdom_node_t *node;
 };
 
 /*** file scope variables ************************************************************************/
@@ -112,8 +112,8 @@ domattrs_show_attrs (WDOMAttrs * attrs)
     Widget *w = WIDGET (attrs);
     GString *buff;
 
-    pcedom_element_t *element;
-    pcedom_attr_t *attr;
+    pcdom_element_t *element;
+    pcdom_attr_t *attr;
     int y;
 
     if (!is_idle ())
@@ -121,14 +121,14 @@ domattrs_show_attrs (WDOMAttrs * attrs)
 
     domattrs_caption (attrs);
 
-    if (!attrs->node || attrs->node->type != PCEDOM_NODE_TYPE_ELEMENT)
+    if (!attrs->node || attrs->node->type != PCDOM_NODE_TYPE_ELEMENT)
         return;
 
     tty_setcolor (NORMAL_COLOR);
 
     buff = g_string_new ("");
-    element = (pcedom_element_t *)attrs->node;
-    attr = pcedom_element_first_attribute(element);
+    element = (pcdom_element_t *)attrs->node;
+    attr = pcdom_element_first_attribute(element);
     y = 1;
 
     /* Print only lines which fit */
@@ -138,13 +138,13 @@ domattrs_show_attrs (WDOMAttrs * attrs)
             const gchar *str;
             size_t sz;
 
-            str = (const gchar *)pcedom_attr_local_name (attr, &sz);
+            str = (const gchar *)pcdom_attr_local_name (attr, &sz);
             buff = g_string_overwrite_len (buff, 0, str, sz);
             widget_gotoyx (w, y, 3);
             tty_print_string (buff->str);
             g_string_set_size (buff, 0);
 
-            str = (const gchar *)pcedom_attr_value (attr, &sz);
+            str = (const gchar *)pcdom_attr_value (attr, &sz);
             buff = g_string_overwrite_len (buff, 0, str, sz);
             widget_gotoyx (w, y, 3 + w->cols / 2);
             tty_print_string (buff->str);
@@ -155,7 +155,7 @@ domattrs_show_attrs (WDOMAttrs * attrs)
         if (y >= w->lines)
             break;
 
-        attr = pcedom_element_next_attribute(attr);
+        attr = pcdom_element_next_attribute(attr);
     }
 
     g_string_free (buff, TRUE);

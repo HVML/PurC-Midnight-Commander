@@ -24,7 +24,7 @@
  */
 
 /**
- * \file dom-attrs.c
+ * \file dom-ele-attrs.c
  * \brief Source: DOM element attributes widget
  */
 
@@ -49,7 +49,7 @@
 
 #include "src/setup.h"          /* panels_options */
 
-#include "dom-attrs.h"
+#include "dom-ele-attrs.h"
 
 /*** global variables ****************************************************************************/
 
@@ -57,7 +57,7 @@
 
 /*** file scope type declarations ****************************************************************/
 
-struct WDOMAttrs
+struct WEleAttrs
 {
     Widget widget;
     int bol;        /* the begin of the line */
@@ -70,7 +70,7 @@ struct WDOMAttrs
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-domattrs_caption (WDOMAttrs * attrs)
+domattrs_caption (WEleAttrs * attrs)
 {
     Widget *w = WIDGET (attrs);
 
@@ -107,7 +107,7 @@ domattrs_caption (WDOMAttrs * attrs)
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-domattrs_show_attrs (WDOMAttrs * attrs)
+domattrs_show_attrs (WEleAttrs * attrs)
 {
     Widget *w = WIDGET (attrs);
     GString *buff;
@@ -166,7 +166,7 @@ domattrs_show_attrs (WDOMAttrs * attrs)
 static void
 domattrs_hook (void *data)
 {
-    WDOMAttrs *attrs = (WDOMAttrs *) data;
+    WEleAttrs *attrs = (WEleAttrs *) data;
     Widget *other_widget;
 
     other_widget = get_panel_widget (get_current_index ());
@@ -184,7 +184,7 @@ domattrs_hook (void *data)
 static cb_ret_t
 domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *data)
 {
-    WDOMAttrs *attrs = (WDOMAttrs *) w;
+    WEleAttrs *attrs = (WEleAttrs *) w;
 
     switch (msg)
     {
@@ -210,13 +210,13 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void
 /*** public functions ****************************************************************************/
 /* --------------------------------------------------------------------------------------------- */
 
-WDOMAttrs *
-domattrs_new (int y, int x, int lines, int cols)
+WEleAttrs *
+dom_ele_attrs_new (int y, int x, int lines, int cols)
 {
-    WDOMAttrs *attrs;
+    WEleAttrs *attrs;
     Widget *w;
 
-    attrs = g_new (struct WDOMAttrs, 1);
+    attrs = g_new (struct WEleAttrs, 1);
     w = WIDGET (attrs);
     widget_init (w, y, x, lines, cols, domattrs_callback, NULL);
 

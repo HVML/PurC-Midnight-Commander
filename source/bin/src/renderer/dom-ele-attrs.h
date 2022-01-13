@@ -23,27 +23,28 @@
  */
 
 /**
- * \file dom-attrs.h
+ * \file dom-ele-attrs.h
  * \brief Header: DOM element attributes
  */
 
-#ifndef MC_DOM_ATTRS_H
-#define MC_DOM_ATTRS_H
+#ifndef MC_DOM_ELE_ATTRS_H
+#define MC_DOM_ELE_ATTRS_H
 
-/*** typedefs(not structures) and defined constants **********************************************/
+/*** typedefs(not structures) and defined constants */
 
-/*** enums ***************************************************************************************/
+/*** enums */
 
-/*** structures declarations (and typedefs of structures)*****************************************/
+/*** structures declarations (and typedefs of structures) */
 
-struct WDOMAttrs;
-typedef struct WDOMAttrs WDOMAttrs;
+struct WEleAttrs;
+typedef struct WEleAttrs WEleAttrs;
 
-/*** global variables defined in .c file *********************************************************/
+/*** global variables defined in .c file */
 
-/*** declarations of public functions ************************************************************/
+/*** declarations of public functions */
 
-WDOMAttrs *domattrs_new (int y, int x, int lines, int cols);
+WEleAttrs *dom_ele_attrs_new (int y, int x, int lines, int cols);
 
-/*** inline functions ****************************************************************************/
-#endif /* MC_DOM_ATTRS_H */
+/*** inline functions */
+
+#endif /* MC_DOM_ELE_ATTRS_H */

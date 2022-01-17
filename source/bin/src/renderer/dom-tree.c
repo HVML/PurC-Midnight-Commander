@@ -32,6 +32,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+
 #include <sys/types.h>
 
 #include "lib/global.h"
@@ -70,7 +72,7 @@
 typedef struct tree_entry {
     struct list_head list;
 
-    int        sublevel;
+    int                 sublevel;
     unsigned int        is_close_tag:1;     /* is a close tag? */
     unsigned int        is_self_close:1;    /* is self-close? */
     pcdom_node_t        *node;
@@ -896,8 +898,123 @@ dom_tree_new (int y, int x, int lines, int cols, gboolean is_panel)
     return tree;
 }
 
-bool
+struct my_dom_walker_ctxt {
+    gboolean is_first_time;
+
+    unsigned int level;
+
+    WDOMTree *tree;
+    struct list_head *curr_tail;
+};
+
+static pchtml_action_t my_node_walker(pcdom_node_t *node, void *ctx)
+{
+    tree_entry *entry;
+    struct my_dom_walker_ctxt *ctxt = ctx;
+
+    switch (node->type) {
+    case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
+        entry = calloc (1, sizeof(tree_entry));
+        entry->sublevel = 0;    /* always be zero */
+        entry->is_close_tag = 0;
+        entry->is_self_close = 0;
+        entry->node = node;
+
+        list_add_tail (&entry->list, ctxt->curr_tail);
+        return PCHTML_ACTION_NEXT;
+
+    case PCDOM_NODE_TYPE_COMMENT:
+    case PCDOM_NODE_TYPE_TEXT:
+    case PCDOM_NODE_TYPE_CDATA_SECTION:
+        entry = calloc (1, sizeof(tree_entry));
+        entry->sublevel = ctxt->level;
+        entry->is_close_tag = 0;
+        entry->is_self_close = 0;
+        entry->node = node;
+
+        list_add_tail (&entry->list, ctxt->curr_tail);
+        return PCHTML_ACTION_NEXT;
+
+    case PCDOM_NODE_TYPE_ELEMENT:
+        /* we unfold the `html`, `head` and `body` elements initially */
+        if ((ctxt->is_first_time && ctxt->level < 2) ||
+                (node->flags & NF_UNFOLDED)) {
+            node->flags |= NF_UNFOLDED;
+
+            entry = calloc (1, sizeof(tree_entry));
+            entry->sublevel = ctxt->level;
+            entry->is_close_tag = 0;
+            entry->is_self_close = pchtml_html_node_is_void(node);
+            entry->node = node;
+
+            list_add_tail(&entry->list, ctxt->curr_tail);
+            ctxt->curr_tail = &entry->list;
+
+            /* insert a close tag entry */
+            if (!entry->is_self_close && node->first_child != NULL
+                    && (node->flags & NF_UNFOLDED)) {
+
+                entry = calloc (1, sizeof(tree_entry));
+                entry->sublevel = ctxt->level;
+                entry->is_close_tag = 1;
+                entry->is_self_close = 0;
+                entry->node = node;
+
+                /* add the close tag entry to the real tail */
+                list_add_tail(&entry->list, &ctxt->tree->entries);
+
+                ctxt->level++;
+                ctxt->curr_tail = &entry->list;
+
+                // walk to the children
+                return PCHTML_ACTION_OK;
+            }
+        }
+        else {
+            entry = calloc (1, sizeof(tree_entry));
+            entry->sublevel = ctxt->level;
+            entry->is_close_tag = 0;
+            entry->is_self_close = pchtml_html_node_is_void(node);
+            entry->node = node;
+
+            list_add_tail(&entry->list, ctxt->curr_tail);
+            ctxt->curr_tail = &entry->list;
+        }
+
+        ctxt->curr_tail = &ctxt->tree->entries;
+
+        /* walk to the siblings. */
+        return PCHTML_ACTION_NEXT;
+
+    default:
+        /* ignore any unknown node types */
+        break;
+
+    }
+
+    return PCHTML_ACTION_OK;
+}
+
+gboolean
 dom_tree_load (WDOMTree *tree, pcdom_document_t *doc)
 {
+    struct my_dom_walker_ctxt ctxt = {
+        .is_first_time  = false,
+        .level          = 0,
+        .tree           = tree,
+        .curr_tail      = &tree->entries,
+    };
+
+    assert (tree->nr_entries == 0);
+
+    /* use the user-defined pointer of document for
+       whether it is the first time to load the tree. */
+    if (doc->user == NULL) {
+        ctxt.is_first_time = true;
+    }
+    doc->user = tree;
+
+    pcdom_node_simple_walk(&doc->node, my_node_walker, &ctxt);
+
     return false;
 }

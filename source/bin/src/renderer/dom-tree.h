@@ -31,6 +31,7 @@
 #define MC_DOM_TREE_H
 
 #include <purc/purc-dom.h>
+#include <purc/purc-html.h>
 
 #include "lib/global.h"
 
@@ -48,7 +49,7 @@ typedef struct WDOMTree WDOMTree;
 
 WDOMTree *dom_tree_new (int y, int x, int lines, int cols, gboolean is_panel);
 
-bool dom_tree_load (WDOMTree *tree, pcdom_document_t *doc);
+gboolean dom_tree_load (WDOMTree *tree, pcdom_document_t *doc);
 
 WDOMTree *find_dom_tree (const WDialog * h);
 

@@ -77,7 +77,7 @@ domview_dialog_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm
     return dlg_default_callback (w, sender, msg, parm, data);
 }
 
-static gboolean
+static bool
 domview_load (WDOMTree *dom_tree, WEleAttrs *ele_attrs, WView *txt_view,
         pcdom_document_t *dom_doc)
 {
@@ -91,10 +91,10 @@ domview_load (WDOMTree *dom_tree, WEleAttrs *ele_attrs, WView *txt_view,
 /* --------------------------------------------------------------------------------------------- */
 /** Real view only */
 
-gboolean
+bool
 domview_viewer (pcdom_document_t *dom_doc)
 {
-    gboolean succeeded;
+    bool succeeded;
     WDOMTree *dom_tree;
     WEleAttrs *ele_attrs;
     WView *txt_view;

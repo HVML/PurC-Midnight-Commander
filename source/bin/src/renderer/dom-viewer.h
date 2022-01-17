@@ -19,20 +19,20 @@ typedef struct WDOMView WDOMView;
 
 /*** global variables defined in .c file *********************************************************/
 
-extern gboolean domview_mouse_move_pages;
+extern bool domview_mouse_move_pages;
 
 /*** declarations of public functions ************************************************************/
 
 /* Creates a new WDOMView object with the given properties. Caveat: the
  * origin is in y-x order, while the extent is in x-y order. */
-extern WDOMView *domview_new (int y, int x, int lines, int cols, gboolean is_panel);
+extern WDOMView *domview_new (int y, int x, int lines, int cols, bool is_panel);
 
 struct pcedom_document;
 
 /* Shows DOM in the internal DOM viewer */
-extern gboolean domview_viewer (struct pcedom_document * edom_doc);
+extern bool domview_viewer (struct pcedom_document * edom_doc);
 
-extern gboolean domview_load (WDOMView * view, struct pcedom_document * edom_doc);
+extern bool domview_load (WDOMView * view, struct pcedom_document * edom_doc);
 
 /*** inline functions ****************************************************************************/
 

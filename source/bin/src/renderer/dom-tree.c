@@ -89,8 +89,8 @@ struct WDOMTree {
     GString *search_buffer;     /* Current search string */
     GString *xpath_buffer;      /* XPath string */
 
-    gboolean searching;         /* Are we on searching mode? */
-    gboolean is_panel;          /* panel or plain widget flag */
+    bool searching;         /* Are we on searching mode? */
+    bool is_panel;          /* panel or plain widget flag */
     unsigned int nr_entries;    /* number of all entries */
 };
 
@@ -342,7 +342,7 @@ show_tree (WDOMTree * tree)
             continue;
 
         if (tree->is_panel) {
-            gboolean selected;
+            bool selected;
 
             selected = widget_get_state (w, WST_FOCUSED) && current == tree->selected;
             tty_setcolor (selected ? SELECTED_COLOR : get_entry_color (current));
@@ -409,7 +409,7 @@ back_ptr (WDOMTree *tree, tree_entry *ptr, int *count)
     return container_of (p, tree_entry, list);
 }
 
-static gboolean
+static bool
 tree_move_backward (WDOMTree * tree, int i)
 {
     tree->selected = back_ptr (tree, tree->selected, &i);
@@ -429,17 +429,17 @@ forw_ptr (WDOMTree *tree, tree_entry *ptr, int *count)
     return container_of (p, tree_entry, list);
 }
 
-static gboolean
+static bool
 tree_move_forward (WDOMTree * tree, int i)
 {
     tree->selected = forw_ptr (tree, tree->selected, &i);
     return (i > 0);
 }
 
-static gboolean
+static bool
 tree_move_to_top (WDOMTree * tree)
 {
-    gboolean v = FALSE;
+    bool v = FALSE;
     tree_entry *new_topmost, *new_selected;
 
     new_topmost = list_entry (tree->entries.next, tree_entry, list);
@@ -454,10 +454,10 @@ tree_move_to_top (WDOMTree * tree)
     return v;
 }
 
-static gboolean
+static bool
 tree_move_to_bottom (WDOMTree * tree)
 {
-    gboolean v = FALSE;
+    bool v = FALSE;
     int tree_lines;
     tree_entry *new_topmost, *new_selected;
 
@@ -516,34 +516,34 @@ tree_move_pgdn (WDOMTree * tree)
         show_tree (tree);
 }
 
-static gboolean
+static bool
 tree_fold_selected (WDOMTree *tree)
 {
     return false;
 }
 
-static gboolean
+static bool
 tree_unfold_selected (WDOMTree *tree)
 {
     return false;
 }
 
-static gboolean
+static bool
 tree_move_to_open_tag (WDOMTree *tree)
 {
     return false;
 }
 
-static gboolean
+static bool
 tree_move_to_parent (WDOMTree *tree)
 {
     return false;
 }
 
-static gboolean
+static bool
 tree_move_left (WDOMTree * tree)
 {
-    gboolean v = FALSE;
+    bool v = FALSE;
 
     if (!tree->selected->is_close_tag &&
             tree->selected->node->flags & NF_UNFOLDED) {
@@ -561,10 +561,10 @@ tree_move_left (WDOMTree * tree)
     return v;
 }
 
-static gboolean
+static bool
 tree_move_right (WDOMTree * tree)
 {
-    gboolean v = FALSE;
+    bool v = FALSE;
 
     if (tree->selected->is_self_close ||
            tree->selected->node->flags & NF_UNFOLDED ) {
@@ -870,7 +870,7 @@ tree_mouse_callback (Widget * w, mouse_msg_t msg, mouse_event_t * event)
 /*** public functions */
 
 WDOMTree *
-dom_tree_new (int y, int x, int lines, int cols, gboolean is_panel)
+dom_tree_new (int y, int x, int lines, int cols, bool is_panel)
 {
     WDOMTree *tree;
     Widget *w;
@@ -899,7 +899,7 @@ dom_tree_new (int y, int x, int lines, int cols, gboolean is_panel)
 }
 
 struct my_dom_walker_ctxt {
-    gboolean is_first_time;
+    bool is_first_time;
 
     unsigned int level;
 
@@ -995,7 +995,7 @@ static pchtml_action_t my_node_walker(pcdom_node_t *node, void *ctx)
     return PCHTML_ACTION_OK;
 }
 
-gboolean
+bool
 dom_tree_load (WDOMTree *tree, pcdom_document_t *doc)
 {
     struct my_dom_walker_ctxt ctxt = {

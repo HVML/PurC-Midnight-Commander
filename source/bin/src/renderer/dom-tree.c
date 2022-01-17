@@ -653,13 +653,43 @@ tree_unfold_selected (WDOMTree *tree)
 static bool
 tree_move_to_open_tag (WDOMTree *tree)
 {
-    return false;
+    bool found = false;
+    pcdom_node_t *node = tree->selected->node;
+    tree_entry *p = tree->selected;
+
+    for (p = list_entry(p->list.prev, tree_entry, list);
+            &p->list != &tree->entries;
+            p = list_entry(p->list.prev, tree_entry, list)) {
+
+        if (p->node == node && !p->is_close_tag) {
+            tree->selected = p;
+            found = true;
+            break;
+        }
+    }
+
+    return found;
 }
 
 static bool
 tree_move_to_parent (WDOMTree *tree)
 {
-    return false;
+    bool found = false;
+    int level = tree->selected->sublevel;
+    tree_entry *p = tree->selected;
+
+    for (p = list_entry(p->list.prev, tree_entry, list);
+            &p->list != &tree->entries;
+            p = list_entry(p->list.prev, tree_entry, list)) {
+
+        if (p->sublevel < level) {
+            tree->selected = p;
+            found = true;
+            break;
+        }
+    }
+
+    return found;
 }
 
 static bool

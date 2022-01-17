@@ -301,7 +301,7 @@ frontend_dlg_run (WDialog * h)
         if (is_idle ())
         {
             if (idle_hook)
-                execute_hooks (idle_hook);
+                execute_hooks (idle_hook, NULL);
 
             while (widget_get_state (wh, WST_IDLE) && is_idle ())
                 send_message (wh, NULL, MSG_IDLE, 0, NULL);

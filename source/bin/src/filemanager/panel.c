@@ -4546,7 +4546,7 @@ select_item (WPanel * panel)
 
     panel->dirty = TRUE;
 
-    execute_hooks (select_file_hook);
+    execute_hooks (select_file_hook, NULL);
 }
 
 /* --------------------------------------------------------------------------------------------- */

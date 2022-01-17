@@ -331,7 +331,7 @@ error:
 }
 
 #if HAVE(SYS_EPOLL_H)
-static void check_server_on_idle (void *data)
+static void check_server_on_idle (void *data, void *info)
 {
     int nfds, n;
     struct epoll_event ev, events[MAX_EVENTS];

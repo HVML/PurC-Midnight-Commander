@@ -4,8 +4,9 @@
    Slavaz: Warning! this file is deprecated and should be replaced
    by mcevents functional.
 
-   Copyright (C) 1994-2021
+   Copyright (C) 1994-2022
    Free Software Foundation, Inc.
+   Beijing FMSoft Technologies Co., Ltd.
 
    Written by:
    Miguel de Icaza, 1994, 1995, 1996
@@ -13,6 +14,7 @@
    Dugan Porter, 1994, 1995, 1996
    Jakub Jelinek, 1994, 1995, 1996
    Mauricio Plaza, 1994, 1995, 1996
+   Vincent Wei, 2022
 
    This file is part of the Midnight Commander.
 
@@ -54,7 +56,7 @@
 /* --------------------------------------------------------------------------------------------- */
 
 void
-add_hook (hook_t ** hook_list, void (*hook_fn) (void *), void *data)
+add_hook (hook_t ** hook_list, void (*hook_fn) (void *, void *), void *data)
 {
     hook_t *new_hook = g_new (hook_t, 1);
 
@@ -68,7 +70,7 @@ add_hook (hook_t ** hook_list, void (*hook_fn) (void *), void *data)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-execute_hooks (hook_t * hook_list)
+execute_hooks (hook_t * hook_list, void *info)
 {
     hook_t *new_hook = NULL;
     hook_t *p;
@@ -86,7 +88,7 @@ execute_hooks (hook_t * hook_list)
 
     while (new_hook != NULL)
     {
-        new_hook->hook_fn (new_hook->hook_data);
+        new_hook->hook_fn (new_hook->hook_data, info);
         new_hook = new_hook->next;
     }
 
@@ -101,7 +103,7 @@ execute_hooks (hook_t * hook_list)
 /* --------------------------------------------------------------------------------------------- */
 
 void
-delete_hook (hook_t ** hook_list, void (*hook_fn) (void *))
+delete_hook (hook_t ** hook_list, void (*hook_fn) (void *, void *))
 {
     hook_t *new_list = NULL;
     hook_t *current, *next;
@@ -120,7 +122,7 @@ delete_hook (hook_t ** hook_list, void (*hook_fn) (void *))
 /* --------------------------------------------------------------------------------------------- */
 
 gboolean
-hook_present (hook_t * hook_list, void (*hook_fn) (void *))
+hook_present (hook_t * hook_list, void (*hook_fn) (void *, void *))
 {
     hook_t *p;
 

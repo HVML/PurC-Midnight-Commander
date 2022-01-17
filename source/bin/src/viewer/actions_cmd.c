@@ -167,7 +167,7 @@ mcview_continue_search_cmd (WView * view)
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-mcview_hook (void *v)
+mcview_hook (void *v, void *info)
 {
     WView *view = (WView *) v;
     WPanel *panel;

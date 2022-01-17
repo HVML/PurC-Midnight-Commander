@@ -670,7 +670,7 @@ tree_store_save (void)
 void
 tree_store_add_entry_remove_hook (tree_store_remove_fn callback, void *data)
 {
-    add_hook (&remove_entry_hooks, (void (*)(void *)) callback, data);
+    add_hook (&remove_entry_hooks, (void (*)(void *, void *)) callback, data);
 }
 
 /* --------------------------------------------------------------------------------------------- */
@@ -678,7 +678,7 @@ tree_store_add_entry_remove_hook (tree_store_remove_fn callback, void *data)
 void
 tree_store_remove_entry_remove_hook (tree_store_remove_fn callback)
 {
-    delete_hook (&remove_entry_hooks, (void (*)(void *)) callback);
+    delete_hook (&remove_entry_hooks, (void (*)(void *, void *)) callback);
 }
 
 /* --------------------------------------------------------------------------------------------- */

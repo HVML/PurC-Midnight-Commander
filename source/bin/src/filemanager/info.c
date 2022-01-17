@@ -311,7 +311,7 @@ info_show_info (WInfo * info)
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-info_hook (void *data)
+info_hook (void *data, void *_info)
 {
     WInfo *info = (WInfo *) data;
     Widget *other_widget;
@@ -342,7 +342,7 @@ info_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *da
         return MSG_HANDLED;
 
     case MSG_DRAW:
-        info_hook (info);
+        info_hook (info, NULL);
         return MSG_HANDLED;
 
     case MSG_DESTROY:

@@ -44,6 +44,7 @@
 typedef struct WDOMTree WDOMTree;
 
 /*** global variables defined in .c file */
+extern hook_t *select_element_hook;
 
 /*** declarations of public functions */
 

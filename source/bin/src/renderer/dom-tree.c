@@ -57,6 +57,7 @@
 #include "dom-tree.h"
 
 /*** global variables */
+hook_t *select_element_hook;
 
 /*** file scope macro definitions */
 
@@ -321,12 +322,7 @@ show_tree (WDOMTree * tree)
         x = y = 1;
     }
 
-    if (tree->topmost != NULL)
-        toplevel = tree->topmost->sublevel;
-
-    if (tree->selected == NULL) {
-        tree->selected = list_first_entry (&tree->entries, tree_entry, list);
-    }
+    toplevel = tree->topmost->sublevel;
     current = tree->topmost;
 
     /* Loop for every line */
@@ -410,10 +406,20 @@ back_ptr (WDOMTree *tree, tree_entry *ptr, int *count)
     return container_of (p, tree_entry, list);
 }
 
+static inline void
+tree_set_selected(WDOMTree * tree, tree_entry *new_selected)
+{
+    if (tree->selected != new_selected) {
+        tree->selected = new_selected;
+        execute_hooks (select_element_hook, tree->selected);
+    }
+}
+
 static bool
 tree_move_backward (WDOMTree * tree, int i)
 {
-    tree->selected = back_ptr (tree, tree->selected, &i);
+    tree_entry *e = back_ptr (tree, tree->selected, &i);
+    tree_set_selected (tree, e);
     return (i > 0);
 }
 
@@ -433,7 +439,8 @@ forw_ptr (WDOMTree *tree, tree_entry *ptr, int *count)
 static bool
 tree_move_forward (WDOMTree * tree, int i)
 {
-    tree->selected = forw_ptr (tree, tree->selected, &i);
+    tree_entry *e = forw_ptr (tree, tree->selected, &i);
+    tree_set_selected (tree, e);
     return (i > 0);
 }
 
@@ -448,7 +455,7 @@ tree_move_to_top (WDOMTree * tree)
 
     if (new_topmost != tree->topmost || new_selected != tree->selected) {
         tree->topmost = new_topmost;
-        tree->selected = new_selected;
+        tree_set_selected (tree, new_selected);
         v = TRUE;
     }
 
@@ -468,7 +475,7 @@ tree_move_to_bottom (WDOMTree * tree)
     new_topmost = back_ptr (tree, new_selected, &tree_lines);
     if (new_topmost != tree->topmost || new_selected != tree->selected) {
         tree->topmost = new_topmost;
-        tree->selected = new_selected;
+        tree_set_selected (tree, new_selected);
         v = TRUE;
     }
 
@@ -662,7 +669,7 @@ tree_move_to_open_tag (WDOMTree *tree)
             p = list_entry(p->list.prev, tree_entry, list)) {
 
         if (p->node == node && !p->is_close_tag) {
-            tree->selected = p;
+            tree_set_selected (tree, p);
             found = true;
             break;
         }
@@ -683,7 +690,7 @@ tree_move_to_parent (WDOMTree *tree)
             p = list_entry(p->list.prev, tree_entry, list)) {
 
         if (p->sublevel < level) {
-            tree->selected = p;
+            tree_set_selected (tree, p);
             found = true;
             break;
         }

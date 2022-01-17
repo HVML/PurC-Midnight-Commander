@@ -15,7 +15,7 @@
 
 typedef struct hook_t
 {
-    void (*hook_fn) (void *);
+    void (*hook_fn) (void *, void *);
     void *hook_data;
     struct hook_t *next;
 } hook_t;
@@ -24,10 +24,10 @@ typedef struct hook_t
 
 /*** declarations of public functions ************************************************************/
 
-void add_hook (hook_t ** hook_list, void (*hook_fn) (void *), void *data);
-void execute_hooks (hook_t * hook_list);
-void delete_hook (hook_t ** hook_list, void (*hook_fn) (void *));
-gboolean hook_present (hook_t * hook_list, void (*hook_fn) (void *));
+void add_hook (hook_t ** hook_list, void (*hook_fn) (void *, void *), void *data);
+void execute_hooks (hook_t * hook_list, void *info);
+void delete_hook (hook_t ** hook_list, void (*hook_fn) (void *, void *));
+gboolean hook_present (hook_t * hook_list, void (*hook_fn) (void *, void *));
 
 /*** inline functions **************************************************/
 

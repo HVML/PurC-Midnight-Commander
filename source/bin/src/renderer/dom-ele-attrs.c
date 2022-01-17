@@ -49,6 +49,7 @@
 
 #include "src/setup.h"          /* panels_options */
 
+#include "dom-tree.h"           /* select_element_hook */
 #include "dom-ele-attrs.h"
 
 /*** global variables ****************************************************************************/
@@ -164,7 +165,7 @@ domattrs_show_attrs (WEleAttrs * attrs)
 /* --------------------------------------------------------------------------------------------- */
 
 static void
-domattrs_hook (void *data)
+domattrs_hook (void *data, void *info)
 {
     WEleAttrs *attrs = (WEleAttrs *) data;
     Widget *other_widget;
@@ -175,7 +176,7 @@ domattrs_hook (void *data)
     if (widget_overlapped (WIDGET (attrs), other_widget))
         return;
 
-    // attrs->ready = TRUE;
+    attrs->node = info;
     domattrs_show_attrs (attrs);
 }
 
@@ -189,16 +190,16 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void
     switch (msg)
     {
     case MSG_INIT:
-        add_hook (&select_file_hook, domattrs_hook, attrs);
+        add_hook (&select_element_hook, domattrs_hook, attrs);
         attrs->node = NULL;
         return MSG_HANDLED;
 
     case MSG_DRAW:
-        domattrs_hook (attrs);
+        domattrs_hook (attrs, attrs->node);
         return MSG_HANDLED;
 
     case MSG_DESTROY:
-        delete_hook (&select_file_hook, domattrs_hook);
+        delete_hook (&select_element_hook, domattrs_hook);
         return MSG_HANDLED;
 
     default:

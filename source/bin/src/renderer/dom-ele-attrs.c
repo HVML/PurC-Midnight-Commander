@@ -32,8 +32,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <inttypes.h>           /* PRIuMAX */
+#include <assert.h>
+#include <sys/stat.h>
 
 #include <purc/purc-dom.h>
 
@@ -105,10 +106,51 @@ domattrs_caption (WEleAttrs * attrs)
     tty_print_string (label);
 }
 
-/* --------------------------------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
 
 static void
-domattrs_show_attrs (WEleAttrs * attrs)
+domattrs_show_doctype_ids (WEleAttrs * attrs)
+{
+    Widget *w = WIDGET (attrs);
+    GString *buff;
+    pcdom_document_type_t *doctype;
+
+    assert (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_DOC_TYPE);
+
+    tty_setcolor (NORMAL_COLOR);
+
+    doctype = pcdom_interface_document_type (attrs->node);
+
+    /* Print only lines which fit */
+    const gchar *str;
+    size_t len;
+
+    /* public identifier */
+    widget_gotoyx (w, 1, 3);
+    tty_print_string ("public");
+
+    buff = g_string_new ("");
+    str = (const gchar *)pcdom_document_type_public_id(doctype, &len);
+    buff = g_string_overwrite_len (buff, 0, str, len);
+    widget_gotoyx (w, 1, 3 + w->cols / 2);
+    tty_print_string (buff->str);
+    g_string_set_size (buff, 0);
+
+    /* system identifier */
+    widget_gotoyx (w, 2, 3);
+    tty_print_string ("system");
+
+    buff = g_string_new ("");
+    str = (const gchar *)pcdom_document_type_system_id(doctype, &len);
+    buff = g_string_overwrite_len (buff, 0, str, len);
+    widget_gotoyx (w, 2, 3 + w->cols / 2);
+    tty_print_string (buff->str);
+
+    g_string_free (buff, TRUE);
+}
+
+static void
+domattrs_show_element_attrs (WEleAttrs * attrs)
 {
     Widget *w = WIDGET (attrs);
     GString *buff;
@@ -117,13 +159,7 @@ domattrs_show_attrs (WEleAttrs * attrs)
     pcdom_attr_t *attr;
     int y;
 
-    if (!is_idle ())
-        return;
-
-    domattrs_caption (attrs);
-
-    if (!attrs->node || attrs->node->type != PCDOM_NODE_TYPE_ELEMENT)
-        return;
+    assert (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_ELEMENT);
 
     tty_setcolor (NORMAL_COLOR);
 
@@ -160,6 +196,25 @@ domattrs_show_attrs (WEleAttrs * attrs)
     }
 
     g_string_free (buff, TRUE);
+}
+
+static void
+domattrs_show_attrs (WEleAttrs * attrs)
+{
+    if (!is_idle ())
+        return;
+
+    domattrs_caption (attrs);
+
+    if (!attrs->node)
+        return;
+
+    if (attrs->node->type == PCDOM_NODE_TYPE_DOCUMENT_TYPE) {
+        domattrs_show_doctype_ids (attrs);
+    }
+    else if (attrs->node->type == PCDOM_NODE_TYPE_ELEMENT) {
+        domattrs_show_element_attrs (attrs);
+    }
 }
 
 /* --------------------------------------------------------------------------------------------- */

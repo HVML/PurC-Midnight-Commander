@@ -35,26 +35,18 @@
 
 #include "src/filemanager/layout.h"
 #include "src/filemanager/filemanager.h"
-#include "src/viewer/mcviewer.h"
 
-#include "dom-tree.h"
-#include "dom-ele-attrs.h"
+#include "dom-viewer.h"
 
 /*** global variables */
 
 /*** file scope macro definitions */
 
 /*** file scope type declarations */
-struct WDOMView {
-    Widget widget;
-    pcdom_document_t *doc;
-};
 
 /*** file scope variables */
 
-/* ------------------------------------------------------------------------- */
 /*** file scope functions */
-/* ------------------------------------------------------------------------- */
 
 cb_ret_t
 domview_dialog_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *data)
@@ -79,17 +71,14 @@ domview_dialog_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm
 
 static bool
 domview_load (WDOMTree *dom_tree, WEleAttrs *ele_attrs, WView *txt_view,
-        pcdom_document_t *dom_doc)
+        pcdom_document_t *doc)
 {
-    return FALSE;
+    if (dom_tree_load (dom_tree, doc))
+        return true;
+    return false;
 }
 
-/* --------------------------------------------------------------------------------------------- */
-/*** public functions ****************************************************************************/
-/* --------------------------------------------------------------------------------------------- */
-
-/* --------------------------------------------------------------------------------------------- */
-/** Real view only */
+/*** public functions */
 
 bool
 domview_viewer (pcdom_document_t *dom_doc)
@@ -127,8 +116,10 @@ domview_viewer (pcdom_document_t *dom_doc)
     succeeded = domview_load (dom_tree, ele_attrs, txt_view, dom_doc);
 
     if (succeeded) {
+        WDOMViewInfo info = { dom_doc, dom_tree, ele_attrs, txt_view };
+
+        view_dlg->data = &info;
         dlg_run (view_dlg);
-        view_dlg->data = dom_doc;
     }
     else
         dlg_stop (view_dlg);
@@ -139,9 +130,3 @@ domview_viewer (pcdom_document_t *dom_doc)
     return succeeded;
 }
 
-/* {{{ Miscellaneous functions }}} */
-
-/* --------------------------------------------------------------------------------------------- */
-
-
-/* --------------------------------------------------------------------------------------------- */

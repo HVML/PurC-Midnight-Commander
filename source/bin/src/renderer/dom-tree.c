@@ -54,6 +54,7 @@
 #include "src/history.h"
 #include "src/filemanager/filemanager.h"        /* change_panel */
 
+#include "dom-viewer.h"
 #include "dom-tree.h"
 
 /*** global variables */
@@ -171,28 +172,6 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
     GString *buff = NULL;
 
     switch (entry->node->type) {
-        case PCDOM_NODE_TYPE_COMMENT:
-        {
-            const unsigned char *name;
-            size_t len;
-            pcdom_comment_t *comment;
-
-            comment = pcdom_interface_comment(entry->node);
-            name = comment->char_data.data.data;
-            len = comment->char_data.data.length;
-
-            buff = g_string_new ("<!-- ");
-            if (len > 6) {
-                g_string_append_len (buff, (const gchar *)name, 6);
-                g_string_append (buff, "…");
-            }
-            else {
-                g_string_append (buff, (const gchar *)name);
-            }
-            g_string_append (buff, " -->");
-            break;
-        }
-
         case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
         {
             const unsigned char *name;
@@ -211,47 +190,25 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
             break;
         }
 
-        case PCDOM_NODE_TYPE_TEXT:
+        case PCDOM_NODE_TYPE_COMMENT:
         {
             const unsigned char *name;
             size_t len;
-            pcdom_text_t *text;
+            pcdom_comment_t *comment;
 
-            text = pcdom_interface_text(entry->node);
-            name = text->char_data.data.data;
-            len = text->char_data.data.length;
+            comment = pcdom_interface_comment(entry->node);
+            name = comment->char_data.data.data;
+            len = comment->char_data.data.length;
 
-            buff = g_string_new ("“");
+            buff = g_string_new ("<!-- ");
             if (len > 6) {
                 g_string_append_len (buff, (const gchar *)name, 6);
                 g_string_append (buff, "…");
             }
             else {
-                g_string_append (buff, (const gchar *)name);
+                g_string_append_len (buff, (const gchar *)name, len);
             }
-            g_string_append (buff, "”");
-            break;
-        }
-
-        case PCDOM_NODE_TYPE_CDATA_SECTION:
-        {
-            const unsigned char *name;
-            size_t len;
-            pcdom_cdata_section_t *cdata_section;
-
-            cdata_section = pcdom_interface_cdata_section(entry->node);
-            name = cdata_section->text.char_data.data.data;
-            len = cdata_section->text.char_data.data.length;
-
-            buff = g_string_new ("<![CDATA[ ");
-            if (len > 6) {
-                g_string_append_len (buff, (const gchar *)name, 6);
-                g_string_append (buff, "…");
-            }
-            else {
-                g_string_append (buff, (const gchar *)name);
-            }
-            g_string_append (buff, " ]]>");
+            g_string_append (buff, " -->");
             break;
         }
 
@@ -286,6 +243,50 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
                 g_string_append_len (buff, (const gchar *)name, len);
                 g_string_append (buff, " … >");
             }
+            break;
+        }
+
+        case PCDOM_NODE_TYPE_TEXT:
+        {
+            const unsigned char *name;
+            size_t len;
+            pcdom_text_t *text;
+
+            text = pcdom_interface_text(entry->node);
+            name = text->char_data.data.data;
+            len = text->char_data.data.length;
+
+            buff = g_string_new ("“");
+            if (len > 6) {
+                g_string_append_len (buff, (const gchar *)name, 6);
+                g_string_append (buff, "…");
+            }
+            else {
+                g_string_append_len (buff, (const gchar *)name, len);
+            }
+            g_string_append (buff, "”");
+            break;
+        }
+
+        case PCDOM_NODE_TYPE_CDATA_SECTION:
+        {
+            const unsigned char *name;
+            size_t len;
+            pcdom_cdata_section_t *cdata_section;
+
+            cdata_section = pcdom_interface_cdata_section(entry->node);
+            name = cdata_section->text.char_data.data.data;
+            len = cdata_section->text.char_data.data.length;
+
+            buff = g_string_new ("<![CDATA[ ");
+            if (len > 6) {
+                g_string_append_len (buff, (const gchar *)name, 6);
+                g_string_append (buff, "…");
+            }
+            else {
+                g_string_append_len (buff, (const gchar *)name, len);
+            }
+            g_string_append (buff, " ]]>");
             break;
         }
 
@@ -406,12 +407,92 @@ back_ptr (WDOMTree *tree, tree_entry *ptr, int *count)
     return container_of (p, tree_entry, list);
 }
 
+void mcview_set_datasource_string (WView * view, const char *s);
+
+static void
+set_entry_content(const tree_entry *entry, WView *txt_view)
+{
+    GString *buff = NULL;
+
+    switch (entry->node->type) {
+        case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
+        {
+            buff = g_string_new (_("(NO CONTENT)"));
+            break;
+        }
+
+        case PCDOM_NODE_TYPE_COMMENT:
+        {
+            const unsigned char *name;
+            size_t len;
+            pcdom_comment_t *comment;
+
+            comment = pcdom_interface_comment(entry->node);
+            name = comment->char_data.data.data;
+            len = comment->char_data.data.length;
+
+            buff = g_string_new ("");
+            g_string_append_len (buff, (const gchar *)name, len);
+            break;
+        }
+
+        case PCDOM_NODE_TYPE_ELEMENT:
+        {
+            buff = g_string_new (_("(NO CONTENT)"));
+            break;
+        }
+        case PCDOM_NODE_TYPE_TEXT:
+        {
+            const unsigned char *name;
+            size_t len;
+            pcdom_text_t *text;
+
+            text = pcdom_interface_text(entry->node);
+            name = text->char_data.data.data;
+            len = text->char_data.data.length;
+
+            buff = g_string_new ("");
+            g_string_append_len (buff, (const gchar *)name, len);
+            break;
+        }
+
+        case PCDOM_NODE_TYPE_CDATA_SECTION:
+        {
+            const unsigned char *name;
+            size_t len;
+            pcdom_cdata_section_t *cdata_section;
+
+            cdata_section = pcdom_interface_cdata_section(entry->node);
+            name = cdata_section->text.char_data.data.data;
+            len = cdata_section->text.char_data.data.length;
+
+            buff = g_string_new ("");
+            g_string_append_len (buff, (const gchar *)name, len);
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    if (buff) {
+        mcview_set_datasource_string (txt_view, buff->str);
+        g_string_free (buff, TRUE);
+    }
+}
+
 static inline void
 tree_set_selected(WDOMTree * tree, tree_entry *new_selected)
 {
     if (tree->selected != new_selected) {
         tree->selected = new_selected;
         execute_hooks (select_element_hook, tree->selected);
+        if (tree->selected) {
+            WDialog *h = DIALOG (WIDGET (tree)->owner);
+            WDOMViewInfo* info = h->data;
+            if (info->txt_view)
+                set_entry_content(tree->selected, info->txt_view);
+        }
     }
 }
 

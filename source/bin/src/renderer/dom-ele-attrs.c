@@ -223,13 +223,15 @@ static void
 domattrs_hook (void *data, void *info)
 {
     WEleAttrs *attrs = (WEleAttrs *) data;
-    Widget *other_widget;
 
+#if 0
+    Widget *other_widget;
     other_widget = get_panel_widget (get_current_index ());
     if (!other_widget)
         return;
     if (widget_overlapped (WIDGET (attrs), other_widget))
         return;
+#endif
 
     attrs->node = info;
     domattrs_show_attrs (attrs);

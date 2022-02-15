@@ -35,6 +35,7 @@
 
 #include "src/filemanager/layout.h"
 #include "src/filemanager/filemanager.h"
+#include "src/filemanager/ext.h"
 
 #include "dom-viewer.h"
 
@@ -128,5 +129,24 @@ domview_viewer (pcdom_document_t *dom_doc)
         widget_destroy (vw);
 
     return succeeded;
+}
+
+bool
+domview_load_html (const vfs_path_t * file_vpath)
+{
+    pcdom_document_t *dom_doc = NULL;
+    char *mime;
+
+    mime = get_file_mime_type (file_vpath);
+    if (mime && strcmp (mime, "text/html") == 0) {
+        message (D_NORMAL, _("Information"),
+                 _("About to load a HTML file: %s"),
+                 vfs_path_as_str (file_vpath));
+    }
+
+    if (mime)
+        g_free (mime);
+
+    return dom_doc != NULL;
 }
 

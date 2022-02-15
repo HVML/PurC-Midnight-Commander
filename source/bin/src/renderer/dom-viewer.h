@@ -35,6 +35,9 @@ typedef struct WDOMViewInfo {
 /* Shows DOM in the internal DOM viewer */
 extern bool domview_viewer (pcdom_document_t *dom_doc);
 
+/* Load HTML and show DOM in the internal DOM viewer */
+extern bool domview_load_html (const vfs_path_t * file_vpath);
+
 /*** inline functions */
 
 #endif /* MC_DOM_VIEWER_H */

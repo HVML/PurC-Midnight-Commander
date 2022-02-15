@@ -22,6 +22,9 @@ int regex_command_for (void *target, const vfs_path_t * filename_vpath, const ch
  */
 void flush_extension_file (void);
 
+/* VW: get the MIME type of a file. call g_free() on the non-NULL return value */
+char *get_file_mime_type (const vfs_path_t * filename_vpath);
+
 /*** inline functions ****************************************************************************/
 
 static inline int

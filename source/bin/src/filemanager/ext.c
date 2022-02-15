@@ -1053,4 +1053,58 @@ regex_command_for (void *target, const vfs_path_t * filename_vpath, const char *
     return (error_flag ? -1 : ret);
 }
 
+/* returns the MIME type of the file */
+#define MAX_MIME_TYPE       512
+#define FILE_CMD_MIME_TYPE  "file -b --mime-type "
+
+char *get_file_mime_type (const vfs_path_t * filename_vpath)
+{
+    char *tmp, *mime;
+    int ret;
+    GError *mcerror = NULL;
+    vfs_path_t *localfile_vpath;
+
+    localfile_vpath = mc_getlocalcopy (filename_vpath);
+    if (localfile_vpath == NULL) {
+        mc_propagate_error (&mcerror, 0, _("Cannot fetch a local copy of %s"),
+                            vfs_path_as_str (filename_vpath));
+        return NULL;
+    }
+
+    mime = g_malloc(MAX_MIME_TYPE);
+    tmp = name_quote (vfs_path_get_last_path_str (localfile_vpath), FALSE);
+    ret = get_popen_information (FILE_CMD_MIME_TYPE, tmp,
+            mime, MAX_MIME_TYPE);
+    g_free (tmp);
+
+    if (ret <= 0) {
+        mc_propagate_error (&mcerror, 0, _("Cannot get the MIME type of file %s"),
+                        vfs_path_as_str (localfile_vpath));
+    }
+
+    mc_ungetlocalcopy (filename_vpath, localfile_vpath, FALSE);
+    vfs_path_free (localfile_vpath, TRUE);
+
+    mc_error_message (&mcerror, NULL);
+
+    if (ret > 0) {
+        // trim the NL on the tail
+        char *ch = mime;
+
+        while (*ch) {
+            if (isblank(*ch) || iscntrl(*ch)) {
+                *ch = '\0';
+                break;
+            }
+
+            ch++;
+        }
+
+        return mime;
+    }
+
+    g_free (mime);
+    return NULL;
+}
+
 /* --------------------------------------------------------------------------------------------- */

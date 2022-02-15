@@ -70,6 +70,7 @@
 #include "src/util.h"           /* check_for_default() */
 
 #include "src/viewer/mcviewer.h"
+#include "src/renderer/dom-viewer.h"  /* VW: for domview_load() */
 
 #ifdef USE_INTERNAL_EDIT
 #include "src/editor/edit.h"
@@ -558,19 +559,22 @@ view_file_at_line (const vfs_path_t * filename_vpath, gboolean plain_view, gbool
     }
     else if (internal)
     {
-        char view_entry[BUF_TINY];
+        /* VW: try to load as HTML file first */
+        if (!domview_load_html (filename_vpath)) {
+            char view_entry[BUF_TINY];
 
-        if (start_line > 0)
-            g_snprintf (view_entry, sizeof (view_entry), "View:%ld", start_line);
-        else
-            strcpy (view_entry, "View");
+            if (start_line > 0)
+                g_snprintf (view_entry, sizeof (view_entry), "View:%ld", start_line);
+            else
+                strcpy (view_entry, "View");
 
-        ret = (regex_command (filename_vpath, view_entry) == 0);
-        if (ret)
-        {
-            ret = mcview_viewer (NULL, filename_vpath, start_line, search_start, search_end);
-            dialog_switch_process_pending ();
+            ret = (regex_command (filename_vpath, view_entry) == 0);
+            if (ret)
+            {
+                ret = mcview_viewer (NULL, filename_vpath, start_line, search_start, search_end);
+            }
         }
+        dialog_switch_process_pending ();
     }
     else
     {

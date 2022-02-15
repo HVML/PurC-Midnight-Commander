@@ -201,9 +201,6 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
 static void
 domattrs_show_attrs (WEleAttrs * attrs)
 {
-    if (!is_idle ())
-        return;
-
     domattrs_caption (attrs);
 
     if (!attrs->node)

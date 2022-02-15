@@ -151,14 +151,17 @@ domview_viewer (pcdom_document_t *dom_doc)
     g = GROUP (view_dlg);
 
     dom_tree = dom_tree_new (vw->y, vw->x, vw->lines - 1, vw->cols / 2, FALSE);
-    group_add_widget_autopos (g, dom_tree, WPOS_KEEP_ALL, NULL);
+    group_add_widget_autopos (g, dom_tree,
+            WPOS_KEEP_LEFT | WPOS_KEEP_VERT, NULL);
 
-    ele_attrs = dom_ele_attrs_new (vw->y, vw->x, vw->lines - 10, vw->cols / 2);
-    group_add_widget_autopos (g, ele_attrs, WPOS_KEEP_ALL, NULL);
+    ele_attrs = dom_ele_attrs_new (vw->y, vw->x + vw->cols / 2, vw->lines - 10, vw->cols / 2);
+    group_add_widget_autopos (g, ele_attrs,
+            WPOS_KEEP_RIGHT | WPOS_KEEP_TOP, NULL);
 
     txt_view = mcview_new (vw->y + vw->lines - 10, vw->cols / 2, 10,
             vw->cols / 2, FALSE);
-    group_add_widget_autopos (g, txt_view, WPOS_KEEP_ALL, NULL);
+    group_add_widget_autopos (g, txt_view,
+            WPOS_KEEP_RIGHT | WPOS_KEEP_BOTTOM, NULL);
 
     b = WIDGET (buttonbar_new ());
     group_add_widget_autopos (g, b, b->pos_flags, NULL);

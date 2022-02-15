@@ -1268,6 +1268,7 @@ dom_tree_load (WDOMTree *tree, pcdom_document_t *doc)
         tree->topmost = list_entry (tree->entries.next, tree_entry, list);
         tree->selected = tree->topmost;
         show_tree (tree);
+        return true;
     }
 
     return false;

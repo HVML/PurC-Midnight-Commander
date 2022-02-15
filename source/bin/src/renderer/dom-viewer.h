@@ -7,6 +7,7 @@
 #define MC_DOM_VIEWER_H
 
 #include <purc/purc-dom.h>
+#include <purc/purc-html.h>
 
 #include "lib/global.h"
 

@@ -79,6 +79,55 @@ domview_load (WDOMTree *dom_tree, WEleAttrs *ele_attrs, WView *txt_view,
     return false;
 }
 
+static pchtml_html_document_t *
+parse_html (const vfs_path_t * filename_vpath)
+{
+    int fdin = -1;
+    ssize_t sz_read;
+    char buffer[BUF_1K * 8];
+
+    pchtml_html_parser_t *parser = NULL;
+    pchtml_html_document_t *html_doc = NULL;
+
+    fdin = mc_open (filename_vpath, O_RDONLY | O_LINEAR);
+    if (fdin == -1)
+        goto fail;
+
+    parser = pchtml_html_parser_create();
+    if (parser == NULL)
+        goto fail;
+    pchtml_html_parser_init (parser);
+
+    html_doc = pchtml_html_parse_chunk_begin (parser);
+    while ((sz_read = mc_read (fdin, buffer, sizeof (buffer))) > 0) {
+        pchtml_html_parse_chunk_process (parser,
+                (unsigned char *)buffer, sz_read);
+    }
+
+    if (sz_read == -1)
+        goto fail;
+
+    pchtml_html_parse_chunk_end (parser);
+
+    mc_close (fdin);
+    pchtml_html_parser_destroy (parser);
+    return html_doc;
+
+fail:
+    if (html_doc) {
+        pchtml_html_document_destroy (html_doc);
+    }
+
+    if (parser) {
+        pchtml_html_parser_destroy (parser);
+    }
+
+    if (fdin >= 0)
+        mc_close (fdin);
+
+    return NULL;
+}
+
 /*** public functions */
 
 bool
@@ -93,8 +142,8 @@ domview_viewer (pcdom_document_t *dom_doc)
     WGroup *g;
 
     /* Create dialog and widgets, put them on the dialog */
-    view_dlg = dlg_create (FALSE, 0, 0, 1, 1, WPOS_FULLSCREEN, FALSE, NULL,
-            domview_dialog_callback, NULL, "[DOM Tree Viewer]",
+    view_dlg = dlg_create (FALSE, 0, 0, 1, 1, WPOS_FULLSCREEN, FALSE,
+            dialog_colors, domview_dialog_callback, NULL, "[DOM Tree Viewer]",
             _("DOM Tree Viewer"));
     vw = WIDGET (view_dlg);
     widget_want_tab (vw, TRUE);
@@ -134,7 +183,7 @@ domview_viewer (pcdom_document_t *dom_doc)
 bool
 domview_load_html (const vfs_path_t * file_vpath)
 {
-    pcdom_document_t *dom_doc = NULL;
+    pchtml_html_document_t *html_doc = NULL;
     char *mime;
 
     mime = get_file_mime_type (file_vpath);
@@ -142,11 +191,15 @@ domview_load_html (const vfs_path_t * file_vpath)
         message (D_NORMAL, _("Information"),
                  _("About to load a HTML file: %s"),
                  vfs_path_as_str (file_vpath));
+
+        if ((html_doc = parse_html (file_vpath))) {
+            domview_viewer (pcdom_interface_document (html_doc));
+        }
     }
 
     if (mime)
         g_free (mime);
 
-    return dom_doc != NULL;
+    return html_doc != NULL;
 }
 

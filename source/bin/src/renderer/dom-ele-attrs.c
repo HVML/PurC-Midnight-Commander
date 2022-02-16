@@ -62,7 +62,6 @@
 struct WEleAttrs
 {
     Widget widget;
-    int bol;        /* the begin of the line */
     pcdom_node_t *node;
 };
 
@@ -166,27 +165,25 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
     buff = g_string_new ("");
     element = (pcdom_element_t *)attrs->node;
     attr = pcdom_element_first_attribute(element);
-    y = 1;
+    y = 3;
 
     /* Print only lines which fit */
     while (attr) {
 
-        if (y >= attrs->bol) {
-            const gchar *str;
-            size_t sz;
+        const gchar *str;
+        size_t sz;
 
-            str = (const gchar *)pcdom_attr_local_name (attr, &sz);
-            buff = g_string_overwrite_len (buff, 0, str, sz);
-            widget_gotoyx (w, y, 3);
-            tty_print_string (buff->str);
-            g_string_set_size (buff, 0);
+        str = (const gchar *)pcdom_attr_local_name (attr, &sz);
+        buff = g_string_overwrite_len (buff, 0, str, sz);
+        widget_gotoyx (w, y, 3);
+        tty_print_string (buff->str);
+        g_string_set_size (buff, 0);
 
-            str = (const gchar *)pcdom_attr_value (attr, &sz);
-            buff = g_string_overwrite_len (buff, 0, str, sz);
-            widget_gotoyx (w, y, 3 + w->cols / 2);
-            tty_print_string (buff->str);
-            g_string_set_size (buff, 0);
-        }
+        str = (const gchar *)pcdom_attr_value (attr, &sz);
+        buff = g_string_overwrite_len (buff, 0, str, sz);
+        widget_gotoyx (w, y, 3 + w->cols / 2);
+        tty_print_string (buff->str);
+        g_string_set_size (buff, 0);
 
         y++;
         if (y >= w->lines)
@@ -220,16 +217,6 @@ static void
 domattrs_hook (void *data, void *info)
 {
     WEleAttrs *attrs = (WEleAttrs *) data;
-
-#if 0
-    Widget *other_widget;
-    other_widget = get_panel_widget (get_current_index ());
-    if (!other_widget)
-        return;
-    if (widget_overlapped (WIDGET (attrs), other_widget))
-        return;
-#endif
-
     attrs->node = info;
     domattrs_show_attrs (attrs);
 }

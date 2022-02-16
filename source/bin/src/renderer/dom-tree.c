@@ -216,9 +216,11 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
             const unsigned char *name;
             size_t len;
             pcdom_element_t *element;
+            bool has_attr;
 
             element = pcdom_interface_element (entry->node);
             name = pcdom_element_local_name (element, &len);
+            has_attr = (pcdom_element_first_attribute (element) != NULL);
 
             if (entry->is_close_tag) {
                 buff = g_string_new ("</");
@@ -228,17 +230,30 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
             else if (entry->is_self_close) {
                 buff = g_string_new ("<");
                 g_string_append_len (buff, (const gchar *)name, len);
-                g_string_append (buff, " … />");
+                if (has_attr) {
+                    g_string_append (buff, " … ");
+                }
+                g_string_append (buff, "/>");
             }
             else if (entry->node->flags & NF_UNFOLDED) {
                 buff = g_string_new ("<");
                 g_string_append_len (buff, (const gchar *)name, len);
-                g_string_append (buff, " … >");
+                if (has_attr) {
+                    g_string_append (buff, " … ");
+                }
+                g_string_append (buff, ">");
             }
             else {
                 buff = g_string_new ("<");
                 g_string_append_len (buff, (const gchar *)name, len);
-                g_string_append (buff, " … >…</");
+                if (has_attr) {
+                    g_string_append (buff, " … ");
+                }
+                g_string_append (buff, ">");
+                if (entry->node->first_child) {
+                    g_string_append (buff, " … ");
+                }
+                g_string_append (buff, "</");
                 g_string_append_len (buff, (const gchar *)name, len);
                 g_string_append_c (buff, '>');
             }
@@ -486,7 +501,7 @@ tree_set_selected(WDOMTree * tree, tree_entry *new_selected)
 {
     if (tree->selected != new_selected) {
         tree->selected = new_selected;
-        execute_hooks (select_element_hook, tree->selected);
+        execute_hooks (select_element_hook, tree->selected->node);
         if (tree->selected) {
             WDialog *h = DIALOG (WIDGET (tree)->owner);
             WDOMViewInfo* info = h->data;

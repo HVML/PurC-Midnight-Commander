@@ -74,7 +74,7 @@ hook_t *select_element_hook;
 typedef struct tree_entry {
     struct list_head list;
 
-    int                 sublevel;
+    int                 level;
     unsigned int        is_close_tag:1;     /* is a close tag? */
     unsigned int        is_self_close:1;    /* is self-close? */
     pcdom_node_t        *node;
@@ -234,14 +234,14 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
             else if (entry->node->flags & NF_UNFOLDED) {
                 buff = g_string_new ("<");
                 g_string_append_len (buff, (const gchar *)name, len);
-                g_string_append (buff, " … >…</");
-                g_string_append_len (buff, (const gchar *)name, len);
-                g_string_append_c (buff, '>');
+                g_string_append (buff, " … >");
             }
             else {
                 buff = g_string_new ("<");
                 g_string_append_len (buff, (const gchar *)name, len);
-                g_string_append (buff, " … >");
+                g_string_append (buff, " … >…</");
+                g_string_append_len (buff, (const gchar *)name, len);
+                g_string_append_c (buff, '>');
             }
             break;
         }
@@ -323,7 +323,7 @@ show_tree (WDOMTree * tree)
         x = y = 1;
     }
 
-    toplevel = tree->topmost->sublevel;
+    toplevel = tree->topmost->level;
     current = tree->topmost;
 
     /* Loop for every line */
@@ -335,9 +335,6 @@ show_tree (WDOMTree * tree)
 
         /* Move to the beginning of the line */
         tty_draw_hline (w->y + y + i, w->x + x, ' ', tree_cols);
-
-        if (current->list.next == &tree->entries)
-            continue;
 
         if (tree->is_panel) {
             bool selected;
@@ -351,22 +348,20 @@ show_tree (WDOMTree * tree)
             tty_setcolor (colors[idx]);
         }
 
-        if (current->sublevel == toplevel) {
+        if (current->level == toplevel) {
             /* Show entry */
             show_entry(current,
                     tree_cols + (tree->is_panel ? 0 : 1), J_LEFT_FIT);
         }
         else {
-            /* Sub level directory */
-            tty_set_alt_charset (TRUE);
-
             /* Output branch parts */
-            for (j = 0; j < current->sublevel - toplevel - 1; j++)
+            tty_set_alt_charset (TRUE);
+            for (j = 0; j < current->level - toplevel - 1; j++)
             {
                 if (tree_cols - 8 - 3 * j < 9)
                     break;
                 tty_print_char (' ');
-                if (current->sublevel > j + toplevel + 1)
+                if (current->level > j + toplevel + 1)
                     tty_print_char (ACS_VLINE);
                 else
                     tty_print_char (' ');
@@ -386,6 +381,9 @@ show_tree (WDOMTree * tree)
             tty_print_char (' ');
             show_entry (current, tree_cols - x - 3 * j, J_LEFT_FIT);
         }
+
+        if (current->list.next == &tree->entries)
+            break;
 
         /* Calculate the next value for current */
         current = list_entry(current->list.next, tree_entry, list);
@@ -636,62 +634,114 @@ tree_fold_selected (WDOMTree *tree)
     return count > 0;
 }
 
-struct my_subtree_walker_ctxt {
-    unsigned int level;
+static inline int node_to_level (pcdom_node_t *node)
+{
+    int level = 0;
 
+    while (node->parent) {
+        level++;
+
+        node = node->parent;
+    }
+
+    return level - 1;
+}
+
+struct my_tree_walker_ctxt {
+    bool is_first_time;
     WDOMTree *tree;
-    struct list_head *curr_tail;
+    tree_entry *last;
 };
+
+static tree_entry *find_parent_close_entry_before (WDOMTree *tree,
+        tree_entry *last, tree_entry *entry)
+{
+    tree_entry *p;
+
+    if (last == NULL)
+        p = list_last_entry (&tree->entries, tree_entry, list);
+    else
+        p = last;
+
+    for (; &p->list != &tree->entries;
+            p = list_entry(p->list.prev, tree_entry, list)) {
+
+        if (p->node == entry->node->parent) {
+            if (p->is_close_tag)
+                return p;
+            else
+                break;
+        }
+    }
+
+    return NULL;
+}
+
+static void my_tree_insert_entry (struct my_tree_walker_ctxt *ctxt,
+        tree_entry *entry)
+{
+    tree_entry *parent_close_entry;
+
+    parent_close_entry = find_parent_close_entry_before (ctxt->tree,
+            ctxt->last, entry);
+
+    if (parent_close_entry) {
+        /* insert the entry before the parent close entry */
+        list_add (&entry->list, parent_close_entry->list.prev);
+    }
+    else
+        list_add_tail (&entry->list, &ctxt->tree->entries);
+
+    ctxt->tree->nr_entries++;
+}
 
 static pchtml_action_t
 my_subtree_walker(pcdom_node_t *node, void *ctx)
 {
     tree_entry *entry;
-    struct my_subtree_walker_ctxt *ctxt = ctx;
+    struct my_tree_walker_ctxt *ctxt = ctx;
+    int level;
 
     switch (node->type) {
     case PCDOM_NODE_TYPE_COMMENT:
     case PCDOM_NODE_TYPE_TEXT:
     case PCDOM_NODE_TYPE_CDATA_SECTION:
         entry = g_new (tree_entry, 1);
-        entry->sublevel = ctxt->level;
+        entry->level = node_to_level (node);
         entry->is_close_tag = 0;
         entry->is_self_close = 0;
         entry->node = node;
 
-        list_add_tail (&entry->list, ctxt->curr_tail);
-        ctxt->tree->nr_entries++;
+        my_tree_insert_entry (ctxt, entry);
         return PCHTML_ACTION_NEXT;
 
     case PCDOM_NODE_TYPE_ELEMENT:
-        /* we unfold the `html`, `head` and `body` elements initially */
+        level = node_to_level (node);
+        if (node == ctxt->tree->selected->node)
+            break;
+
         if (node->flags & NF_UNFOLDED) {
             entry = g_new (tree_entry, 1);
-            entry->sublevel = ctxt->level;
+            entry->level = level;
             entry->is_close_tag = 0;
             entry->is_self_close = pchtml_html_node_is_void(node);
             entry->node = node;
 
-            list_add_tail(&entry->list, ctxt->curr_tail);
-            ctxt->tree->nr_entries++;
-            ctxt->curr_tail = &entry->list;
+            my_tree_insert_entry (ctxt, entry);
 
             /* insert a close tag entry */
             if (!entry->is_self_close && node->first_child != NULL
                     && (node->flags & NF_UNFOLDED)) {
+                tree_entry *close_entry;
 
-                entry = g_new (tree_entry, 1);
-                entry->sublevel = ctxt->level;
-                entry->is_close_tag = 1;
-                entry->is_self_close = 0;
-                entry->node = node;
+                close_entry = g_new (tree_entry, 1);
+                close_entry->level = level;
+                close_entry->is_close_tag = 1;
+                close_entry->is_self_close = 0;
+                close_entry->node = node;
 
-                /* add the close tag entry to the real tail */
-                list_add_tail(&entry->list, &ctxt->tree->entries);
-                ctxt->tree->nr_entries++;
-
-                ctxt->level++;
-                ctxt->curr_tail = &entry->list;
+                /* insert the close tag entry after the open tag entry */
+                list_add (&close_entry->list, &entry->list);
 
                 // walk to the children
                 return PCHTML_ACTION_OK;
@@ -699,18 +749,13 @@ my_subtree_walker(pcdom_node_t *node, void *ctx)
         }
         else {
             entry = g_new (tree_entry, 1);
-            entry->sublevel = ctxt->level;
+            entry->level = level;
             entry->is_close_tag = 0;
             entry->is_self_close = pchtml_html_node_is_void(node);
             entry->node = node;
 
-            list_add_tail(&entry->list, ctxt->curr_tail);
-            ctxt->tree->nr_entries++;
-
-            ctxt->curr_tail = &entry->list;
+            my_tree_insert_entry (ctxt, entry);
         }
-
-        ctxt->curr_tail = &ctxt->tree->entries;
 
         /* walk to the siblings. */
         return PCHTML_ACTION_NEXT;
@@ -728,13 +773,33 @@ my_subtree_walker(pcdom_node_t *node, void *ctx)
 static bool
 tree_unfold_selected (WDOMTree *tree)
 {
-    struct my_subtree_walker_ctxt ctxt = {
-        .level          = tree->selected->sublevel + 1,
+    struct my_tree_walker_ctxt ctxt = {
         .tree           = tree,
-        .curr_tail      = &tree->selected->list,
     };
 
-    pcdom_node_simple_walk (tree->selected->node, my_subtree_walker, &ctxt);
+    if (!(tree->selected->node->flags & NF_UNFOLDED)) {
+
+        /* insert a close tag entry */
+        if (!tree->selected->is_self_close &&
+                tree->selected->node->first_child != NULL) {
+
+            tree_entry *close_entry;
+
+            tree->selected->node->flags |= NF_UNFOLDED;
+
+            close_entry = g_new (tree_entry, 1);
+            close_entry->level = tree->selected->level;
+            close_entry->is_close_tag = 1;
+            close_entry->is_self_close = 0;
+            close_entry->node = tree->selected->node;
+
+            /* insert the close tag entry after the open tag entry */
+            list_add (&close_entry->list, &tree->selected->list);
+
+            ctxt.last = close_entry;
+            pcdom_node_simple_walk (tree->selected->node, my_subtree_walker, &ctxt);
+        }
+    }
     return false;
 }
 
@@ -763,14 +828,14 @@ static bool
 tree_move_to_parent (WDOMTree *tree)
 {
     bool found = false;
-    int level = tree->selected->sublevel;
+    int level = tree->selected->level;
     tree_entry *p = tree->selected;
 
     for (p = list_entry(p->list.prev, tree_entry, list);
             &p->list != &tree->entries;
             p = list_entry(p->list.prev, tree_entry, list)) {
 
-        if (p->sublevel < level) {
+        if (p->level < level) {
             tree_set_selected (tree, p);
             found = true;
             break;
@@ -827,8 +892,6 @@ tree_execute_cmd (WDOMTree * tree, long command)
 
     if (command != CK_Search)
         tree->searching = FALSE;
-
-    message (D_NORMAL, _("Debug"), "Got command: %ld", command);
 
     switch (command)
     {
@@ -1136,78 +1199,63 @@ dom_tree_new (int y, int x, int lines, int cols, bool is_panel)
     return tree;
 }
 
-struct my_tree_walker_ctxt {
-    bool is_first_time;
-
-    unsigned int level;
-
-    WDOMTree *tree;
-    struct list_head *curr_tail;
-};
-
 static pchtml_action_t
 my_tree_walker(pcdom_node_t *node, void *ctx)
 {
     tree_entry *entry;
     struct my_tree_walker_ctxt *ctxt = ctx;
+    int level;
 
     switch (node->type) {
     case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
         entry = g_new (tree_entry, 1);
-        entry->sublevel = 0;    /* always be zero */
+        entry->level = 0;    /* always be zero */
         entry->is_close_tag = 0;
         entry->is_self_close = 0;
         entry->node = node;
 
-        list_add_tail (&entry->list, ctxt->curr_tail);
-        ctxt->tree->nr_entries++;
+        my_tree_insert_entry (ctxt, entry);
         return PCHTML_ACTION_NEXT;
 
     case PCDOM_NODE_TYPE_COMMENT:
     case PCDOM_NODE_TYPE_TEXT:
     case PCDOM_NODE_TYPE_CDATA_SECTION:
         entry = g_new (tree_entry, 1);
-        entry->sublevel = ctxt->level;
+        entry->level = node_to_level (node);
         entry->is_close_tag = 0;
         entry->is_self_close = 0;
         entry->node = node;
 
-        list_add_tail (&entry->list, ctxt->curr_tail);
-        ctxt->tree->nr_entries++;
+        my_tree_insert_entry (ctxt, entry);
         return PCHTML_ACTION_NEXT;
 
     case PCDOM_NODE_TYPE_ELEMENT:
+        level = node_to_level (node);
         /* we unfold the `html`, `head` and `body` elements initially */
-        if ((ctxt->is_first_time && ctxt->level < 2) ||
+        if ((ctxt->is_first_time && level < 2) ||
                 (node->flags & NF_UNFOLDED)) {
             node->flags |= NF_UNFOLDED;
 
             entry = g_new (tree_entry, 1);
-            entry->sublevel = ctxt->level;
+            entry->level = level;
             entry->is_close_tag = 0;
             entry->is_self_close = pchtml_html_node_is_void(node);
             entry->node = node;
 
-            list_add_tail(&entry->list, ctxt->curr_tail);
-            ctxt->tree->nr_entries++;
-            ctxt->curr_tail = &entry->list;
+            my_tree_insert_entry (ctxt, entry);
 
             /* insert a close tag entry */
-            if (!entry->is_self_close && node->first_child != NULL
-                    && (node->flags & NF_UNFOLDED)) {
+            if (!entry->is_self_close && node->first_child != NULL) {
+                tree_entry *close_entry;
 
-                entry = g_new (tree_entry, 1);
-                entry->sublevel = ctxt->level;
-                entry->is_close_tag = 1;
-                entry->is_self_close = 0;
-                entry->node = node;
+                close_entry = g_new (tree_entry, 1);
+                close_entry->level = level;
+                close_entry->is_close_tag = 1;
+                close_entry->is_self_close = 0;
+                close_entry->node = node;
 
-                /* add the close tag entry to the real tail */
-                list_add_tail(&entry->list, &ctxt->tree->entries);
-                ctxt->tree->nr_entries++;
-
-                ctxt->level++;
-                ctxt->curr_tail = &entry->list;
+                /* insert the close tag entry after the open tag entry */
+                list_add (&close_entry->list, &entry->list);
 
                 // walk to the children
                 return PCHTML_ACTION_OK;
@@ -1215,18 +1263,13 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
         }
         else {
             entry = g_new (tree_entry, 1);
-            entry->sublevel = ctxt->level;
+            entry->level = level;
             entry->is_close_tag = 0;
             entry->is_self_close = pchtml_html_node_is_void(node);
             entry->node = node;
 
-            list_add_tail(&entry->list, ctxt->curr_tail);
-            ctxt->tree->nr_entries++;
-
-            ctxt->curr_tail = &entry->list;
+            my_tree_insert_entry (ctxt, entry);
         }
-
-        ctxt->curr_tail = &ctxt->tree->entries;
 
         /* walk to the siblings. */
         return PCHTML_ACTION_NEXT;
@@ -1244,10 +1287,9 @@ bool
 dom_tree_load (WDOMTree *tree, pcdom_document_t *doc)
 {
     struct my_tree_walker_ctxt ctxt = {
-        .is_first_time  = false,
-        .level          = 0,
-        .tree           = tree,
-        .curr_tail      = &tree->entries,
+        .is_first_time      = false,
+        .tree               = tree,
+        .last               = NULL,
     };
 
     assert (tree->nr_entries == 0);

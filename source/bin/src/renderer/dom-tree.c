@@ -52,7 +52,6 @@
 #include "src/setup.h"          /* confirm_delete, panels_options */
 #include "src/keymap.h"
 #include "src/history.h"
-#include "src/filemanager/filemanager.h"        /* change_panel */
 
 #include "dom-viewer.h"
 #include "dom-tree.h"
@@ -336,6 +335,9 @@ show_tree (WDOMTree * tree)
         /* Move to the beginning of the line */
         tty_draw_hline (w->y + y + i, w->x + x, ' ', tree_cols);
 
+        if (&current->list == &tree->entries)
+            continue;
+
         if (tree->is_panel) {
             bool selected;
 
@@ -370,7 +372,10 @@ show_tree (WDOMTree * tree)
             tty_print_char (' ');
             j++;
 
-            if (current->is_close_tag)
+            if ((current->is_close_tag || !(current->node->flags & NF_UNFOLDED))
+                    && current->level > 0 &&
+                    list_entry (current->list.next,
+                        tree_entry, list)->level < current->level)
                 tty_print_char (ACS_LLCORNER);
             else
                 tty_print_char (ACS_LTEE);
@@ -381,9 +386,6 @@ show_tree (WDOMTree * tree)
             tty_print_char (' ');
             show_entry (current, tree_cols - x - 3 * j, J_LEFT_FIT);
         }
-
-        if (current->list.next == &tree->entries)
-            break;
 
         /* Calculate the next value for current */
         current = list_entry(current->list.next, tree_entry, list);
@@ -610,7 +612,8 @@ tree_fold_selected (WDOMTree *tree)
     pcdom_node_t *node = tree->selected->node;
     tree_entry *p, *n;
 
-    for (p = tree->selected, n = list_entry(p->list.next, tree_entry, list);
+    p = list_entry(tree->selected->list.next, tree_entry, list);
+    for (n = list_entry(p->list.next, tree_entry, list);
             &p->list != &tree->entries;
             p = n, n = list_entry(n->list.next, tree_entry, list)) {
         bool tail = false;
@@ -644,7 +647,11 @@ static inline int node_to_level (pcdom_node_t *node)
         node = node->parent;
     }
 
-    return level - 1;
+    level--;
+    if (level < 0)
+        level = 0;
+
+    return level;
 }
 
 struct my_tree_walker_ctxt {
@@ -1134,8 +1141,6 @@ tree_mouse_callback (Widget * w, mouse_msg_t msg, mouse_event_t * event)
             /* return MOU_UNHANDLED */
             event->result.abort = TRUE;
         }
-        else if (!widget_get_state (w, WST_FOCUSED))
-            (void) change_panel ();
         break;
 
     case MSG_MOUSE_CLICK:

@@ -161,7 +161,7 @@ domview_viewer (pcdom_document_t *dom_doc)
             WPOS_KEEP_RIGHT | WPOS_KEEP_TOP, NULL);
 
     txt_view = mcview_new (vw->y + vw->lines - 10, vw->x + vw->cols / 2,
-            9, vw->cols - half_cols, FALSE, _("Content"));
+            9, vw->cols - half_cols, TRUE, _("Content"));
     group_add_widget_autopos (g, txt_view,
             WPOS_KEEP_RIGHT | WPOS_KEEP_BOTTOM, NULL);
 

@@ -1188,7 +1188,7 @@ create_panel (int num, panel_view_mode_t type)
         break;
 
     case view_quick:
-        new_widget = WIDGET (mcview_new (y, x, lines, cols, TRUE));
+        new_widget = WIDGET (mcview_new (y, x, lines, cols, TRUE, NULL));
         the_other_panel = PANEL (panels[the_other].widget);
         if (the_other_panel != NULL)
             file_name = the_other_panel->dir.list[the_other_panel->selected].fname->str;

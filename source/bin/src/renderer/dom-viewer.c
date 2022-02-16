@@ -150,16 +150,18 @@ domview_viewer (pcdom_document_t *dom_doc)
 
     g = GROUP (view_dlg);
 
-    dom_tree = dom_tree_new (vw->y, vw->x, vw->lines - 1, vw->cols / 2, FALSE);
+    int half_cols = vw->cols / 2;
+    dom_tree = dom_tree_new (vw->y, vw->x, vw->lines - 1, half_cols, TRUE);
     group_add_widget_autopos (g, dom_tree,
             WPOS_KEEP_LEFT | WPOS_KEEP_VERT, NULL);
 
-    ele_attrs = dom_ele_attrs_new (vw->y, vw->x + vw->cols / 2, vw->lines - 10, vw->cols / 2);
+    ele_attrs = dom_ele_attrs_new (vw->y, vw->x + half_cols,
+            vw->lines - 10, vw->cols - half_cols);
     group_add_widget_autopos (g, ele_attrs,
             WPOS_KEEP_RIGHT | WPOS_KEEP_TOP, NULL);
 
-    txt_view = mcview_new (vw->y + vw->lines - 10, vw->cols / 2, 10,
-            vw->cols / 2, FALSE);
+    txt_view = mcview_new (vw->y + vw->lines - 10, vw->x + vw->cols / 2,
+            9, vw->cols - half_cols, TRUE, _("Content"));
     group_add_widget_autopos (g, txt_view,
             WPOS_KEEP_RIGHT | WPOS_KEEP_BOTTOM, NULL);
 
@@ -191,12 +193,9 @@ domview_load_html (const vfs_path_t * file_vpath)
 
     mime = get_file_mime_type (file_vpath);
     if (mime && strcmp (mime, "text/html") == 0) {
-        message (D_NORMAL, _("Information"),
-                 _("About to load a HTML file: %s"),
-                 vfs_path_as_str (file_vpath));
-
         if ((html_doc = parse_html (file_vpath))) {
             domview_viewer (pcdom_interface_document (html_doc));
+            pchtml_html_document_destroy (html_doc);
         }
     }
 

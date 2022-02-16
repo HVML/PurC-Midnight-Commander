@@ -832,7 +832,7 @@ tree_execute_cmd (WDOMTree * tree, long command)
     {
     case CK_Help:
         {
-            ev_help_t event_data = { NULL, "[Directory Tree]" };
+            ev_help_t event_data = { NULL, "[DOM Tree]" };
             mc_event_raise (MCEVENT_GROUP_CORE, "help", &event_data);
         }
         break;
@@ -876,8 +876,7 @@ tree_execute_cmd (WDOMTree * tree, long command)
         // tree_rmdir (tree);
         break;
     case CK_Quit:
-        if (!tree->is_panel)
-            dlg_stop (DIALOG (WIDGET (tree)->owner));
+        dlg_stop (DIALOG (WIDGET (tree)->owner));
         return res;
     default:
         res = MSG_NOT_HANDLED;
@@ -947,7 +946,7 @@ tree_frame (WDialog * h, WDOMTree * tree)
     widget_erase (w);
     if (tree->is_panel)
     {
-        const char *title = _("Directory tree");
+        const char *title = _("DOM tree");
         const int len = str_term_width1 (title);
 
         tty_draw_box (w->y, w->x, w->lines, w->cols, FALSE);

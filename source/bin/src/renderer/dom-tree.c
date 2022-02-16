@@ -828,6 +828,8 @@ tree_execute_cmd (WDOMTree * tree, long command)
     if (command != CK_Search)
         tree->searching = FALSE;
 
+    message (D_NORMAL, _("Debug"), "Got command: %ld", command);
+
     switch (command)
     {
     case CK_Help:
@@ -876,7 +878,8 @@ tree_execute_cmd (WDOMTree * tree, long command)
         // tree_rmdir (tree);
         break;
     case CK_Quit:
-        dlg_stop (DIALOG (WIDGET (tree)->owner));
+        dlg_run_done (DIALOG (WIDGET (tree)->owner));
+        //dlg_stop (DIALOG (WIDGET (tree)->owner));
         return res;
     default:
         res = MSG_NOT_HANDLED;
@@ -893,11 +896,6 @@ tree_key (WDOMTree * tree, int key)
     long command;
 
     if (is_abort_char (key)) {
-        if (tree->is_panel) {
-            tree->searching = FALSE;
-            show_tree (tree);
-            return MSG_HANDLED; /* eat abort char */
-        }
         /* modal tree dialog: let upper layer see the
            abort character and close the dialog */
         return MSG_NOT_HANDLED;
@@ -920,8 +918,7 @@ tree_key (WDOMTree * tree, int key)
     case CK_Right:
         return tree_move_right (tree) ? MSG_HANDLED : MSG_NOT_HANDLED;
     default:
-        tree_execute_cmd (tree, command);
-        return MSG_HANDLED;
+        return tree_execute_cmd (tree, command);
     }
 
     /* Do not eat characters not meant for the tree below ' ' (e.g. C-l). */
@@ -1031,7 +1028,9 @@ tree_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *da
         buttonbar_set_label (b, 5, Q_ ("ButtonBar|Copy"), w->keymap, w);
         buttonbar_set_label (b, 6, Q_ ("ButtonBar|RenMov"), w->keymap, w);
         buttonbar_clear_label (b, 7, w);
-        buttonbar_set_label (b, 8, Q_ ("ButtonBar|Rmdir"), w->keymap, w);
+        buttonbar_clear_label (b, 8, w);
+        buttonbar_clear_label (b, 9, w);
+        buttonbar_clear_label (b, 10, w);
         return MSG_HANDLED;
 
     case MSG_UNFOCUS:

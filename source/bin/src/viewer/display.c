@@ -356,8 +356,16 @@ mcview_display_clean (WView * view)
 
     tty_setcolor (VIEW_NORMAL_COLOR);
     widget_erase (w);
-    if (view->dpy_frame_size != 0)
+    if (view->dpy_frame_size != 0) {
+
         tty_draw_box (w->y, w->x, w->lines, w->cols, FALSE);
+
+        if (view->title) {
+            const int len = str_term_width1 (view->title);
+            widget_gotoyx (w, 0, (w->cols - len - 2) / 2);
+            tty_printf (" %s ", view->title);
+        }
+    }
 }
 
 /* --------------------------------------------------------------------------------------------- */

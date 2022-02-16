@@ -192,7 +192,8 @@ mcview_mouse_callback (Widget * w, mouse_msg_t msg, mouse_event_t * event)
 /* --------------------------------------------------------------------------------------------- */
 
 WView *
-mcview_new (int y, int x, int lines, int cols, gboolean is_panel)
+mcview_new (int y, int x, int lines, int cols,
+        gboolean is_panel, const char *title)
 {
     WView *view;
     Widget *w;
@@ -210,6 +211,7 @@ mcview_new (int y, int x, int lines, int cols, gboolean is_panel)
     view->locked = FALSE;
 
     view->dpy_frame_size = is_panel ? 1 : 0;
+    view->title = title;
     view->converter = str_cnv_from_term;
 
     mcview_init (view);
@@ -247,7 +249,7 @@ mcview_viewer (const char *command, const vfs_path_t * file_vpath, int start_lin
 
     g = GROUP (view_dlg);
 
-    lc_mcview = mcview_new (vw->y, vw->x, vw->lines - 1, vw->cols, FALSE);
+    lc_mcview = mcview_new (vw->y, vw->x, vw->lines - 1, vw->cols, FALSE, NULL);
     group_add_widget_autopos (g, lc_mcview, WPOS_KEEP_ALL, NULL);
 
     b = WIDGET (buttonbar_new ());

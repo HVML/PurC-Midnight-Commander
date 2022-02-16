@@ -39,8 +39,8 @@ extern char *mcview_show_eof;
 
 /* Creates a new WView object with the given properties. Caveat: the
  * origin is in y-x order, while the extent is in x-y order. */
-extern WView *mcview_new (int y, int x, int lines, int cols, gboolean is_panel);
-
+extern WView *mcview_new (int y, int x, int lines, int cols,
+        gboolean is_panel, const char *title);
 
 /* Shows {file} or the output of {command} in the internal viewer,
  * starting in line {start_line}.

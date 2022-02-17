@@ -320,7 +320,7 @@ show_tree (WDOMTree * tree)
     Widget *w = WIDGET (tree);
     tree_entry *current;
     int i, j;
-    unsigned int toplevel = 0;
+    int toplevel = 0;
     int x = 0, y = 0;
     int tree_lines, tree_cols;
 
@@ -337,7 +337,7 @@ show_tree (WDOMTree * tree)
         x = y = 1;
     }
 
-    toplevel = tree->topmost->level;
+    // toplevel = tree->topmost->level;
     current = tree->topmost;
 
     /* Loop for every line */
@@ -415,7 +415,7 @@ back_ptr (WDOMTree *tree, tree_entry *ptr, int *count)
     struct list_head *p = &ptr->list;
     int i;
 
-    for (i = 0; p != &tree->entries && i < *count; p = p->prev, i++)
+    for (i = 0; p != tree->entries.next && i < *count; p = p->prev, i++)
         ;
 
     *count = i;
@@ -497,17 +497,36 @@ set_entry_content(const tree_entry *entry, WView *txt_view)
 }
 
 static inline void
-tree_set_selected(WDOMTree * tree, tree_entry *new_selected)
+tree_set_selected(WDOMTree * tree, tree_entry *new_selected, bool adjust_topmost)
 {
     if (tree->selected != new_selected) {
         tree->selected = new_selected;
-        execute_hooks (select_element_hook, tree->selected->node);
-        if (tree->selected) {
-            WDialog *h = DIALOG (WIDGET (tree)->owner);
-            WDOMViewInfo* info = h->data;
-            if (info->txt_view)
-                set_entry_content(tree->selected, info->txt_view);
+
+        /* adjust topmost */
+        if (adjust_topmost) {
+            tree_entry *p, *new_topmost = NULL;
+
+            int lines = tlines (tree);
+            int off = 1;
+            for (p = list_entry(new_selected->list.prev, tree_entry, list);
+                &p->list != &tree->entries;
+                p = list_entry(p->list.prev, tree_entry, list)) {
+                off++;
+                if (off >= lines) {
+                    new_topmost = p;
+                    break;
+                }
+            }
+            if (new_topmost)
+                tree->topmost = new_topmost;
         }
+
+        /* update other widgets */
+        execute_hooks (select_element_hook, tree->selected->node);
+        WDialog *h = DIALOG (WIDGET (tree)->owner);
+        WDOMViewInfo* info = h->data;
+        if (info->txt_view)
+            set_entry_content(tree->selected, info->txt_view);
     }
 }
 
@@ -515,7 +534,7 @@ static bool
 tree_move_backward (WDOMTree * tree, int i)
 {
     tree_entry *e = back_ptr (tree, tree->selected, &i);
-    tree_set_selected (tree, e);
+    tree_set_selected (tree, e, true);
     return (i > 0);
 }
 
@@ -525,7 +544,7 @@ forw_ptr (WDOMTree *tree, tree_entry *ptr, int *count)
     struct list_head *p = &ptr->list;
     int i;
 
-    for (i = 0; p != &tree->entries && i < *count; p = p->next, i++)
+    for (i = 0; p != tree->entries.prev && i < *count; p = p->next, i++)
         ;
 
     *count = i;
@@ -536,7 +555,7 @@ static bool
 tree_move_forward (WDOMTree * tree, int i)
 {
     tree_entry *e = forw_ptr (tree, tree->selected, &i);
-    tree_set_selected (tree, e);
+    tree_set_selected (tree, e, true);
     return (i > 0);
 }
 
@@ -551,7 +570,7 @@ tree_move_to_top (WDOMTree * tree)
 
     if (new_topmost != tree->topmost || new_selected != tree->selected) {
         tree->topmost = new_topmost;
-        tree_set_selected (tree, new_selected);
+        tree_set_selected (tree, new_selected, false);
         v = TRUE;
     }
 
@@ -562,16 +581,11 @@ static bool
 tree_move_to_bottom (WDOMTree * tree)
 {
     bool v = FALSE;
-    int tree_lines;
-    tree_entry *new_topmost, *new_selected;
+    tree_entry *new_selected;
 
     new_selected = list_entry (tree->entries.prev, tree_entry, list);
-
-    tree_lines = tlines (tree);
-    new_topmost = back_ptr (tree, new_selected, &tree_lines);
-    if (new_topmost != tree->topmost || new_selected != tree->selected) {
-        tree->topmost = new_topmost;
-        tree_set_selected (tree, new_selected);
+    if (new_selected != tree->selected) {
+        tree_set_selected (tree, new_selected, true);
         v = TRUE;
     }
 
@@ -837,7 +851,7 @@ tree_move_to_open_tag (WDOMTree *tree)
             p = list_entry(p->list.prev, tree_entry, list)) {
 
         if (p->node == node && !p->is_close_tag) {
-            tree_set_selected (tree, p);
+            tree_set_selected (tree, p, true);
             found = true;
             break;
         }
@@ -858,7 +872,7 @@ tree_move_to_parent (WDOMTree *tree)
             p = list_entry(p->list.prev, tree_entry, list)) {
 
         if (p->level < level) {
-            tree_set_selected (tree, p);
+            tree_set_selected (tree, p, true);
             found = true;
             break;
         }

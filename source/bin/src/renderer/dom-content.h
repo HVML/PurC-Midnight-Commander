@@ -66,9 +66,9 @@ struct WDOMContent
     gchar *text;
     gsize text_len;
 
-    domcnt_mode_flags_t mode_flags;
-
     struct viewport data_area;  /* Where the text is displayed */
+
+    domcnt_mode_flags_t mode_flags;
 
     ssize_t force_max;          /* Force a max offset, or -1 */
 
@@ -91,6 +91,9 @@ typedef struct WDOMContent WDOMContent;
 WDOMContent *dom_content_new (int y, int x, int lines, int cols,
         const char* title, const char *show_eof);
 bool dom_content_load (WDOMContent *domcnt, GString *string);
+
+off_t domcnt_bol (WDOMContent * view, off_t current, off_t limit);
+off_t domcnt_eol (WDOMContent * view, off_t current);
 
 void domcnt_display_text (WDOMContent * view);
 void domcnt_text_move_down (WDOMContent * view, off_t lines);

@@ -79,8 +79,9 @@ static void
 domcnt_show_content (WDOMContent * domcnt)
 {
     domcnt_draw_frame (domcnt);
-    if (domcnt->text && domcnt->text_len > 0)
+    if (domcnt->text && domcnt->text_len > 0) {
         domcnt_display_text (domcnt);
+    }
 }
 
 static cb_ret_t
@@ -91,6 +92,10 @@ domcnt_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *
     switch (msg)
     {
     case MSG_INIT:
+        domcnt->data_area.top = 1;
+        domcnt->data_area.left = 2;
+        domcnt->data_area.height = w->lines - 2;
+        domcnt->data_area.width = w->cols - 4;
         return MSG_HANDLED;
 
     case MSG_DRAW:
@@ -116,7 +121,7 @@ dom_content_new (int y, int x, int lines, int cols,
     WDOMContent *domcnt;
     Widget *w;
 
-    domcnt = g_new (struct WDOMContent, 1);
+    domcnt = g_new0 (struct WDOMContent, 1);
     w = WIDGET (domcnt);
     widget_init (w, y, x, lines, cols, domcnt_callback, NULL);
 
@@ -131,6 +136,8 @@ dom_content_load (WDOMContent *domcnt, GString *string)
 {
     if (domcnt->text) {
         g_free (domcnt->text);
+        domcnt->text = NULL;
+        domcnt->text_len = 0;
     }
 
     if (string) {
@@ -138,8 +145,19 @@ dom_content_load (WDOMContent *domcnt, GString *string)
         domcnt->text_len = string->len;
         domcnt->text = g_string_free (string, FALSE);
     }
-    else {
-        domcnt->text = NULL;
+
+    domcnt->dpy_start = 0;
+    domcnt->dpy_paragraph_skip_lines = 0;
+    domcnt->dpy_wrap_dirty = FALSE;
+    domcnt->dpy_text_column = 0;
+    domcnt->force_max = -1;
+    domcnt->mode_flags.wrap = TRUE;
+    domcnt->mode_flags.nroff = FALSE;
+    domcnt_formatter_state_init (&domcnt->dpy_state_top, 0);
+
+    if (domcnt->text) {
+        domcnt->dpy_start = domcnt_bol (domcnt, 0, 0);
+        domcnt->dpy_wrap_dirty = TRUE;
     }
 
     domcnt_show_content (domcnt);

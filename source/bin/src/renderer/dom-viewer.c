@@ -33,9 +33,7 @@
 #include "lib/util.h"           /* load_file_position() */
 #include "lib/widget.h"
 
-#include "src/filemanager/layout.h"
-#include "src/filemanager/filemanager.h"
-#include "src/filemanager/ext.h"
+#include "../filemanager/ext.h" /* get_file_mime_type() */
 
 #include "dom-viewer.h"
 
@@ -71,7 +69,7 @@ domview_dialog_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm
 }
 
 static bool
-domview_load (WDOMTree *dom_tree, WEleAttrs *ele_attrs, WView *txt_view,
+domview_load (WDOMTree *dom_tree, WEleAttrs *ele_attrs, WDOMContent *dom_cnt,
         pcdom_document_t *doc)
 {
     if (dom_tree_load (dom_tree, doc))
@@ -136,7 +134,7 @@ domview_viewer (pcdom_document_t *dom_doc)
     bool succeeded;
     WDOMTree *dom_tree;
     WEleAttrs *ele_attrs;
-    WView *txt_view;
+    WDOMContent *dom_cnt;
     WDialog *view_dlg;
     Widget *vw, *b;
     WGroup *g;
@@ -160,18 +158,18 @@ domview_viewer (pcdom_document_t *dom_doc)
     group_add_widget_autopos (g, ele_attrs,
             WPOS_KEEP_RIGHT | WPOS_KEEP_TOP, NULL);
 
-    txt_view = mcview_new (vw->y + vw->lines - 10, vw->x + vw->cols / 2,
-            9, vw->cols - half_cols, TRUE, _("Content"));
-    group_add_widget_autopos (g, txt_view,
+    dom_cnt = dom_content_new (vw->y + vw->lines - 10, vw->x + vw->cols / 2,
+            9, vw->cols - half_cols, _("Content"));
+    group_add_widget_autopos (g, dom_cnt,
             WPOS_KEEP_RIGHT | WPOS_KEEP_BOTTOM, NULL);
 
     b = WIDGET (buttonbar_new ());
     group_add_widget_autopos (g, b, b->pos_flags, NULL);
 
-    succeeded = domview_load (dom_tree, ele_attrs, txt_view, dom_doc);
+    succeeded = domview_load (dom_tree, ele_attrs, dom_cnt, dom_doc);
 
     if (succeeded) {
-        WDOMViewInfo info = { dom_doc, dom_tree, ele_attrs, txt_view };
+        WDOMViewInfo info = { dom_doc, dom_tree, ele_attrs, dom_cnt };
 
         view_dlg->data = &info;
         dlg_run (view_dlg);

@@ -422,10 +422,8 @@ back_ptr (WDOMTree *tree, tree_entry *ptr, int *count)
     return container_of (p, tree_entry, list);
 }
 
-void mcview_set_datasource_string (WView * view, const char *s);
-
 static void
-set_entry_content(const tree_entry *entry, WView *txt_view)
+set_entry_content(const tree_entry *entry, WDOMContent *dom_cnt)
 {
     GString *buff = NULL;
 
@@ -491,7 +489,7 @@ set_entry_content(const tree_entry *entry, WView *txt_view)
     }
 
     if (buff) {
-        mcview_set_datasource_string (txt_view, buff->str);
+        dom_content_load (dom_cnt, buff->str, buff->len);
         g_string_free (buff, TRUE);
     }
 }
@@ -525,8 +523,8 @@ tree_set_selected(WDOMTree * tree, tree_entry *new_selected, bool adjust_topmost
         execute_hooks (select_element_hook, tree->selected->node);
         WDialog *h = DIALOG (WIDGET (tree)->owner);
         WDOMViewInfo* info = h->data;
-        if (info->txt_view)
-            set_entry_content(tree->selected, info->txt_view);
+        if (info->dom_cnt)
+            set_entry_content(tree->selected, info->dom_cnt);
     }
 }
 

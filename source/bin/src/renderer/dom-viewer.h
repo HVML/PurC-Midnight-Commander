@@ -11,10 +11,9 @@
 
 #include "lib/global.h"
 
-#include "src/viewer/mcviewer.h"
-
 #include "dom-tree.h"
 #include "dom-ele-attrs.h"
+#include "dom-content.h"
 
 /*** typedefs(not structures) and defined constants */
 
@@ -26,7 +25,7 @@ typedef struct WDOMViewInfo {
     pcdom_document_t *doc;
     WDOMTree *dom_tree;
     WEleAttrs *ele_attrs;
-    WView *txt_view;
+    WDOMContent *dom_cnt;
 } WDOMViewInfo;
 
 /*** global variables defined in .c file */

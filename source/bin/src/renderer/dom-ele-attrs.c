@@ -57,6 +57,11 @@
 
 /*** file scope macro definitions ****************************************************************/
 
+#define FIELD_WIDTH_NAME    20
+#define CONST_STR_UNDEFINED "@undefined"
+#define CONST_STR_PUBLIC    "public"
+#define CONST_STR_SYSTEM    "system"
+
 /*** file scope type declarations ****************************************************************/
 
 struct WEleAttrs
@@ -76,14 +81,14 @@ domattrs_caption (WEleAttrs * attrs)
     Widget *w = WIDGET (attrs);
 
     const char *label = _("Attributes");
-    int len = str_term_width1 (label);
+    int width = str_term_width1 (label);
 
     tty_set_normal_attrs ();
     tty_setcolor (NORMAL_COLOR);
     widget_erase (w);
     tty_draw_box (w->y, w->x, w->lines, w->cols, FALSE);
 
-    widget_gotoyx (w, 0, (w->cols - len - 2) / 2);
+    widget_gotoyx (w, 0, (w->cols - width - 2) / 2);
     tty_printf (" %s ", label);
 
     widget_gotoyx (w, 2, 0);
@@ -95,13 +100,12 @@ domattrs_caption (WEleAttrs * attrs)
     tty_setcolor (MARKED_COLOR);
 
     label = _("Name");
-    len = str_term_width1 (label);
-    widget_gotoyx (w, 1, (w->cols / 2 - len - 2) / 2);
+    width = str_term_width1 (label);
+    widget_gotoyx (w, 1, FIELD_WIDTH_NAME - 3 - width);
     tty_print_string (label);
 
     label = _("Value");
-    len = str_term_width1 (label);
-    widget_gotoyx (w, 1, (w->cols - len - 2) / 2);
+    widget_gotoyx (w, 1, FIELD_WIDTH_NAME + 1);
     tty_print_string (label);
 }
 
@@ -111,7 +115,7 @@ static void
 domattrs_show_doctype_ids (WEleAttrs * attrs)
 {
     Widget *w = WIDGET (attrs);
-    GString *buff;
+    GString *buff = g_string_new ("");
     pcdom_document_type_t *doctype;
 
     assert (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_DOC_TYPE);
@@ -123,27 +127,39 @@ domattrs_show_doctype_ids (WEleAttrs * attrs)
     /* Print only lines which fit */
     const gchar *str;
     size_t len;
+    int width;
 
-    /* public identifier */
-    widget_gotoyx (w, 1, 3);
-    tty_print_string ("public");
+    /* system identifier */
+    width = str_term_width1 (CONST_STR_SYSTEM);
+    widget_gotoyx (w, 3, FIELD_WIDTH_NAME - 3 - width);
+    tty_print_string (CONST_STR_SYSTEM);
 
-    buff = g_string_new ("");
-    str = (const gchar *)pcdom_document_type_public_id(doctype, &len);
-    buff = g_string_overwrite_len (buff, 0, str, len);
-    widget_gotoyx (w, 1, 3 + w->cols / 2);
+    str = (const gchar *)pcdom_document_type_system_id (doctype, &len);
+    if (len > 0) {
+        buff = g_string_overwrite_len (buff, 0, str, len);
+    }
+    else {
+        buff = g_string_overwrite (buff, 0, CONST_STR_UNDEFINED);
+    }
+    widget_gotoyx (w, 3, FIELD_WIDTH_NAME + 1);
     tty_print_string (buff->str);
     g_string_set_size (buff, 0);
 
-    /* system identifier */
-    widget_gotoyx (w, 2, 3);
-    tty_print_string ("system");
+    /* public identifier */
+    width = str_term_width1 (CONST_STR_PUBLIC);
+    widget_gotoyx (w, 4, FIELD_WIDTH_NAME - 3 - width);
+    tty_print_string (CONST_STR_PUBLIC);
 
-    buff = g_string_new ("");
-    str = (const gchar *)pcdom_document_type_system_id(doctype, &len);
-    buff = g_string_overwrite_len (buff, 0, str, len);
-    widget_gotoyx (w, 2, 3 + w->cols / 2);
+    str = (const gchar *)pcdom_document_type_public_id (doctype, &len);
+    if (len > 0) {
+        buff = g_string_overwrite_len (buff, 0, str, len);
+    }
+    else {
+        buff = g_string_overwrite (buff, 0, CONST_STR_UNDEFINED);
+    }
+    widget_gotoyx (w, 4, FIELD_WIDTH_NAME + 1);
     tty_print_string (buff->str);
+    g_string_set_size (buff, 0);
 
     g_string_free (buff, TRUE);
 }
@@ -156,7 +172,7 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
 
     pcdom_element_t *element;
     pcdom_attr_t *attr;
-    int y;
+    int y, width;
 
     assert (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_ELEMENT);
 
@@ -175,13 +191,14 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
 
         str = (const gchar *)pcdom_attr_local_name (attr, &sz);
         buff = g_string_overwrite_len (buff, 0, str, sz);
-        widget_gotoyx (w, y, 3);
+        width = str_term_width1 (buff->str);
+        widget_gotoyx (w, y, FIELD_WIDTH_NAME - 3 - width);
         tty_print_string (buff->str);
         g_string_set_size (buff, 0);
 
         str = (const gchar *)pcdom_attr_value (attr, &sz);
         buff = g_string_overwrite_len (buff, 0, str, sz);
-        widget_gotoyx (w, y, 3 + w->cols / 2);
+        widget_gotoyx (w, y, FIELD_WIDTH_NAME + 1);
         tty_print_string (buff->str);
         g_string_set_size (buff, 0);
 
@@ -189,7 +206,7 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
         if (y >= w->lines)
             break;
 
-        attr = pcdom_element_next_attribute(attr);
+        attr = pcdom_element_next_attribute (attr);
     }
 
     g_string_free (buff, TRUE);

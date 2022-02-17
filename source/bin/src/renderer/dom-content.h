@@ -36,15 +36,68 @@
 
 /*** structures declarations (and typedefs of structures) */
 
-struct WDOMContent;
+struct viewport
+{
+    unsigned int top, left;
+    unsigned int height, width;
+};
+
+typedef struct
+{
+    off_t offset;               /* The file offset at which this is the state. */
+    off_t unwrapped_column;     /* Columns if the paragraph wasn't wrapped, */
+    /* used for positioning TABs in wrapped lines */
+    gboolean nroff_underscore_is_underlined;    /* whether _\b_ is underlined rather than bold */
+    gboolean print_lonely_combining;    /* whether lonely combining marks are printed on a dotted circle */
+} domcnt_formatter_state_t;
+
+typedef struct
+{
+    gboolean wrap;              /* Wrap text lines to fit them on the screen */
+    gboolean nroff;             /* Nroff-style highlighting */
+} domcnt_mode_flags_t;
+
+struct WDOMContent
+{
+    Widget widget;
+    const char *title;
+    const char *show_eof;
+
+    gchar *text;
+    gsize text_len;
+
+    domcnt_mode_flags_t mode_flags;
+
+    struct viewport data_area;  /* Where the text is displayed */
+
+    ssize_t force_max;          /* Force a max offset, or -1 */
+
+    off_t dpy_start;            /* Offset of the displayed data (start of the paragraph in non-hex mode) */
+    off_t dpy_end;              /* Offset after the displayed data */
+    off_t dpy_text_column;      /* Number of skipped columns in non-wrap text mode */
+    off_t dpy_paragraph_skip_lines;     /* Extra lines to skip in wrap mode */
+    gboolean dpy_wrap_dirty;    /* dpy_state_top needs to be recomputed */
+
+    domcnt_formatter_state_t dpy_state_top;       /* Parser-formatter state at the topmost visible line in wrap mode */
+    domcnt_formatter_state_t dpy_state_bottom;    /* Parser-formatter state after the bottomvisible line in wrap mode */
+};
+
 typedef struct WDOMContent WDOMContent;
 
 /*** global variables defined in .c file */
 
 /*** declarations of public functions */
 
-WDOMContent *dom_content_new (int y, int x, int lines, int cols, const char* title);
-bool dom_content_load (WDOMContent *domcnt, const gchar *text, gsize len);
+WDOMContent *dom_content_new (int y, int x, int lines, int cols,
+        const char* title, const char *show_eof);
+bool dom_content_load (WDOMContent *domcnt, GString *string);
+
+void domcnt_display_text (WDOMContent * view);
+void domcnt_text_move_down (WDOMContent * view, off_t lines);
+void domcnt_text_move_up (WDOMContent * view, off_t lines);
+void domcnt_text_moveto_bol (WDOMContent * view);
+void domcnt_text_moveto_eol (WDOMContent * view);
+void domcnt_formatter_state_init (domcnt_formatter_state_t * state, off_t offset);
 
 /*** inline functions */
 

@@ -54,22 +54,13 @@
 
 /*** file scope type declarations ********************************************/
 
-struct WDOMContent
-{
-    Widget widget;
-    char *title;
-
-    gunichar *ucs;
-    glong     nr_ucs;
-};
-
 /*** file scope variables ****************************************************/
 
 /*** file scope functions ****************************************************/
 /* ------------------------------------------------------------------------- */
 
 static void
-domcnt_caption (WDOMContent * domcnt)
+domcnt_draw_frame (WDOMContent * domcnt)
 {
     Widget *w = WIDGET (domcnt);
     int width = str_term_width1 (domcnt->title);
@@ -84,18 +75,12 @@ domcnt_caption (WDOMContent * domcnt)
 }
 
 /* ------------------------------------------------------------------------- */
-
-static void
-domcnt_show_text (WDOMContent * domcnt)
-{
-}
-
 static void
 domcnt_show_content (WDOMContent * domcnt)
 {
-    domcnt_caption (domcnt);
-    if (domcnt->ucs && domcnt->nr_ucs > 0)
-        domcnt_show_text (domcnt);
+    domcnt_draw_frame (domcnt);
+    if (domcnt->text && domcnt->text_len > 0)
+        domcnt_display_text (domcnt);
 }
 
 static cb_ret_t
@@ -113,10 +98,8 @@ domcnt_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *
         return MSG_HANDLED;
 
     case MSG_DESTROY:
-        if (domcnt->title)
-            g_free (domcnt->title);
-        if (domcnt->ucs)
-            g_free (domcnt->ucs);
+        if (domcnt->text)
+            g_free (domcnt->text);
         return MSG_HANDLED;
 
     default:
@@ -127,7 +110,8 @@ domcnt_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *
 /*** public functions ********************************************************/
 
 WDOMContent *
-dom_content_new (int y, int x, int lines, int cols, const char *title)
+dom_content_new (int y, int x, int lines, int cols,
+        const char *title, const char *show_eof)
 {
     WDOMContent *domcnt;
     Widget *w;
@@ -136,25 +120,29 @@ dom_content_new (int y, int x, int lines, int cols, const char *title)
     w = WIDGET (domcnt);
     widget_init (w, y, x, lines, cols, domcnt_callback, NULL);
 
-    if (title)
-        domcnt->title = g_strdup (title);
+    domcnt->title = title;
+    domcnt->show_eof = show_eof;
 
     return domcnt;
 }
 
 bool
-dom_content_load (WDOMContent *domcnt, const gchar *text, gsize len)
+dom_content_load (WDOMContent *domcnt, GString *string)
 {
-    if (domcnt->ucs) {
-        g_free (domcnt->ucs);
+    if (domcnt->text) {
+        g_free (domcnt->text);
     }
 
-    gchar *tmp = g_utf8_normalize (text, len, G_NORMALIZE_DEFAULT);
-    if (tmp) {
-        domcnt->ucs = g_utf8_to_ucs4_fast (tmp, -1, &domcnt->nr_ucs);
-        g_free (tmp);
+    if (string) {
+        /* take the owner of string */
+        domcnt->text_len = string->len;
+        domcnt->text = g_string_free (string, FALSE);
+    }
+    else {
+        domcnt->text = NULL;
     }
 
-    return tmp != NULL;
+    domcnt_show_content (domcnt);
+    return domcnt->text != NULL;
 }
 

@@ -489,8 +489,7 @@ set_entry_content(const tree_entry *entry, WDOMContent *dom_cnt)
     }
 
     if (buff) {
-        dom_content_load (dom_cnt, buff->str, buff->len);
-        g_string_free (buff, TRUE);
+        dom_content_load (dom_cnt, buff);
     }
 }
 

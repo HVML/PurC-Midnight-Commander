@@ -47,33 +47,38 @@
 #include "lib/timefmt.h"        /* file_date() */
 #include "lib/util.h"
 #include "lib/widget.h"
+#include "lib/event.h"          /* mc_event_raise() */
 
 #include "src/setup.h"          /* panels_options */
+#include "src/keymap.h"
 
 #include "dom-tree.h"           /* select_element_hook */
 #include "dom-ele-attrs.h"
 
-/*** global variables ****************************************************************************/
+/*** global variables ********************************************************/
 
-/*** file scope macro definitions ****************************************************************/
+/*** file scope macro definitions ********************************************/
 
 #define FIELD_WIDTH_NAME    (w->cols / 3)
 #define CONST_STR_UNDEFINED "@undefined"
 #define CONST_STR_PUBLIC    "public"
 #define CONST_STR_SYSTEM    "system"
 
-/*** file scope type declarations ****************************************************************/
+#define tlines(t) (WIDGET (t)->lines - 4)
+
+/*** file scope type declarations ********************************************/
 
 struct WEleAttrs
 {
     Widget widget;
     pcdom_node_t *node;
+    int     topmost;
+    int     selected;
 };
 
-/*** file scope variables ************************************************************************/
+/*** file scope variables ****************************************************/
 
-/*** file scope functions ************************************************************************/
-/* --------------------------------------------------------------------------------------------- */
+/*** file scope functions ****************************************************/
 
 static void
 domattrs_caption (WEleAttrs * attrs)
@@ -173,7 +178,7 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
 
     pcdom_element_t *element;
     pcdom_attr_t *attr;
-    int y;
+    int i, y;
 
     assert (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_ELEMENT);
 
@@ -183,12 +188,21 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
     element = (pcdom_element_t *)attrs->node;
     attr = pcdom_element_first_attribute(element);
     y = 3;
+    i = 0;
 
     /* Print only lines which fit */
     while (attr) {
 
         const gchar *str;
         size_t sz;
+        bool selected;
+
+        if (i < attrs->topmost) {
+            goto inc;
+        }
+
+        selected = widget_get_state (w, WST_FOCUSED) && i == attrs->selected;
+        tty_setcolor (selected ? SELECTED_COLOR : NORMAL_COLOR);
 
         str = (const gchar *)pcdom_attr_local_name (attr, &sz);
         buff = g_string_overwrite_len (buff, 0, str, sz);
@@ -208,7 +222,9 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
         if (y >= w->lines)
             break;
 
+inc:
         attr = pcdom_element_next_attribute (attr);
+        i++;
     }
 
     g_string_free (buff, TRUE);
@@ -230,22 +246,189 @@ domattrs_show_attrs (WEleAttrs * attrs)
     }
 }
 
-/* --------------------------------------------------------------------------------------------- */
-
 static void
 domattrs_hook (void *data, void *info)
 {
     WEleAttrs *attrs = (WEleAttrs *) data;
-    attrs->node = info;
+    if (attrs->node != info) {
+        attrs->node = info;
+
+        attrs->topmost = 0;
+        attrs->selected = -1;
+
+        if (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_ELEMENT) {
+            if (pcdom_element_first_attribute (
+                        pcdom_interface_element (attrs->node)) != NULL) {
+                attrs->selected = 0;
+            }
+        }
+    }
+
     domattrs_show_attrs (attrs);
 }
 
-/* --------------------------------------------------------------------------------------------- */
+static bool
+domattrs_move_backward (WEleAttrs * attrs, int i)
+{
+    return (i > 0);
+}
+
+static bool
+domattrs_move_forward (WEleAttrs * attrs, int i)
+{
+    return (i > 0);
+}
+
+static bool
+domattrs_move_to_top (WEleAttrs * attrs)
+{
+    return false;
+}
+
+static bool
+domattrs_move_to_bottom (WEleAttrs * attrs)
+{
+    return false;
+}
+
+static inline void
+domattrs_move_up (WEleAttrs * attrs)
+{
+    if (domattrs_move_backward (attrs, 1))
+        domattrs_show_attrs (attrs);
+}
+
+static inline void
+domattrs_move_down (WEleAttrs * attrs)
+{
+    if (domattrs_move_forward (attrs, 1))
+        domattrs_show_attrs (attrs);
+}
+
+static inline void
+domattrs_move_home (WEleAttrs * attrs)
+{
+    if (domattrs_move_to_top (attrs))
+        domattrs_show_attrs (attrs);
+}
+
+static inline void
+domattrs_move_end (WEleAttrs * attrs)
+{
+    if (domattrs_move_to_bottom (attrs))
+        domattrs_show_attrs (attrs);
+}
+
+static void
+domattrs_move_pgup (WEleAttrs * attrs)
+{
+    if (domattrs_move_backward (attrs, tlines (attrs) - 1))
+        domattrs_show_attrs (attrs);
+}
+
+static void
+domattrs_move_pgdn (WEleAttrs * attrs)
+{
+    if (domattrs_move_forward (attrs, tlines (attrs) - 1))
+        domattrs_show_attrs (attrs);
+}
+
+static void
+domattrs_change_current (WEleAttrs * attrs)
+{
+}
+
+static void
+domattrs_delete_current (WEleAttrs * attrs)
+{
+}
 
 static cb_ret_t
-domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *data)
+domattrs_execute_cmd (WEleAttrs * attrs, long command)
+{
+    cb_ret_t res = MSG_HANDLED;
+
+    switch (command) {
+    case CK_Help:
+        {
+            ev_help_t event_data = { NULL, "[DOM Element Attributes]" };
+            mc_event_raise (MCEVENT_GROUP_CORE, "help", &event_data);
+        }
+        break;
+
+    case CK_Up:
+        domattrs_move_up (attrs);
+        break;
+    case CK_Down:
+        domattrs_move_down (attrs);
+        break;
+    case CK_Top:
+        domattrs_move_home (attrs);
+        break;
+    case CK_Bottom:
+        domattrs_move_end (attrs);
+        break;
+    case CK_PageUp:
+        domattrs_move_pgup (attrs);
+        break;
+    case CK_PageDown:
+        domattrs_move_pgdn (attrs);
+        break;
+    case CK_Enter:
+        domattrs_change_current (attrs);
+        break;
+    case CK_Search:
+        // domattrs_start_search (attrs);
+        break;
+    case CK_Delete:
+        domattrs_delete_current (attrs);
+        break;
+
+    case CK_Quit:
+        dlg_run_done (DIALOG (WIDGET (attrs)->owner));
+        return res;
+
+    default:
+        res = MSG_NOT_HANDLED;
+    }
+
+    domattrs_show_attrs (attrs);
+    return res;
+}
+
+static cb_ret_t
+domattrs_key (WEleAttrs * attrs, int key)
+{
+    long command;
+
+    if (is_abort_char (key)) {
+        /* modal tree dialog: let upper layer see the
+           abort character and close the dialog */
+        return MSG_NOT_HANDLED;
+    }
+
+    command = widget_lookup_key (WIDGET (attrs), key);
+    switch (command)
+    {
+    case CK_IgnoreKey:
+        break;
+    case CK_Left:
+    case CK_Right:
+        return MSG_NOT_HANDLED;
+    default:
+        return domattrs_execute_cmd (attrs, command);
+    }
+
+    return MSG_NOT_HANDLED;
+}
+
+static cb_ret_t
+domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg,
+        int parm, void *data)
 {
     WEleAttrs *attrs = (WEleAttrs *) w;
+    WDialog *h = DIALOG (w->owner);
+    WButtonBar *b;
 
     switch (msg)
     {
@@ -256,7 +439,35 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void
 
     case MSG_DRAW:
         domattrs_hook (attrs, attrs->node);
+        if (widget_get_state (w, WST_FOCUSED)) {
+            b = find_buttonbar (h);
+            widget_draw (WIDGET (b));
+        }
         return MSG_HANDLED;
+
+    case MSG_FOCUS:
+        b = find_buttonbar (h);
+        buttonbar_set_label (b, 1, Q_ ("ButtonBar|Help"), w->keymap, w);
+        buttonbar_set_label (b, 2, Q_ ("ButtonBar|Add"), w->keymap, w);
+        buttonbar_set_label (b, 3, Q_ ("ButtonBar|Change"), w->keymap, w);
+        buttonbar_set_label (b, 4, Q_ ("ButtonBar|Remove"), w->keymap, w);
+        buttonbar_clear_label (b, 5, w);
+        buttonbar_clear_label (b, 6, w);
+        buttonbar_clear_label (b, 7, w);
+        buttonbar_clear_label (b, 8, w);
+        buttonbar_clear_label (b, 9, w);
+        buttonbar_clear_label (b, 10, w);
+        return MSG_HANDLED;
+
+    case MSG_UNFOCUS:
+        return MSG_HANDLED;
+
+    case MSG_KEY:
+        return domattrs_key (attrs, parm);
+
+    case MSG_ACTION:
+        /* command from buttonbar */
+        return domattrs_execute_cmd (attrs, parm);
 
     case MSG_DESTROY:
         delete_hook (&select_element_hook, domattrs_hook);
@@ -267,9 +478,56 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void
     }
 }
 
-/* --------------------------------------------------------------------------------------------- */
-/*** public functions ****************************************************************************/
-/* --------------------------------------------------------------------------------------------- */
+/*** Mouse callback */
+static void
+domattrs_mouse_callback (Widget * w, mouse_msg_t msg, mouse_event_t * event)
+{
+    WEleAttrs *attrs = (WEleAttrs *) w;
+    int y;
+
+    y = event->y;
+    y--;
+
+    switch (msg) {
+    case MSG_MOUSE_DOWN:
+        /* rest of the upper frame - call menu */
+        if (event->y == WIDGET (w->owner)->y) {
+            /* return MOU_UNHANDLED */
+            event->result.abort = TRUE;
+        }
+        break;
+
+    case MSG_MOUSE_CLICK:
+        {
+            int lines;
+
+            lines = tlines (attrs);
+
+            if (y < 0) {
+                if (domattrs_move_backward (attrs, lines - 1))
+                    domattrs_show_attrs (attrs);
+            }
+            else if (y >= lines) {
+                if (domattrs_move_forward (attrs, lines - 1))
+                    domattrs_show_attrs (attrs);
+            }
+            else if ((event->count & GPM_DOUBLE) != 0) {
+                // TODO
+            }
+        }
+        break;
+
+    case MSG_MOUSE_SCROLL_UP:
+    case MSG_MOUSE_SCROLL_DOWN:
+        /* TODO: Ticket #2218 */
+        break;
+
+    default:
+        break;
+    }
+}
+
+/*** public functions ********************************************************/
 
 WEleAttrs *
 dom_ele_attrs_new (int y, int x, int lines, int cols)
@@ -279,9 +537,9 @@ dom_ele_attrs_new (int y, int x, int lines, int cols)
 
     attrs = g_new (struct WEleAttrs, 1);
     w = WIDGET (attrs);
-    widget_init (w, y, x, lines, cols, domattrs_callback, NULL);
+    widget_init (w, y, x, lines, cols, domattrs_callback,
+            domattrs_mouse_callback);
 
     return attrs;
 }
 
-/* --------------------------------------------------------------------------------------------- */

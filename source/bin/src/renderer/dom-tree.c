@@ -51,7 +51,6 @@
 
 #include "src/setup.h"          /* confirm_delete, panels_options */
 #include "src/keymap.h"
-#include "src/history.h"
 
 #include "dom-viewer.h"
 #include "dom-tree.h"
@@ -1107,27 +1106,10 @@ tree_frame (WDialog * h, WDOMTree * tree)
     }
 }
 
-#if 0
-static void
-remove_callback (pcdom_node_t *node, void *data)
-{
-    WDOMTree *tree = data;
-
-    if (tree->selected->node == node) {
-        if (tree->selected != NULL)
-            tree->selected = tree->selected->next;
-        else
-            tree->selected = tree->selected->prev;
-    }
-}
-#endif
-
 static void
 tree_destroy (WDOMTree * tree)
 {
     tree_entry *p, *n;
-
-    // tree_store_remove_entry_remove_hook (remove_callback);
 
     list_for_each_entry_safe (p, n, &tree->entries, list) {
         if (p->normalized_text)
@@ -1145,7 +1127,8 @@ tree_destroy (WDOMTree * tree)
 }
 
 static cb_ret_t
-tree_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *data)
+tree_callback (Widget * w, Widget * sender, widget_msg_t msg,
+        int parm, void *data)
 {
     WDOMTree *tree = (WDOMTree *) w;
     WDialog *h = DIALOG (w->owner);

@@ -127,12 +127,11 @@ domattrs_show_doctype_ids (WEleAttrs * attrs)
     /* Print only lines which fit */
     const gchar *str;
     size_t len;
-    int width;
 
     /* system identifier */
-    width = str_term_width1 (CONST_STR_SYSTEM);
-    widget_gotoyx (w, 3, FIELD_WIDTH_NAME - 3 - width);
-    tty_print_string (CONST_STR_SYSTEM);
+    widget_gotoyx (w, 3, 1);
+    tty_print_string (str_fit_to_term (CONST_STR_SYSTEM,
+            FIELD_WIDTH_NAME - 2, J_RIGHT_FIT));
 
     str = (const gchar *)pcdom_document_type_system_id (doctype, &len);
     if (len > 0) {
@@ -147,9 +146,9 @@ domattrs_show_doctype_ids (WEleAttrs * attrs)
     g_string_set_size (buff, 0);
 
     /* public identifier */
-    width = str_term_width1 (CONST_STR_PUBLIC);
-    widget_gotoyx (w, 4, FIELD_WIDTH_NAME - 3 - width);
-    tty_print_string (CONST_STR_PUBLIC);
+    widget_gotoyx (w, 4, 1);
+    tty_print_string (str_fit_to_term (CONST_STR_PUBLIC,
+            FIELD_WIDTH_NAME - 2, J_RIGHT_FIT));
 
     str = (const gchar *)pcdom_document_type_public_id (doctype, &len);
     if (len > 0) {

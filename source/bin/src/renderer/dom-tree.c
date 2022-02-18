@@ -155,13 +155,13 @@ static inline int
 get_entry_color (const tree_entry *entry)
 {
     switch (entry->node->type) {
-        case PCDOM_NODE_TYPE_COMMENT:
         case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
             return DISABLED_COLOR;
         case PCDOM_NODE_TYPE_CDATA_SECTION:
             return MARKED_COLOR;
         case PCDOM_NODE_TYPE_ELEMENT:
         case PCDOM_NODE_TYPE_TEXT:
+        case PCDOM_NODE_TYPE_COMMENT:
         default:
             break;
     }

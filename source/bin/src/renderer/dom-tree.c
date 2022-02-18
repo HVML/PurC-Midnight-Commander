@@ -55,11 +55,14 @@
 
 #include "dom-viewer.h"
 #include "dom-tree.h"
+#include "dom-text.h"
 
 /*** global variables */
 hook_t *select_element_hook;
 
 /*** file scope macro definitions */
+
+#define MAX_ENTRY_CHARS     6
 
 #define MC_DEFXPATHLEN      128
 
@@ -77,6 +80,7 @@ typedef struct tree_entry {
     unsigned int        is_close_tag:1;     /* is a close tag? */
     unsigned int        is_self_close:1;    /* is self-close? */
     pcdom_node_t        *node;
+    gchar               *normalized_text;   /* normalized text or NULL */
 } tree_entry;
 
 struct WDOMTree {
@@ -154,10 +158,10 @@ get_entry_color (const tree_entry *entry)
         case PCDOM_NODE_TYPE_COMMENT:
         case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
             return DISABLED_COLOR;
-        case PCDOM_NODE_TYPE_TEXT:
         case PCDOM_NODE_TYPE_CDATA_SECTION:
             return MARKED_COLOR;
         case PCDOM_NODE_TYPE_ELEMENT:
+        case PCDOM_NODE_TYPE_TEXT:
         default:
             break;
     }
@@ -186,28 +190,6 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
                 g_string_append_len (buff, (const gchar *)name, len);
             }
             g_string_append_c (buff, '>');
-            break;
-        }
-
-        case PCDOM_NODE_TYPE_COMMENT:
-        {
-            const unsigned char *name;
-            size_t len;
-            pcdom_comment_t *comment;
-
-            comment = pcdom_interface_comment(entry->node);
-            name = comment->char_data.data.data;
-            len = comment->char_data.data.length;
-
-            buff = g_string_new ("<!-- ");
-            if (len > 6) {
-                g_string_append_len (buff, (const gchar *)name, 6);
-                g_string_append (buff, "…");
-            }
-            else {
-                g_string_append_len (buff, (const gchar *)name, len);
-            }
-            g_string_append (buff, " -->");
             break;
         }
 
@@ -262,44 +244,27 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
 
         case PCDOM_NODE_TYPE_TEXT:
         {
-            const unsigned char *name;
-            size_t len;
-            pcdom_text_t *text;
-
-            text = pcdom_interface_text(entry->node);
-            name = text->char_data.data.data;
-            len = text->char_data.data.length;
-
-            buff = g_string_new ("“");
-            if (len > 6) {
-                g_string_append_len (buff, (const gchar *)name, 6);
-                g_string_append (buff, "…");
-            }
-            else {
-                g_string_append_len (buff, (const gchar *)name, len);
-            }
+            buff = g_string_new (entry->normalized_text);
+            dom_text_truncate_with_ellipsis (buff, MAX_ENTRY_CHARS);
+            g_string_prepend (buff, "“");
             g_string_append (buff, "”");
+            break;
+        }
+
+        case PCDOM_NODE_TYPE_COMMENT:
+        {
+            buff = g_string_new (entry->normalized_text);
+            dom_text_truncate_with_ellipsis (buff, MAX_ENTRY_CHARS);
+            g_string_prepend (buff, "<!-- ");
+            g_string_append (buff, " -->");
             break;
         }
 
         case PCDOM_NODE_TYPE_CDATA_SECTION:
         {
-            const unsigned char *name;
-            size_t len;
-            pcdom_cdata_section_t *cdata_section;
-
-            cdata_section = pcdom_interface_cdata_section(entry->node);
-            name = cdata_section->text.char_data.data.data;
-            len = cdata_section->text.char_data.data.length;
-
-            buff = g_string_new ("<![CDATA[ ");
-            if (len > 6) {
-                g_string_append_len (buff, (const gchar *)name, 6);
-                g_string_append (buff, "…");
-            }
-            else {
-                g_string_append_len (buff, (const gchar *)name, len);
-            }
+            buff = g_string_new (entry->normalized_text);
+            dom_text_truncate_with_ellipsis (buff, MAX_ENTRY_CHARS);
+            g_string_prepend (buff, "<![CDATA[ ");
             g_string_append (buff, " ]]>");
             break;
         }
@@ -440,7 +405,7 @@ set_entry_content(const tree_entry *entry, WDOMContent *dom_cnt)
             size_t len;
             pcdom_comment_t *comment;
 
-            comment = pcdom_interface_comment(entry->node);
+            comment = pcdom_interface_comment (entry->node);
             name = comment->char_data.data.data;
             len = comment->char_data.data.length;
 
@@ -451,16 +416,22 @@ set_entry_content(const tree_entry *entry, WDOMContent *dom_cnt)
 
         case PCDOM_NODE_TYPE_ELEMENT:
         {
-            buff = g_string_new (_("(NO CONTENT)"));
+            if (entry->is_self_close) {
+                buff = g_string_new (_("(NO CONTENT)"));
+            }
+            else {
+                buff = g_string_new (_("(SEE CHILDREN)"));
+            }
             break;
         }
+
         case PCDOM_NODE_TYPE_TEXT:
         {
             const unsigned char *name;
             size_t len;
             pcdom_text_t *text;
 
-            text = pcdom_interface_text(entry->node);
+            text = pcdom_interface_text (entry->node);
             name = text->char_data.data.data;
             len = text->char_data.data.length;
 
@@ -475,7 +446,7 @@ set_entry_content(const tree_entry *entry, WDOMContent *dom_cnt)
             size_t len;
             pcdom_cdata_section_t *cdata_section;
 
-            cdata_section = pcdom_interface_cdata_section(entry->node);
+            cdata_section = pcdom_interface_cdata_section (entry->node);
             name = cdata_section->text.char_data.data.data;
             len = cdata_section->text.char_data.data.length;
 
@@ -650,6 +621,9 @@ tree_fold_selected (WDOMTree *tree)
 
         assert(tree->nr_entries > 0);
         tree->nr_entries--;
+
+        if (p->normalized_text)
+            g_free (p->normalized_text);
         list_del (&p->list);
         g_free (p);
         count++;
@@ -734,16 +708,55 @@ my_subtree_walker(pcdom_node_t *node, void *ctx)
     tree_entry *entry;
     struct my_tree_walker_ctxt *ctxt = ctx;
     int level;
+    GString *string = NULL;
 
     switch (node->type) {
-    case PCDOM_NODE_TYPE_COMMENT:
     case PCDOM_NODE_TYPE_TEXT:
+    case PCDOM_NODE_TYPE_COMMENT:
     case PCDOM_NODE_TYPE_CDATA_SECTION:
-        entry = g_new (tree_entry, 1);
+        if (node->type == PCDOM_NODE_TYPE_TEXT) {
+            pcdom_text_t *text;
+
+            text = pcdom_interface_text (node);
+            string = g_string_new_len (
+                    (const gchar *)text->char_data.data.data,
+                    text->char_data.data.length);
+
+            dom_text_normalize(string);
+            if (string->len == 0) {
+                g_string_free (string, TRUE);
+                return PCHTML_ACTION_NEXT;
+            }
+        }
+        else if (node->type == PCDOM_NODE_TYPE_COMMENT) {
+            pcdom_comment_t *comment;
+
+            comment = pcdom_interface_comment (node);
+            string = g_string_new_len (
+                    (const gchar *)comment->char_data.data.data,
+                    comment->char_data.data.length);
+
+            dom_text_normalize(string);
+        }
+        else {
+            pcdom_cdata_section_t *cdata_section;
+
+            cdata_section = pcdom_interface_cdata_section(node);
+            string = g_string_new_len (
+                    (const gchar *)cdata_section->text.char_data.data.data,
+                    cdata_section->text.char_data.data.length);
+
+            dom_text_normalize (string);
+        }
+
+        assert (string != NULL);
+
+        entry = g_new0 (tree_entry, 1);
         entry->level = node_to_level (node);
         entry->is_close_tag = 0;
         entry->is_self_close = 0;
         entry->node = node;
+        entry->normalized_text = g_string_free (string, FALSE);
 
         my_tree_insert_entry (ctxt, entry);
         return PCHTML_ACTION_NEXT;
@@ -754,7 +767,7 @@ my_subtree_walker(pcdom_node_t *node, void *ctx)
             break;
 
         if (node->flags & NF_UNFOLDED) {
-            entry = g_new (tree_entry, 1);
+            entry = g_new0 (tree_entry, 1);
             entry->level = level;
             entry->is_close_tag = 0;
             entry->is_self_close = pchtml_html_node_is_void(node);
@@ -767,7 +780,7 @@ my_subtree_walker(pcdom_node_t *node, void *ctx)
                     && (node->flags & NF_UNFOLDED)) {
                 tree_entry *close_entry;
 
-                close_entry = g_new (tree_entry, 1);
+                close_entry = g_new0 (tree_entry, 1);
                 close_entry->level = level;
                 close_entry->is_close_tag = 1;
                 close_entry->is_self_close = 0;
@@ -781,7 +794,7 @@ my_subtree_walker(pcdom_node_t *node, void *ctx)
             }
         }
         else {
-            entry = g_new (tree_entry, 1);
+            entry = g_new0 (tree_entry, 1);
             entry->level = level;
             entry->is_close_tag = 0;
             entry->is_self_close = pchtml_html_node_is_void(node);
@@ -820,7 +833,7 @@ tree_unfold_selected (WDOMTree *tree)
 
             tree->selected->node->flags |= NF_UNFOLDED;
 
-            close_entry = g_new (tree_entry, 1);
+            close_entry = g_new0 (tree_entry, 1);
             close_entry->level = tree->selected->level;
             close_entry->is_close_tag = 1;
             close_entry->is_self_close = 0;
@@ -1084,6 +1097,8 @@ tree_destroy (WDOMTree * tree)
     // tree_store_remove_entry_remove_hook (remove_callback);
 
     list_for_each_entry_safe (p, n, &tree->entries, list) {
+        if (p->normalized_text)
+            g_free (p->normalized_text);
         list_del (&p->list);
         g_free (p);
     }
@@ -1207,7 +1222,7 @@ dom_tree_new (int y, int x, int lines, int cols, bool is_panel)
     WDOMTree *tree;
     Widget *w;
 
-    tree = g_new (WDOMTree, 1);
+    tree = g_new0 (WDOMTree, 1);
 
     w = WIDGET (tree);
     widget_init (w, y, x, lines, cols, tree_callback, tree_mouse_callback);
@@ -1236,10 +1251,11 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
     tree_entry *entry;
     struct my_tree_walker_ctxt *ctxt = ctx;
     int level;
+    GString *string = NULL;
 
     switch (node->type) {
     case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
-        entry = g_new (tree_entry, 1);
+        entry = g_new0 (tree_entry, 1);
         entry->level = 0;    /* always be zero */
         entry->is_close_tag = 0;
         entry->is_self_close = 0;
@@ -1248,14 +1264,52 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
         my_tree_insert_entry (ctxt, entry);
         return PCHTML_ACTION_NEXT;
 
-    case PCDOM_NODE_TYPE_COMMENT:
     case PCDOM_NODE_TYPE_TEXT:
+    case PCDOM_NODE_TYPE_COMMENT:
     case PCDOM_NODE_TYPE_CDATA_SECTION:
-        entry = g_new (tree_entry, 1);
+        if (node->type == PCDOM_NODE_TYPE_TEXT) {
+            pcdom_text_t *text;
+
+            text = pcdom_interface_text (node);
+            string = g_string_new_len (
+                    (const gchar *)text->char_data.data.data,
+                    text->char_data.data.length);
+
+            dom_text_normalize(string);
+            if (string->len == 0) {
+                g_string_free (string, TRUE);
+                return PCHTML_ACTION_NEXT;
+            }
+        }
+        else if (node->type == PCDOM_NODE_TYPE_COMMENT) {
+            pcdom_comment_t *comment;
+
+            comment = pcdom_interface_comment (node);
+            string = g_string_new_len (
+                    (const gchar *)comment->char_data.data.data,
+                    comment->char_data.data.length);
+
+            dom_text_normalize(string);
+        }
+        else {
+            pcdom_cdata_section_t *cdata_section;
+
+            cdata_section = pcdom_interface_cdata_section (node);
+            string = g_string_new_len (
+                    (const gchar *)cdata_section->text.char_data.data.data,
+                    cdata_section->text.char_data.data.length);
+
+            dom_text_normalize (string);
+        }
+
+        assert (string != NULL);
+
+        entry = g_new0 (tree_entry, 1);
         entry->level = node_to_level (node);
         entry->is_close_tag = 0;
         entry->is_self_close = 0;
         entry->node = node;
+        entry->normalized_text = g_string_free (string, FALSE);
 
         my_tree_insert_entry (ctxt, entry);
         return PCHTML_ACTION_NEXT;
@@ -1267,7 +1321,7 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
                 (node->flags & NF_UNFOLDED)) {
             node->flags |= NF_UNFOLDED;
 
-            entry = g_new (tree_entry, 1);
+            entry = g_new0 (tree_entry, 1);
             entry->level = level;
             entry->is_close_tag = 0;
             entry->is_self_close = pchtml_html_node_is_void(node);
@@ -1279,7 +1333,7 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
             if (!entry->is_self_close && node->first_child != NULL) {
                 tree_entry *close_entry;
 
-                close_entry = g_new (tree_entry, 1);
+                close_entry = g_new0 (tree_entry, 1);
                 close_entry->level = level;
                 close_entry->is_close_tag = 1;
                 close_entry->is_self_close = 0;
@@ -1293,7 +1347,7 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
             }
         }
         else {
-            entry = g_new (tree_entry, 1);
+            entry = g_new0 (tree_entry, 1);
             entry->level = level;
             entry->is_close_tag = 0;
             entry->is_self_close = pchtml_html_node_is_void(node);

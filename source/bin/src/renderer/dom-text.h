@@ -51,6 +51,9 @@
 /*** declarations of public functions */
 
 gboolean dom_text_normalize (GString *text);
+gboolean dom_text_truncate_with_ellipsis (GString *string,
+        unsigned int max_chars);
+
 gboolean dom_text_display_normalized_nowrap (const char* text,
         unsigned int flags, int y, int x, unsigned int width);
 

@@ -37,7 +37,10 @@
 /*** file scope macro definitions ********************************************/
 
 #define UNICHAR_REPLACEMENT             0xFFFD
-#define UNICHAR_REPLACEMENT_UTF8_LEN    3
+#define UTF8LEN_REPLACEMENT             3
+
+#define UNICHAR_HORIZ_ELLIPSIS          0x2026
+#define UTF8LEN_HORIZ_ELLIPSIS          3
 
 /*** file scope type declarations ********************************************/
 
@@ -166,7 +169,7 @@ dom_text_normalize (GString *string)
 
             g_string_erase (string, pos, utf8_len);
             g_string_insert_unichar (string, pos, UNICHAR_REPLACEMENT);
-            text += UNICHAR_REPLACEMENT_UTF8_LEN;
+            text += UTF8LEN_REPLACEMENT;
         }
         else {
             text += utf8_len;
@@ -196,6 +199,47 @@ dom_text_normalize (GString *string)
 
 invalid:
     g_string_assign (string, "");
+    return FALSE;
+}
+
+gboolean
+dom_text_truncate_with_ellipsis (GString *string, unsigned int max_chars)
+{
+    if (string->len <= max_chars)
+        return TRUE;
+
+    const gchar *text = string->str;
+    gunichar c;
+    gchar utf8buf[UTF8_CHAR_LEN + 1];
+    gint utf8_len;
+    unsigned int nr_chars = 0;
+
+    while (*text) {
+        c = g_utf8_get_char_validated (text, -1);
+
+        if (c < 0) {
+            goto invalid;
+        }
+
+        utf8_len = g_unichar_to_utf8 (c, utf8buf);
+        if (!g_unichar_ismark (c)) {
+            nr_chars++;
+        }
+
+        text += utf8_len;
+
+        if (nr_chars == max_chars) {
+            gssize pos = text - string->str;
+
+            g_string_truncate (string, pos);
+            g_string_append_unichar (string, UNICHAR_HORIZ_ELLIPSIS);
+            break;
+        }
+    }
+
+    return TRUE;
+
+invalid:
     return FALSE;
 }
 

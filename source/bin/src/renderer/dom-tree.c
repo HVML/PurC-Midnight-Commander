@@ -170,6 +170,27 @@ get_entry_color (const tree_entry *entry)
 }
 
 static void
+append_intrinsic_attrs(GString *string, pcdom_element_t *element)
+{
+    const gchar *attr_value;
+    size_t attr_value_len;
+
+    attr_value = (const gchar *)pcdom_element_id (element, &attr_value_len);
+    if (attr_value) {
+        g_string_append (string, " id=\"");
+        g_string_append_len (string, attr_value, attr_value_len);
+        g_string_append (string, "\"");
+    }
+
+    attr_value = (const gchar *)pcdom_element_class (element, &attr_value_len);
+    if (attr_value) {
+        g_string_append (string, " class=\"");
+        g_string_append_len (string, attr_value, attr_value_len);
+        g_string_append (string, "\"");
+    }
+}
+
+static void
 show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
 {
     GString *buff = NULL;
@@ -213,6 +234,7 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
                 buff = g_string_new ("<");
                 g_string_append_len (buff, (const gchar *)name, len);
                 if (has_attr) {
+                    append_intrinsic_attrs(buff, element);
                     g_string_append (buff, " … ");
                 }
                 g_string_append (buff, "/>");
@@ -221,6 +243,7 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
                 buff = g_string_new ("<");
                 g_string_append_len (buff, (const gchar *)name, len);
                 if (has_attr) {
+                    append_intrinsic_attrs(buff, element);
                     g_string_append (buff, " … ");
                 }
                 g_string_append (buff, ">");
@@ -229,6 +252,7 @@ show_entry(const tree_entry *entry, int width, align_crt_t just_mode)
                 buff = g_string_new ("<");
                 g_string_append_len (buff, (const gchar *)name, len);
                 if (has_attr) {
+                    append_intrinsic_attrs(buff, element);
                     g_string_append (buff, " … ");
                 }
                 g_string_append (buff, ">");

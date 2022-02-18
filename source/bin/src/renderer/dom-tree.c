@@ -501,8 +501,8 @@ tree_set_selected(WDOMTree * tree, tree_entry *new_selected, bool adjust_topmost
             int lines = tlines (tree);
             int off = 1;
             for (p = list_entry(new_selected->list.prev, tree_entry, list);
-                &p->list != &tree->entries;
-                p = list_entry(p->list.prev, tree_entry, list)) {
+                    &p->list != &tree->entries;
+                    p = list_entry(p->list.prev, tree_entry, list)) {
                 off++;
                 if (off >= lines) {
                     new_topmost = p;
@@ -511,6 +511,15 @@ tree_set_selected(WDOMTree * tree, tree_entry *new_selected, bool adjust_topmost
             }
             if (new_topmost)
                 tree->topmost = new_topmost;
+
+            /* check if the new selected is ahead of the current topmost */
+            for (p = new_selected;
+                    &p->list != &tree->entries;
+                    p = list_entry(p->list.next, tree_entry, list)) {
+                if (p == tree->topmost) {
+                    tree->topmost = new_selected;
+                }
+            }
         }
 
         /* update other widgets */

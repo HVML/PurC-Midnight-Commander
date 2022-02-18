@@ -70,8 +70,11 @@ domcnt_draw_frame (WDOMContent * domcnt)
     widget_erase (w);
     tty_draw_box (w->y, w->x, w->lines, w->cols, FALSE);
 
+    if (widget_get_state (w, WST_FOCUSED))
+        tty_setcolor (SELECTED_COLOR);
     widget_gotoyx (w, 0, (w->cols - width - 2) / 2);
     tty_printf (" %s ", domcnt->title);
+    tty_setcolor (NORMAL_COLOR);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -124,6 +127,7 @@ dom_content_new (int y, int x, int lines, int cols,
     domcnt = g_new0 (struct WDOMContent, 1);
     w = WIDGET (domcnt);
     widget_init (w, y, x, lines, cols, domcnt_callback, NULL);
+    w->options |= WOP_SELECTABLE;
 
     domcnt->title = title;
     domcnt->show_eof = show_eof;

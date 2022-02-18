@@ -144,7 +144,6 @@ domview_viewer (pcdom_document_t *dom_doc)
             dialog_colors, domview_dialog_callback, NULL, "[DOM Tree Viewer]",
             _("DOM Tree Viewer"));
     vw = WIDGET (view_dlg);
-    widget_want_tab (vw, TRUE);
 
     g = GROUP (view_dlg);
 

@@ -1077,20 +1077,23 @@ static void
 tree_frame (WDialog * h, WDOMTree * tree)
 {
     Widget *w = WIDGET (tree);
-
     (void) h;
 
     tty_setcolor (NORMAL_COLOR);
     widget_erase (w);
+
     if (tree->is_panel)
     {
-        const char *title = _("DOM tree");
+        const char *title = _("DOM Tree");
         const int len = str_term_width1 (title);
 
         tty_draw_box (w->y, w->x, w->lines, w->cols, FALSE);
 
+        if (widget_get_state (w, WST_FOCUSED))
+            tty_setcolor (SELECTED_COLOR);
         widget_gotoyx (w, 0, (w->cols - len - 2) / 2);
         tty_printf (" %s ", title);
+        tty_setcolor (NORMAL_COLOR);
 
         if (panels_options.show_mini_info)
         {

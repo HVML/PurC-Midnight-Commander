@@ -93,8 +93,11 @@ domattrs_caption (WEleAttrs * attrs)
     widget_erase (w);
     tty_draw_box (w->y, w->x, w->lines, w->cols, FALSE);
 
+    if (widget_get_state (w, WST_FOCUSED))
+        tty_setcolor (SELECTED_COLOR);
     widget_gotoyx (w, 0, (w->cols - width - 2) / 2);
     tty_printf (" %s ", label);
+    tty_setcolor (NORMAL_COLOR);
 
     widget_gotoyx (w, 2, 0);
     tty_print_alt_char (ACS_LTEE, FALSE);
@@ -539,6 +542,7 @@ dom_ele_attrs_new (int y, int x, int lines, int cols)
     w = WIDGET (attrs);
     widget_init (w, y, x, lines, cols, domattrs_callback,
             domattrs_mouse_callback);
+    w->options |= WOP_SELECTABLE;
 
     return attrs;
 }

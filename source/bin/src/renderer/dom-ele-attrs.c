@@ -523,8 +523,7 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg,
     WDialog *h = DIALOG (w->owner);
     WButtonBar *b;
 
-    switch (msg)
-    {
+    switch (msg) {
     case MSG_INIT:
         add_hook (&select_element_hook, domattrs_hook, attrs);
         attrs->node = NULL;
@@ -541,13 +540,13 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg,
     case MSG_FOCUS:
         b = find_buttonbar (h);
         buttonbar_set_label (b, 1, Q_ ("ButtonBar|Help"), w->keymap, w);
-        buttonbar_set_label (b, 2, Q_ ("ButtonBar|New"), w->keymap, w);
-        buttonbar_set_label (b, 3, Q_ ("ButtonBar|Change"), w->keymap, w);
-        buttonbar_set_label (b, 4, Q_ ("ButtonBar|Remove"), w->keymap, w);
+        buttonbar_clear_label (b, 2, w);
+        buttonbar_clear_label (b, 3, w);
+        buttonbar_clear_label (b, 4, w);
         buttonbar_clear_label (b, 5, w);
-        buttonbar_clear_label (b, 6, w);
-        buttonbar_clear_label (b, 7, w);
-        buttonbar_clear_label (b, 8, w);
+        buttonbar_set_label (b, 6, Q_ ("ButtonBar|Change"), w->keymap, w);
+        buttonbar_set_label (b, 7, Q_ ("ButtonBar|New"), w->keymap, w);
+        buttonbar_set_label (b, 8, Q_ ("ButtonBar|Delete"), w->keymap, w);
         buttonbar_clear_label (b, 9, w);
         buttonbar_clear_label (b, 10, w);
         return MSG_HANDLED;

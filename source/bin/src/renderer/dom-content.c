@@ -45,6 +45,9 @@
 #include "lib/timefmt.h"        /* file_date() */
 #include "lib/util.h"
 #include "lib/widget.h"
+#include "lib/event.h"
+
+#include "src/keymap.h"
 
 #include "dom-content.h"
 
@@ -88,12 +91,101 @@ domcnt_show_content (WDOMContent * domcnt)
 }
 
 static cb_ret_t
+domcnt_execute_cmd (WDOMContent * domcnt, long command)
+{
+    cb_ret_t res = MSG_HANDLED;
+
+    switch (command) {
+    case CK_Help:
+        {
+            ev_help_t event_data = { NULL, "[DOM Element Attributes]" };
+            mc_event_raise (MCEVENT_GROUP_CORE, "help", &event_data);
+        }
+        break;
+
+    case CK_Home:
+        domcnt_text_moveto_bol (domcnt);
+        break;
+    case CK_End:
+        domcnt_text_moveto_eol (domcnt);
+        break;
+    case CK_Left:
+        // domcnt_text_move_left (domcnt, 1);
+        break;
+    case CK_Right:
+        // domcnt_text_move_right (domcnt, 1);
+        break;
+    case CK_Up:
+        domcnt_text_move_up (domcnt, 1);
+        break;
+    case CK_Down:
+        domcnt_text_move_down (domcnt, 1);
+        break;
+    case CK_HalfPageUp:
+        domcnt_text_move_up (domcnt, (domcnt->data_area.height + 1) / 2);
+        break;
+    case CK_HalfPageDown:
+        domcnt_text_move_down (domcnt, (domcnt->data_area.height + 1) / 2);
+        break;
+    case CK_PageUp:
+        domcnt_text_move_up (domcnt, domcnt->data_area.height);
+        break;
+    case CK_PageDown:
+        domcnt_text_move_down (domcnt, domcnt->data_area.height);
+        break;
+    case CK_Top:
+        domcnt_text_moveto_top (domcnt);
+        break;
+    case CK_Bottom:
+        domcnt_text_moveto_bottom (domcnt);
+        break;
+
+    case CK_Search:
+        // domcnt_start_search (domcnt);
+        break;
+
+    case CK_Quit:
+        dlg_run_done (DIALOG (WIDGET (domcnt)->owner));
+        return res;
+
+    default:
+        res = MSG_NOT_HANDLED;
+    }
+
+    domcnt_show_content (domcnt);
+    return res;
+}
+
+static cb_ret_t
+domcnt_key (WDOMContent * domcnt, int key)
+{
+    long command;
+
+    if (is_abort_char (key)) {
+        /* modal tree dialog: let upper layer see the
+           abort character and close the dialog */
+        return MSG_NOT_HANDLED;
+    }
+
+    command = widget_lookup_key (WIDGET (domcnt), key);
+    switch (command) {
+    case CK_IgnoreKey:
+        break;
+    default:
+        return domcnt_execute_cmd (domcnt, command);
+    }
+
+    return MSG_NOT_HANDLED;
+}
+
+static cb_ret_t
 domcnt_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *data)
 {
     WDOMContent *domcnt = (WDOMContent *) w;
+    WDialog *h = DIALOG (w->owner);
+    WButtonBar *b;
 
-    switch (msg)
-    {
+    switch (msg) {
     case MSG_INIT:
         domcnt->data_area.top = 1;
         domcnt->data_area.left = 2;
@@ -103,7 +195,35 @@ domcnt_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *
 
     case MSG_DRAW:
         domcnt_show_content (domcnt);
+        if (widget_get_state (w, WST_FOCUSED)) {
+            b = find_buttonbar (h);
+            widget_draw (WIDGET (b));
+        }
         return MSG_HANDLED;
+
+    case MSG_FOCUS:
+        b = find_buttonbar (h);
+        buttonbar_set_label (b, 1, Q_ ("ButtonBar|Help"), w->keymap, w);
+        buttonbar_set_label (b, 2, Q_ ("ButtonBar|Edit"), w->keymap, w);
+        buttonbar_clear_label (b, 3, w);
+        buttonbar_clear_label (b, 4, w);
+        buttonbar_clear_label (b, 5, w);
+        buttonbar_set_label (b, 6, Q_ ("ButtonBar|Save"), w->keymap, w);
+        buttonbar_clear_label (b, 7, w);
+        buttonbar_clear_label (b, 8, w);
+        buttonbar_clear_label (b, 9, w);
+        buttonbar_clear_label (b, 10, w);
+        return MSG_HANDLED;
+
+    case MSG_UNFOCUS:
+        return MSG_HANDLED;
+
+    case MSG_KEY:
+        return domcnt_key (domcnt, parm);
+
+    case MSG_ACTION:
+        /* command from buttonbar */
+        return domcnt_execute_cmd (domcnt, parm);
 
     case MSG_DESTROY:
         if (domcnt->text)
@@ -112,6 +232,55 @@ domcnt_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *
 
     default:
         return widget_default_callback (w, sender, msg, parm, data);
+    }
+}
+
+/*** Mouse callback */
+static void
+domcnt_mouse_callback (Widget * w, mouse_msg_t msg, mouse_event_t * event)
+{
+    WDOMContent *domcnt = (WDOMContent *) w;
+    int y;
+
+    y = event->y;
+    y--;
+
+    switch (msg) {
+    case MSG_MOUSE_DOWN:
+        /* rest of the upper frame - call menu */
+        if (event->y == WIDGET (w->owner)->y) {
+            /* return MOU_UNHANDLED */
+            event->result.abort = TRUE;
+        }
+        break;
+
+    case MSG_MOUSE_CLICK:
+        {
+            int lines;
+
+            lines = domcnt->data_area.height;
+
+            if (y < 0) {
+                domcnt_text_move_up (domcnt, lines - 1);
+                domcnt_show_content (domcnt);
+            }
+            else if (y >= lines) {
+                domcnt_text_move_down (domcnt, lines - 1);
+                domcnt_show_content (domcnt);
+            }
+            else if ((event->count & GPM_DOUBLE) != 0) {
+                // TODO
+            }
+        }
+        break;
+
+    case MSG_MOUSE_SCROLL_UP:
+    case MSG_MOUSE_SCROLL_DOWN:
+        /* TODO: Ticket #2218 */
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -126,8 +295,9 @@ dom_content_new (int y, int x, int lines, int cols,
 
     domcnt = g_new0 (struct WDOMContent, 1);
     w = WIDGET (domcnt);
-    widget_init (w, y, x, lines, cols, domcnt_callback, NULL);
+    widget_init (w, y, x, lines, cols, domcnt_callback, domcnt_mouse_callback);
     w->options |= WOP_SELECTABLE;
+    w->keymap = viewer_map;
 
     domcnt->title = title;
     domcnt->show_eof = show_eof;

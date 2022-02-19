@@ -1146,13 +1146,13 @@ tree_callback (Widget * w, Widget * sender, widget_msg_t msg,
     case MSG_FOCUS:
         b = find_buttonbar (h);
         buttonbar_set_label (b, 1, Q_ ("ButtonBar|Help"), w->keymap, w);
-        buttonbar_set_label (b, 2, Q_ ("ButtonBar|Rescan"), w->keymap, w);
-        buttonbar_set_label (b, 3, Q_ ("ButtonBar|Forget"), w->keymap, w);
-        buttonbar_set_label (b, 4, Q_ ("ButtonBar|Static"), w->keymap, w);
+        buttonbar_set_label (b, 2, Q_ ("ButtonBar|Reread"), w->keymap, w);
+        buttonbar_set_label (b, 3, Q_ ("ButtonBar|Fold"), w->keymap, w);
+        buttonbar_set_label (b, 4, Q_ ("ButtonBar|Unfold"), w->keymap, w);
         buttonbar_set_label (b, 5, Q_ ("ButtonBar|Copy"), w->keymap, w);
-        buttonbar_set_label (b, 6, Q_ ("ButtonBar|RenMov"), w->keymap, w);
-        buttonbar_clear_label (b, 7, w);
-        buttonbar_clear_label (b, 8, w);
+        buttonbar_set_label (b, 6, Q_ ("ButtonBar|Move"), w->keymap, w);
+        buttonbar_set_label (b, 7, Q_ ("ButtonBar|New"), w->keymap, w);
+        buttonbar_set_label (b, 8, Q_ ("ButtonBar|Delete"), w->keymap, w);
         buttonbar_clear_label (b, 9, w);
         buttonbar_clear_label (b, 10, w);
         return MSG_HANDLED;

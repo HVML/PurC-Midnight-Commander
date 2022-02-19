@@ -100,6 +100,8 @@ void domcnt_text_move_down (WDOMContent * view, off_t lines);
 void domcnt_text_move_up (WDOMContent * view, off_t lines);
 void domcnt_text_moveto_bol (WDOMContent * view);
 void domcnt_text_moveto_eol (WDOMContent * view);
+void domcnt_text_moveto_top (WDOMContent * view);
+void domcnt_text_moveto_bottom (WDOMContent * view);
 void domcnt_formatter_state_init (domcnt_formatter_state_t * state, off_t offset);
 
 /*** inline functions */

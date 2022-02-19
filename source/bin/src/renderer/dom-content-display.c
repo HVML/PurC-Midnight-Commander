@@ -1100,6 +1100,27 @@ domcnt_text_moveto_eol (WDOMContent * view)
     }
 }
 
+void
+domcnt_text_moveto_top (WDOMContent * view)
+{
+    view->dpy_start = 0;
+    view->dpy_paragraph_skip_lines = 0;
+    domcnt_formatter_state_init (&view->dpy_state_top, 0);
+    view->dpy_text_column = 0;
+}
+
+/* --------------------------------------------------------------------------------------------- */
+
+void
+domcnt_text_moveto_bottom (WDOMContent * view)
+{
+    const off_t datalines = view->data_area.height;
+
+    view->dpy_start = view->text_len;
+    view->dpy_paragraph_skip_lines = 0;
+    view->dpy_wrap_dirty = TRUE;
+    domcnt_text_move_up (view, datalines);
+}
 /* --------------------------------------------------------------------------------------------- */
 
 void

@@ -326,9 +326,7 @@ static const global_keymap_ini_t default_tree_keymap[] = {
     {"ToggleNavigation", "f4"},
     {"Copy", "f5"},
     {"Move", "f6"},
-#if 0
     {"MakeDir", "f7"},
-#endif
     {"Delete", "f8; delete"},
     {"Up", "up; ctrl-p"},
     {"Down", "down; ctrl-n"},

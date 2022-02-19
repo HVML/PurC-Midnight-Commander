@@ -439,7 +439,7 @@ set_entry_content(const tree_entry *entry, WDOMContent *dom_cnt)
 
         case PCDOM_NODE_TYPE_ELEMENT:
         {
-            if (entry->is_self_close) {
+            if (entry->is_self_close || entry->node->first_child == NULL) {
                 buff = g_string_new (_("(NO CONTENT)"));
             }
             else {
@@ -876,8 +876,11 @@ tree_unfold_selected (WDOMTree *tree)
 
             ctxt.last = close_entry;
             pcdom_node_simple_walk (tree->selected->node, my_subtree_walker, &ctxt);
+
+            return true;
         }
     }
+
     return false;
 }
 
@@ -949,12 +952,14 @@ tree_move_right (WDOMTree * tree)
 {
     bool v = FALSE;
 
-    if (tree->selected->is_self_close ||
-           tree->selected->node->flags & NF_UNFOLDED ) {
-        v = tree_move_forward (tree, 1);
+    if (tree->selected->node->type == PCDOM_NODE_TYPE_ELEMENT &&
+           !tree->selected->is_self_close &&
+           tree->selected->node->first_child != NULL &&
+           !(tree->selected->node->flags & NF_UNFOLDED)) {
+        v = tree_unfold_selected (tree);
     }
     else {
-        v = tree_unfold_selected (tree);
+        v = tree_move_forward (tree, 1);
     }
 
     if (v)
@@ -1036,12 +1041,6 @@ tree_key (WDOMTree * tree, int key)
 {
     long command;
 
-    if (is_abort_char (key)) {
-        /* modal tree dialog: let upper layer see the
-           abort character and close the dialog */
-        return MSG_NOT_HANDLED;
-    }
-
     if (tree->searching && ((key >= ' ' && key <= 255) ||
                 key == KEY_BACKSPACE)) {
         // VW: tree_do_search (tree, key);
@@ -1050,24 +1049,19 @@ tree_key (WDOMTree * tree, int key)
     }
 
     command = widget_lookup_key (WIDGET (tree), key);
-    switch (command)
-    {
+    switch (command) {
     case CK_IgnoreKey:
         break;
     case CK_Left:
-        return tree_move_left (tree) ? MSG_HANDLED : MSG_NOT_HANDLED;
+        tree_move_left (tree);
+        return MSG_HANDLED;
+
     case CK_Right:
-        return tree_move_right (tree) ? MSG_HANDLED : MSG_NOT_HANDLED;
+        tree_move_right (tree);
+        return MSG_HANDLED;
+
     default:
         return tree_execute_cmd (tree, command);
-    }
-
-    /* Do not eat characters not meant for the tree below ' ' (e.g. C-l). */
-    if (!command_prompt && ((key >= ' ' && key <= 255) ||
-                key == KEY_BACKSPACE)) {
-        // tree_start_search (tree);
-        // tree_do_search (tree, key);
-        return MSG_HANDLED;
     }
 
     return MSG_NOT_HANDLED;

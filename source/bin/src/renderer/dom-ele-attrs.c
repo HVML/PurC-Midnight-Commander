@@ -64,7 +64,7 @@
 #define CONST_STR_PUBLIC    "public"
 #define CONST_STR_SYSTEM    "system"
 
-#define tlines(t) (WIDGET (t)->lines - 4)
+#define tlines(t) (WIDGET (t)->lines - 5)
 
 /*** file scope type declarations ********************************************/
 
@@ -72,6 +72,8 @@ struct WEleAttrs
 {
     Widget widget;
     pcdom_node_t *node;
+
+    int     nr_attrs;
     int     topmost;
     int     selected;
 };
@@ -126,7 +128,7 @@ domattrs_show_doctype_ids (WEleAttrs * attrs)
     GString *buff = g_string_new ("");
     pcdom_document_type_t *doctype;
 
-    assert (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_DOC_TYPE);
+    assert (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_DOCUMENT_TYPE);
 
     tty_setcolor (NORMAL_COLOR);
 
@@ -214,6 +216,12 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
                 FIELD_WIDTH_NAME - 2, J_RIGHT_FIT));
         g_string_set_size (buff, 0);
 
+        if (selected) {
+            /* pad the gap */
+            widget_gotoyx (w, y, FIELD_WIDTH_NAME - 1);
+            tty_print_string ("  ");
+        }
+
         str = (const gchar *)pcdom_attr_value (attr, &sz);
         buff = g_string_overwrite_len (buff, 0, str, sz);
         widget_gotoyx (w, y, FIELD_WIDTH_NAME + 1);
@@ -222,7 +230,7 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
         g_string_set_size (buff, 0);
 
         y++;
-        if (y >= w->lines)
+        if (y >= w->lines - 1)
             break;
 
 inc:
@@ -256,13 +264,29 @@ domattrs_hook (void *data, void *info)
     if (attrs->node != info) {
         attrs->node = info;
 
+        attrs->nr_attrs = 0;
         attrs->topmost = 0;
         attrs->selected = -1;
 
-        if (attrs->node && attrs->node->type == PCDOM_NODE_TYPE_ELEMENT) {
-            if (pcdom_element_first_attribute (
-                        pcdom_interface_element (attrs->node)) != NULL) {
-                attrs->selected = 0;
+        if (attrs->node) {
+            if (attrs->node->type == PCDOM_NODE_TYPE_DOCUMENT_TYPE) {
+                attrs->nr_attrs = 2;
+            }
+            else if (attrs->node->type == PCDOM_NODE_TYPE_ELEMENT) {
+                pcdom_element_t *element;
+                pcdom_attr_t *attr;
+
+                element = pcdom_interface_element (attrs->node);
+
+                attr = pcdom_element_first_attribute (element);
+                while (attr) {
+                    attrs->nr_attrs++;
+                    attr = pcdom_element_next_attribute (attr);
+                }
+
+                if (attrs->nr_attrs > 0) {
+                    attrs->selected = 0;
+                }
             }
         }
     }
@@ -271,26 +295,92 @@ domattrs_hook (void *data, void *info)
 }
 
 static bool
-domattrs_move_backward (WEleAttrs * attrs, int i)
+domattrs_move_backward (WEleAttrs * attrs, int n)
 {
-    return (i > 0);
+    int new_selected;
+
+    if (attrs->nr_attrs < 2)
+        return false;
+
+    if (n > attrs->selected) {
+        new_selected = 0;
+    }
+    else {
+        new_selected = attrs->selected - n;
+    }
+
+    if (new_selected != attrs->selected)
+        attrs->selected = new_selected;
+    else
+        return false;
+
+    if (attrs->selected < attrs->topmost)
+        attrs->topmost = attrs->selected;
+
+    return true;
 }
 
 static bool
-domattrs_move_forward (WEleAttrs * attrs, int i)
+domattrs_move_forward (WEleAttrs * attrs, int n)
 {
-    return (i > 0);
+    int new_selected;
+
+    if (attrs->nr_attrs < 2)
+        return false;
+
+    if ((n + attrs->selected) >= attrs->nr_attrs) {
+        new_selected = attrs->nr_attrs - 1;
+    }
+    else {
+        new_selected = attrs->selected + n;
+    }
+
+    if (new_selected != attrs->selected)
+        attrs->selected = new_selected;
+    else
+        return false;
+
+    if (attrs->selected - attrs->topmost > tlines(attrs)) {
+        attrs->topmost = attrs->selected - tlines(attrs);
+    }
+
+    return true;
 }
 
 static bool
 domattrs_move_to_top (WEleAttrs * attrs)
 {
+    if (attrs->nr_attrs < 2)
+        return false;
+
+    if (attrs->selected != 0 || attrs->topmost != 0) {
+        attrs->selected = 0;
+        attrs->topmost = 0;
+        return true;
+    }
+
     return false;
 }
 
 static bool
 domattrs_move_to_bottom (WEleAttrs * attrs)
 {
+    int new_selected;
+
+    if (attrs->nr_attrs < 2)
+        return false;
+
+    new_selected = attrs->nr_attrs - 1;
+    if (attrs->selected != new_selected) {
+        attrs->selected = new_selected;
+
+        if (new_selected >= tlines(attrs)) {
+            attrs->topmost = new_selected - tlines(attrs);
+        }
+
+        return true;
+    }
+
     return false;
 }
 
@@ -451,7 +541,7 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg,
     case MSG_FOCUS:
         b = find_buttonbar (h);
         buttonbar_set_label (b, 1, Q_ ("ButtonBar|Help"), w->keymap, w);
-        buttonbar_set_label (b, 2, Q_ ("ButtonBar|Add"), w->keymap, w);
+        buttonbar_set_label (b, 2, Q_ ("ButtonBar|New"), w->keymap, w);
         buttonbar_set_label (b, 3, Q_ ("ButtonBar|Change"), w->keymap, w);
         buttonbar_set_label (b, 4, Q_ ("ButtonBar|Remove"), w->keymap, w);
         buttonbar_clear_label (b, 5, w);
@@ -538,11 +628,12 @@ dom_ele_attrs_new (int y, int x, int lines, int cols)
     WEleAttrs *attrs;
     Widget *w;
 
-    attrs = g_new (struct WEleAttrs, 1);
+    attrs = g_new0 (struct WEleAttrs, 1);
     w = WIDGET (attrs);
     widget_init (w, y, x, lines, cols, domattrs_callback,
             domattrs_mouse_callback);
     w->options |= WOP_SELECTABLE;
+    w->keymap = tree_map;
 
     return attrs;
 }

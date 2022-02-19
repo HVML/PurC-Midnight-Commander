@@ -141,24 +141,27 @@ domview_viewer (pcdom_document_t *dom_doc)
 
     /* Create dialog and widgets, put them on the dialog */
     view_dlg = dlg_create (FALSE, 0, 0, 1, 1, WPOS_FULLSCREEN, FALSE,
-            dialog_colors, domview_dialog_callback, NULL, "[DOM Tree Viewer]",
-            _("DOM Tree Viewer"));
+            dialog_colors, domview_dialog_callback, NULL, "[DOM Viewer]",
+            _("DOM Viewer"));
     vw = WIDGET (view_dlg);
 
     g = GROUP (view_dlg);
 
     int half_cols = vw->cols / 2;
+    int cnt_lines = vw->lines / 2 - 2;
     dom_tree = dom_tree_new (vw->y, vw->x, vw->lines - 1, half_cols, TRUE);
     group_add_widget_autopos (g, dom_tree,
             WPOS_KEEP_LEFT | WPOS_KEEP_VERT, NULL);
 
     ele_attrs = dom_ele_attrs_new (vw->y, vw->x + half_cols,
-            vw->lines - 10, vw->cols - half_cols);
+            vw->lines - cnt_lines, vw->cols - half_cols);
     group_add_widget_autopos (g, ele_attrs,
             WPOS_KEEP_RIGHT | WPOS_KEEP_TOP, NULL);
 
-    dom_cnt = dom_content_new (vw->y + vw->lines - 10, vw->x + vw->cols / 2,
-            9, vw->cols - half_cols, _("Content"), NULL);
+    dom_cnt = dom_content_new (
+            vw->y + vw->lines - cnt_lines, vw->x + vw->cols / 2,
+            cnt_lines - 1, vw->cols - half_cols,
+            _("Content"), NULL);
     group_add_widget_autopos (g, dom_cnt,
             WPOS_KEEP_RIGHT | WPOS_KEEP_BOTTOM, NULL);
 

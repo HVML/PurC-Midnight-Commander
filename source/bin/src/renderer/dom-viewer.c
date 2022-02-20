@@ -31,6 +31,7 @@
 #include "lib/vfs/vfs.h"
 #include "lib/strutil.h"
 #include "lib/util.h"           /* load_file_position() */
+#include "lib/kvlist.h"
 #include "lib/widget.h"
 
 #include "../filemanager/ext.h" /* get_file_mime_type() */
@@ -44,6 +45,10 @@
 /*** file scope type declarations */
 
 /*** file scope variables */
+
+/* the map from file/runner to map */
+static struct kvlist file2dom_map = KVLIST_INIT(file2dom_map, NULL);
+static WDOMViewInfo view_info;
 
 /*** file scope functions */
 
@@ -66,15 +71,6 @@ domview_dialog_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm
     }
 
     return dlg_default_callback (w, sender, msg, parm, data);
-}
-
-static bool
-domview_load (WDOMTree *dom_tree, WEleAttrs *ele_attrs, WDOMContent *dom_cnt,
-        pcdom_document_t *doc)
-{
-    if (dom_tree_load (dom_tree, doc))
-        return true;
-    return false;
 }
 
 static pchtml_html_document_t *
@@ -126,82 +122,131 @@ fail:
     return NULL;
 }
 
-/*** public functions */
-
-bool
-domview_viewer (pcdom_document_t *dom_doc)
+static bool
+get_or_load_html_file (const vfs_path_t * vpath)
 {
-    bool succeeded;
-    WDOMTree *dom_tree;
-    WEleAttrs *ele_attrs;
-    WDOMContent *dom_cnt;
-    WDialog *view_dlg;
+    char *filename = NULL;
+    pchtml_html_document_t **data;
+    pchtml_html_document_t *html_doc = NULL;
+
+    filename = vfs_path_to_str_flags (vpath, 0, VPF_STRIP_PASSWORD);
+    if (filename == NULL)
+        goto done;
+
+    data = kvlist_get (&file2dom_map, filename);
+    if (data) {
+        html_doc = *data;
+        goto done;
+    }
+
+    html_doc = parse_html (vpath);
+    if (html_doc) {
+        view_info.file_runner = kvlist_set_ex (&file2dom_map, filename, &html_doc);
+        if (view_info.file_runner == NULL) {
+            pchtml_html_document_destroy (html_doc);
+            html_doc = NULL;
+        }
+    }
+
+done:
+    if (filename)
+        free (filename);
+
+    view_info.doc = pcdom_interface_document (html_doc);
+    return view_info.doc != NULL;
+}
+
+static void
+domview_create_dialog (WDOMViewInfo *info)
+{
     Widget *vw, *b;
     WGroup *g;
 
     /* Create dialog and widgets, put them on the dialog */
-    view_dlg = dlg_create (FALSE, 0, 0, 1, 1, WPOS_FULLSCREEN, FALSE,
+    info->dlg = dlg_create (FALSE, 0, 0, 1, 1, WPOS_FULLSCREEN, FALSE,
             dialog_colors, domview_dialog_callback, NULL, "[DOM Viewer]",
             _("DOM Viewer"));
-    vw = WIDGET (view_dlg);
+    vw = WIDGET (info->dlg);
+    g = GROUP (info->dlg);
 
-    g = GROUP (view_dlg);
+    info->caption = hline_new (vw->y, vw->x, vw->cols);
+    group_add_widget_autopos (g, info->caption,
+            WPOS_KEEP_HORZ | WPOS_KEEP_TOP, NULL);
 
+    int left_lines = vw->lines - 1;
     int half_cols = vw->cols / 2;
-    int cnt_lines = vw->lines / 2 - 2;
-    dom_tree = dom_tree_new (vw->y, vw->x, vw->lines - 1, half_cols, TRUE);
-    group_add_widget_autopos (g, dom_tree,
+    int cnt_lines = left_lines / 2 - 2;
+    info->dom_tree = dom_tree_new (vw->y, vw->x, left_lines - 1, half_cols, TRUE);
+    group_add_widget_autopos (g, info->dom_tree,
             WPOS_KEEP_LEFT | WPOS_KEEP_VERT, NULL);
 
-    ele_attrs = dom_ele_attrs_new (vw->y, vw->x + half_cols,
-            vw->lines - cnt_lines, vw->cols - half_cols);
-    group_add_widget_autopos (g, ele_attrs,
+    info->ele_attrs = dom_ele_attrs_new (vw->y, vw->x + half_cols,
+            left_lines - cnt_lines, vw->cols - half_cols);
+    group_add_widget_autopos (g, info->ele_attrs,
             WPOS_KEEP_RIGHT | WPOS_KEEP_TOP, NULL);
 
-    dom_cnt = dom_content_new (
-            vw->y + vw->lines - cnt_lines, vw->x + vw->cols / 2,
+    info->dom_cnt = dom_content_new (
+            vw->y + left_lines - cnt_lines, vw->x + vw->cols / 2,
             cnt_lines - 1, vw->cols - half_cols,
             _("Content"), NULL);
-    group_add_widget_autopos (g, dom_cnt,
+    group_add_widget_autopos (g, info->dom_cnt,
             WPOS_KEEP_RIGHT | WPOS_KEEP_BOTTOM, NULL);
 
     b = WIDGET (buttonbar_new ());
     group_add_widget_autopos (g, b, b->pos_flags, NULL);
-
-    succeeded = domview_load (dom_tree, ele_attrs, dom_cnt, dom_doc);
-
-    if (succeeded) {
-        WDOMViewInfo info = { dom_doc, dom_tree, ele_attrs, dom_cnt };
-
-        view_dlg->data = &info;
-        dlg_run (view_dlg);
-    }
-    else
-        dlg_stop (view_dlg);
-
-    if (widget_get_state (vw, WST_CLOSED))
-        widget_destroy (vw);
-
-    return succeeded;
 }
+
+static bool
+domview_show_dom (void)
+{
+    bool succeed = false;
+
+    if (view_info.dlg) {
+        hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
+        succeed = dom_tree_load (view_info.dom_tree, view_info.doc);
+    }
+    else {
+        domview_create_dialog (&view_info);
+
+        succeed = dom_tree_load (view_info.dom_tree, view_info.doc);
+        if (succeed) {
+            hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
+            view_info.dlg->data = &view_info;
+            dlg_run (view_info.dlg);
+        }
+        else {
+            dlg_stop (view_info.dlg);
+        }
+
+        Widget *vw = WIDGET (view_info.dlg);
+        if (widget_get_state (vw, WST_CLOSED)) {
+            widget_destroy (vw);
+            view_info.dlg = NULL;
+        }
+    }
+
+    return succeed;
+}
+
+/*** public functions */
 
 bool
 domview_load_html (const vfs_path_t * file_vpath)
 {
-    pchtml_html_document_t *html_doc = NULL;
+    bool succeed;
     char *mime;
 
     mime = get_file_mime_type (file_vpath);
     if (mime && strcmp (mime, "text/html") == 0) {
-        if ((html_doc = parse_html (file_vpath))) {
-            domview_viewer (pcdom_interface_document (html_doc));
-            pchtml_html_document_destroy (html_doc);
+        if (get_or_load_html_file (file_vpath)) {
+            succeed = domview_show_dom ();
+            // pchtml_html_document_destroy (html_doc);
         }
     }
 
     if (mime)
         g_free (mime);
 
-    return html_doc != NULL;
+    return succeed;
 }
 

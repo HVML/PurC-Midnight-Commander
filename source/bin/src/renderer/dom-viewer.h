@@ -10,6 +10,8 @@
 #include <purc/purc-html.h>
 
 #include "lib/global.h"
+#include "lib/widget.h"
+#include "lib/list.h"
 
 #include "dom-tree.h"
 #include "dom-ele-attrs.h"
@@ -22,20 +24,19 @@
 /*** structures declarations (and typedefs of structures) */
 
 typedef struct WDOMViewInfo {
-    pcdom_document_t *doc;
-    WDOMTree *dom_tree;
-    WEleAttrs *ele_attrs;
-    WDOMContent *dom_cnt;
-} WDOMViewInfo;
+    const char *     file_runner;   /* current file runner name */
+    pcdom_document_t *doc;          /* current DOM document */
 
-/*** global variables defined in .c file */
+    WDialog         *dlg;
+    WHLine          *caption;
+    WDOMTree        *dom_tree;
+    WEleAttrs       *ele_attrs;
+    WDOMContent     *dom_cnt;
+} WDOMViewInfo;
 
 /*** declarations of public functions */
 
-/* Shows DOM in the internal DOM viewer */
-extern bool domview_viewer (pcdom_document_t *dom_doc);
-
-/* Load HTML and show DOM in the internal DOM viewer */
+/* Load HTML from a file and show DOM in the internal DOM viewer */
 extern bool domview_load_html (const vfs_path_t * file_vpath);
 
 /*** inline functions */

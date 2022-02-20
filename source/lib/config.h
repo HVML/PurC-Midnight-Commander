@@ -255,13 +255,13 @@
 #define ENABLE_BACKGROUND   1
 #define ENABLE_SUBSHELL     1
 #define ENABLE_VFS          1
+#define HAVE_CHARSET        1
 
 #undef ENABLE_NLS
 #undef ENABLE_EXT2FS_ATTR
 
 #undef HAVE_QNX_KEYS
 #undef HAVE_TEXTMODE_X11_SUPPORT
-#undef HAVE_CHARSET
 #undef HAVE_SLANG
 #undef HAVE_LIBGPM
 

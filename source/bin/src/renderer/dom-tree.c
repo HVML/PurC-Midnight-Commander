@@ -1077,7 +1077,7 @@ tree_frame (WDialog * h, WDOMTree * tree)
 }
 
 static void
-tree_destroy (WDOMTree * tree)
+tree_unload (WDOMTree * tree)
 {
     tree_entry *p, *n;
 
@@ -1091,6 +1091,17 @@ tree_destroy (WDOMTree * tree)
     tree->selected = NULL;
     tree->topmost = NULL;
     tree->nr_entries = 0;
+
+    execute_hooks (select_element_hook, NULL);
+
+    g_string_truncate (tree->search_buffer, 0);
+    g_string_truncate (tree->xpath_buffer, 0);
+}
+
+static void
+tree_destroy (WDOMTree * tree)
+{
+    tree_unload (tree);
 
     g_string_free (tree->search_buffer, TRUE);
     g_string_free (tree->xpath_buffer, TRUE);
@@ -1346,7 +1357,8 @@ dom_tree_load (WDOMTree *tree, pcdom_document_t *doc)
         .last               = NULL,
     };
 
-    assert (tree->nr_entries == 0);
+    if (tree->nr_entries > 0)
+        tree_unload (tree);
 
     /* use the user-defined pointer of document for
        whether it is the first time to load the tree. */

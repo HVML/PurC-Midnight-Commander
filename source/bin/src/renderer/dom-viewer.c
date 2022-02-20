@@ -25,6 +25,7 @@
 
 #include <config.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "lib/global.h"
 #include "lib/tty/tty.h"
@@ -63,7 +64,7 @@ on_dom_changed (Widget * w, WDOMViewInfo *info)
 
     hline_set_textv (info->caption, " %s ", info->file_runner);
 
-    if (dom_tree_load (info->dom_tree, info->doc)) {
+    if (dom_tree_load (info->dom_tree, info->dom_doc)) {
         WButtonBar *b;
         b = find_buttonbar (h);
 
@@ -84,10 +85,71 @@ on_dom_changed (Widget * w, WDOMViewInfo *info)
     return MSG_NOT_HANDLED;
 }
 
+static inline int
+get_number_doms (void)
+{
+    int n = 0;
+    struct kvlist *kv = &file2dom_map;
+    const char *name;
+    void *data;
+
+    kvlist_for_each(kv, name, data) {
+        n++;
+    }
+
+    return n;
+}
+
+static inline unsigned char
+get_hotkey (int n)
+{
+    return (n <= 9) ? '0' + n : 'a' + n - 10;
+}
+
 static void
 on_switch_command(WDOMViewInfo * info)
 {
-    message (D_NORMAL, "DOM Viewer", "On switch command");
+    const int nr_doms = get_number_doms ();
+    int lines, cols;
+    Listbox *listbox;
+
+    struct kvlist *kv = &file2dom_map;
+    const char *name;
+    void *data;
+    int i = 0;
+
+    if (nr_doms <= 1) {
+        message (D_NORMAL, "DOM Viewer", "There is only one DOM!");
+        return;
+    }
+
+    lines = MIN ((size_t) (LINES * 2 / 3), nr_doms);
+    cols = COLS * 2 / 3;
+
+    listbox = create_listbox_window (lines, cols,
+            _("DOM Viewer"), "[DOM selector]");
+
+    kvlist_for_each(kv, name, data) {
+        listbox_add_item (listbox->list,
+                LISTBOX_APPEND_AT_END, get_hotkey (i++),
+                name, (void *)name, FALSE);
+    }
+
+    name = run_listbox_with_data (listbox, view_info.file_runner);
+
+    if (name != NULL && strcmp (name, view_info.file_runner)) {
+
+        data = kvlist_get (kv, name);
+        pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
+
+        view_info.file_runner = name;
+        view_info.dom_doc = pcdom_interface_document (html_doc);
+
+        bool succeed = dom_tree_load (view_info.dom_tree, view_info.dom_doc);
+        if (succeed) {
+            hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
+        }
+    }
 }
 
 static void
@@ -99,13 +161,81 @@ on_reload_command(WDOMViewInfo * info)
 static void
 on_close_command(WDOMViewInfo * info)
 {
-    message (D_NORMAL, "DOM Viewer", "On close command");
+    int sel;
+
+    sel = query_dialog (_("Confirmation"),
+            (view_info.file_runner[0] == '@') ?
+                _("Unload the DOM and shutdown the current renderer instance for the remote runner?") :
+                _("Unload the DOM which was originated from a file?"),
+            D_NORMAL, 2,
+            _("&No"), _("&Yes"));
+
+    if (sel == 0)
+        return;
+
+    struct kvlist *kv = &file2dom_map;
+    void *data;
+
+    data = kvlist_get (kv, view_info.file_runner);
+    if (data) {
+        pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
+        kvlist_delete (kv, view_info.file_runner);
+        pchtml_html_document_destroy (html_doc);
+
+        view_info.file_runner = NULL;
+        view_info.dom_doc = NULL;
+
+        const char *name;
+        kvlist_for_each(kv, name, data) {
+            view_info.file_runner = name;
+            view_info.dom_doc = pcdom_interface_document (html_doc);
+            break;
+        }
+    }
 }
 
 static void
 on_quit_command(WDOMViewInfo * info)
 {
-    message (D_NORMAL, "DOM Viewer", "On quit command");
+    int sel;
+
+    sel = query_dialog (_("Confirmation"),
+            _("Destroy DOMs or quit quitely?"),
+            D_NORMAL, 4,
+            _("&Quiet"), _("&Files"), _("&Runners"), _("&All"));
+
+    if (sel == 0)
+        return;
+
+    struct kvlist *kv = &file2dom_map;
+    const char* name;
+    void *next, *data;
+
+    kvlist_for_each_safe (kv, name, next, data) {
+        pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
+
+        // Files
+        if (name[0] != '@' && (sel & 1)) {
+            kvlist_delete (kv, name);
+            pchtml_html_document_destroy (html_doc);
+        }
+
+        // Runners
+        if (name[0] == '@' && (sel & 2)) {
+            kvlist_delete (kv, name);
+            pchtml_html_document_destroy (html_doc);
+        }
+    }
+
+    view_info.file_runner = NULL;
+    view_info.dom_doc = NULL;
+    kvlist_for_each(kv, name, data) {
+        pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
+
+        view_info.file_runner = name;
+        view_info.dom_doc = pcdom_interface_document (html_doc);
+        break;
+    }
 }
 
 static cb_ret_t
@@ -124,19 +254,19 @@ domview_execute_cmd (WDOMViewInfo * info, Widget * sender, long command)
         break;
 
     case CK_View:
-        on_switch_command(info);
+        on_switch_command (info);
         break;
 
     case CK_Copy:   /* F5 */
-        on_reload_command(info);
+        on_reload_command (info);
         break;
 
     case CK_Delete:
-        on_close_command(info);
+        on_close_command (info);
         break;
 
     case CK_Quit:
-        on_quit_command(info);
+        on_quit_command (info);
         dlg_stop (info->dlg);
         break;
 
@@ -294,8 +424,8 @@ done:
     if (filename)
         free (filename);
 
-    view_info.doc = pcdom_interface_document (html_doc);
-    return view_info.doc != NULL;
+    view_info.dom_doc = pcdom_interface_document (html_doc);
+    return view_info.dom_doc != NULL;
 }
 
 static void
@@ -351,7 +481,7 @@ domview_show_dom (void)
     else {
         domview_create_dialog (&view_info);
 
-        succeed = dom_tree_load (view_info.dom_tree, view_info.doc);
+        succeed = dom_tree_load (view_info.dom_tree, view_info.dom_doc);
         if (succeed) {
             hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
             view_info.dlg->data = &view_info;

@@ -25,7 +25,7 @@
 
 typedef struct WDOMViewInfo {
     const char *     file_runner;   /* current file runner name */
-    pcdom_document_t *doc;          /* current DOM document */
+    pcdom_document_t *dom_doc;          /* current DOM document */
 
     WDialog         *dlg;
     WHLine          *caption;

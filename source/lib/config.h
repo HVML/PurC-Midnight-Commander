@@ -244,6 +244,13 @@
 #undef ENABLE_VFS_FISH
 #endif
 
+#if ENABLE(CHARSET)
+#define HAVE_CHARSET        1
+#else
+#undef HAVE_CHARSET
+#endif
+
+
 #if defined(MAJOR_IN_MKDEV) && !MAJOR_IN_MKDEV
 #undef MAJOR_IN_MKDEV
 #endif
@@ -255,7 +262,6 @@
 #define ENABLE_BACKGROUND   1
 #define ENABLE_SUBSHELL     1
 #define ENABLE_VFS          1
-#define HAVE_CHARSET        1
 
 #undef ENABLE_NLS
 #undef ENABLE_EXT2FS_ATTR

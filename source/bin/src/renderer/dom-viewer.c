@@ -33,14 +33,18 @@
 #include "lib/util.h"           /* load_file_position() */
 #include "lib/kvlist.h"
 #include "lib/widget.h"
+#include "lib/event.h"          /* mc_event_raise() */
 
-#include "../filemanager/ext.h" /* get_file_mime_type() */
+#include "src/filemanager/ext.h" /* get_file_mime_type() */
+#include "src/keymap.h"
 
 #include "dom-viewer.h"
 
 /*** global variables */
 
 /*** file scope macro definitions */
+
+#define NOTIF_DOM_CHANGED       100
 
 /*** file scope type declarations */
 
@@ -52,19 +56,157 @@ static WDOMViewInfo view_info;
 
 /*** file scope functions */
 
-cb_ret_t
-domview_dialog_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *data)
+static cb_ret_t
+on_dom_changed (Widget * w, WDOMViewInfo *info)
 {
-    // WDialog *h = DIALOG (w);
+    WDialog *h = DIALOG (w);
 
-    switch (msg)
-    {
+    hline_set_textv (info->caption, " %s ", info->file_runner);
+
+    if (dom_tree_load (info->dom_tree, info->doc)) {
+        WButtonBar *b;
+        b = find_buttonbar (h);
+
+        if (info->file_runner[0] == '@') {
+            /* runner */
+            buttonbar_set_label (  b, 7,  Q_ ("ButtonBar|Disconnect"), w->keymap, w);
+        }
+        else {
+            /* file */
+            buttonbar_set_label (  b, 7,  Q_ ("ButtonBar|Close"), w->keymap, w);
+        }
+
+        widget_draw (WIDGET (b));
+
+        return MSG_HANDLED;
+    }
+
+    return MSG_NOT_HANDLED;
+}
+
+static void
+on_switch_command(WDOMViewInfo * info)
+{
+    message (D_NORMAL, "DOM Viewer", "On switch command");
+}
+
+static void
+on_reload_command(WDOMViewInfo * info)
+{
+    message (D_NORMAL, "DOM Viewer", "On reload command");
+}
+
+static void
+on_close_command(WDOMViewInfo * info)
+{
+    message (D_NORMAL, "DOM Viewer", "On close command");
+}
+
+static void
+on_quit_command(WDOMViewInfo * info)
+{
+    message (D_NORMAL, "DOM Viewer", "On quit command");
+}
+
+static cb_ret_t
+domview_execute_cmd (WDOMViewInfo * info, Widget * sender, long command)
+{
+    cb_ret_t res = MSG_HANDLED;
+
+    (void) sender;
+
+    switch (command) {
+    case CK_Help:
+        {
+            ev_help_t event_data = { NULL, "[DOM Viewer]" };
+            mc_event_raise (MCEVENT_GROUP_CORE, "help", &event_data);
+        }
+        break;
+
+    case CK_View:
+        on_switch_command(info);
+        break;
+
+    case CK_Copy:   /* F5 */
+        on_reload_command(info);
+        break;
+
+    case CK_Delete:
+        on_close_command(info);
+        break;
+
+    case CK_Quit:
+        on_quit_command(info);
+        dlg_stop (info->dlg);
+        break;
+
+    case CK_Cancel:
+        /* don't close panels due to SIGINT */
+        break;
+
+    default:
+        res = MSG_NOT_HANDLED;
+    }
+
+    return res;
+}
+
+static cb_ret_t
+domview_dialog_callback (Widget * w, Widget * sender,
+        widget_msg_t msg, int parm, void *data)
+{
+    WDialog *h = DIALOG (w);
+
+    switch (msg) {
+    case MSG_INIT:
+        {
+            WButtonBar *b = find_buttonbar (h);
+            buttonbar_set_label (  b, 1,  Q_ ("ButtonBar|Help"), w->keymap, w);
+            buttonbar_clear_label (b, 2,  w);
+            buttonbar_set_label (  b, 3,  Q_ ("ButtonBar|Switch"), w->keymap, w);
+            buttonbar_clear_label (b, 4,  w);
+            buttonbar_set_label (  b, 5,  Q_ ("ButtonBar|Reload"), w->keymap, w);
+            buttonbar_clear_label (b, 6,  w);
+            buttonbar_clear_label (b, 7,  w);
+            buttonbar_set_label (  b, 8,  Q_ ("ButtonBar|Close"), w->keymap, w);
+            buttonbar_clear_label (b, 9,  w);
+            buttonbar_set_label (  b, 10, Q_ ("ButtonBar|Quit"), w->keymap, w);
+        }
+        break;
+
+    case MSG_FOCUS:
+        {
+            WButtonBar *b;
+            b = find_buttonbar (h);
+            widget_draw (WIDGET (b));
+            break;
+        }
+
+    case MSG_NOTIFY:
+        if (parm == NOTIF_DOM_CHANGED) {
+            return on_dom_changed (w, data);
+        }
+        break;
+
+    case MSG_KEY:
+    case MSG_UNHANDLED_KEY:
+        {
+            cb_ret_t v = MSG_NOT_HANDLED;
+
+            long command = widget_lookup_key (w, parm);
+            if (command != CK_IgnoreKey)
+                v = domview_execute_cmd (&view_info, NULL, command);
+            return v;
+        }
+
     case MSG_ACTION:
         /* Handle shortcuts. */
-        break;
+        return domview_execute_cmd (&view_info, sender, parm);
 
-    case MSG_VALIDATE:
-        break;
+    case MSG_DESTROY:
+        view_info.dlg = NULL;
+        view_info.caption = NULL;
+        return MSG_HANDLED;
 
     default:
         break;
@@ -167,8 +309,9 @@ domview_create_dialog (WDOMViewInfo *info)
             dialog_colors, domview_dialog_callback, NULL, "[DOM Viewer]",
             _("DOM Viewer"));
     vw = WIDGET (info->dlg);
-    g = GROUP (info->dlg);
+    vw->keymap = filemanager_map;
 
+    g = GROUP (info->dlg);
     info->caption = hline_new (vw->y, vw->x, vw->cols);
     group_add_widget_autopos (g, info->caption,
             WPOS_KEEP_HORZ | WPOS_KEEP_TOP, NULL);
@@ -176,17 +319,17 @@ domview_create_dialog (WDOMViewInfo *info)
     int left_lines = vw->lines - 1;
     int half_cols = vw->cols / 2;
     int cnt_lines = left_lines / 2 - 2;
-    info->dom_tree = dom_tree_new (vw->y, vw->x, left_lines - 1, half_cols, TRUE);
+    info->dom_tree = dom_tree_new (vw->y + 1, vw->x, left_lines - 1, half_cols, TRUE);
     group_add_widget_autopos (g, info->dom_tree,
             WPOS_KEEP_LEFT | WPOS_KEEP_VERT, NULL);
 
-    info->ele_attrs = dom_ele_attrs_new (vw->y, vw->x + half_cols,
+    info->ele_attrs = dom_ele_attrs_new (vw->y + 1, vw->x + half_cols,
             left_lines - cnt_lines, vw->cols - half_cols);
     group_add_widget_autopos (g, info->ele_attrs,
             WPOS_KEEP_RIGHT | WPOS_KEEP_TOP, NULL);
 
     info->dom_cnt = dom_content_new (
-            vw->y + left_lines - cnt_lines, vw->x + vw->cols / 2,
+            vw->y + 1 + left_lines - cnt_lines, vw->x + vw->cols / 2,
             cnt_lines - 1, vw->cols - half_cols,
             _("Content"), NULL);
     group_add_widget_autopos (g, info->dom_cnt,
@@ -202,8 +345,8 @@ domview_show_dom (void)
     bool succeed = false;
 
     if (view_info.dlg) {
-        hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
-        succeed = dom_tree_load (view_info.dom_tree, view_info.doc);
+        succeed = send_message (view_info.dlg, NULL,
+                MSG_NOTIFY, NOTIF_DOM_CHANGED, &view_info) == MSG_HANDLED;
     }
     else {
         domview_create_dialog (&view_info);
@@ -238,6 +381,9 @@ domview_load_html (const vfs_path_t * file_vpath)
 
     mime = get_file_mime_type (file_vpath);
     if (mime && strcmp (mime, "text/html") == 0) {
+        g_free (mime);
+        mime = NULL;
+
         if (get_or_load_html_file (file_vpath)) {
             succeed = domview_show_dom ();
             // pchtml_html_document_destroy (html_doc);

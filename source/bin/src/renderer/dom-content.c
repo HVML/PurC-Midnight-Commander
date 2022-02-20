@@ -96,13 +96,6 @@ domcnt_execute_cmd (WDOMContent * domcnt, long command)
     cb_ret_t res = MSG_HANDLED;
 
     switch (command) {
-    case CK_Help:
-        {
-            ev_help_t event_data = { NULL, "[DOM Element Attributes]" };
-            mc_event_raise (MCEVENT_GROUP_CORE, "help", &event_data);
-        }
-        break;
-
     case CK_Home:
         domcnt_text_moveto_bol (domcnt);
         break;
@@ -144,10 +137,6 @@ domcnt_execute_cmd (WDOMContent * domcnt, long command)
         // domcnt_start_search (domcnt);
         break;
 
-    case CK_Quit:
-        dlg_run_done (DIALOG (WIDGET (domcnt)->owner));
-        return res;
-
     default:
         res = MSG_NOT_HANDLED;
     }
@@ -182,8 +171,6 @@ static cb_ret_t
 domcnt_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *data)
 {
     WDOMContent *domcnt = (WDOMContent *) w;
-    WDialog *h = DIALOG (w->owner);
-    WButtonBar *b;
 
     switch (msg) {
     case MSG_INIT:
@@ -195,24 +182,9 @@ domcnt_callback (Widget * w, Widget * sender, widget_msg_t msg, int parm, void *
 
     case MSG_DRAW:
         domcnt_show_content (domcnt);
-        if (widget_get_state (w, WST_FOCUSED)) {
-            b = find_buttonbar (h);
-            widget_draw (WIDGET (b));
-        }
         return MSG_HANDLED;
 
     case MSG_FOCUS:
-        b = find_buttonbar (h);
-        buttonbar_set_label (b, 1, Q_ ("ButtonBar|Help"), w->keymap, w);
-        buttonbar_set_label (b, 2, Q_ ("ButtonBar|Edit"), w->keymap, w);
-        buttonbar_clear_label (b, 3, w);
-        buttonbar_clear_label (b, 4, w);
-        buttonbar_clear_label (b, 5, w);
-        buttonbar_set_label (b, 6, Q_ ("ButtonBar|Save"), w->keymap, w);
-        buttonbar_clear_label (b, 7, w);
-        buttonbar_clear_label (b, 8, w);
-        buttonbar_clear_label (b, 9, w);
-        buttonbar_clear_label (b, 10, w);
         return MSG_HANDLED;
 
     case MSG_UNFOCUS:

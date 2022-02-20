@@ -442,13 +442,6 @@ domattrs_execute_cmd (WEleAttrs * attrs, long command)
     cb_ret_t res = MSG_HANDLED;
 
     switch (command) {
-    case CK_Help:
-        {
-            ev_help_t event_data = { NULL, "[DOM Element Attributes]" };
-            mc_event_raise (MCEVENT_GROUP_CORE, "help", &event_data);
-        }
-        break;
-
     case CK_Up:
         domattrs_move_up (attrs);
         break;
@@ -477,10 +470,6 @@ domattrs_execute_cmd (WEleAttrs * attrs, long command)
         domattrs_delete_current (attrs);
         break;
 
-    case CK_Quit:
-        dlg_run_done (DIALOG (WIDGET (attrs)->owner));
-        return res;
-
     default:
         res = MSG_NOT_HANDLED;
     }
@@ -501,13 +490,9 @@ domattrs_key (WEleAttrs * attrs, int key)
     }
 
     command = widget_lookup_key (WIDGET (attrs), key);
-    switch (command)
-    {
+    switch (command) {
     case CK_IgnoreKey:
         break;
-    case CK_Left:
-    case CK_Right:
-        return MSG_NOT_HANDLED;
     default:
         return domattrs_execute_cmd (attrs, command);
     }
@@ -520,8 +505,6 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg,
         int parm, void *data)
 {
     WEleAttrs *attrs = (WEleAttrs *) w;
-    WDialog *h = DIALOG (w->owner);
-    WButtonBar *b;
 
     switch (msg) {
     case MSG_INIT:
@@ -531,24 +514,9 @@ domattrs_callback (Widget * w, Widget * sender, widget_msg_t msg,
 
     case MSG_DRAW:
         domattrs_hook (attrs, attrs->node);
-        if (widget_get_state (w, WST_FOCUSED)) {
-            b = find_buttonbar (h);
-            widget_draw (WIDGET (b));
-        }
         return MSG_HANDLED;
 
     case MSG_FOCUS:
-        b = find_buttonbar (h);
-        buttonbar_set_label (b, 1, Q_ ("ButtonBar|Help"), w->keymap, w);
-        buttonbar_clear_label (b, 2, w);
-        buttonbar_clear_label (b, 3, w);
-        buttonbar_clear_label (b, 4, w);
-        buttonbar_clear_label (b, 5, w);
-        buttonbar_set_label (b, 6, Q_ ("ButtonBar|Change"), w->keymap, w);
-        buttonbar_set_label (b, 7, Q_ ("ButtonBar|New"), w->keymap, w);
-        buttonbar_set_label (b, 8, Q_ ("ButtonBar|Delete"), w->keymap, w);
-        buttonbar_clear_label (b, 9, w);
-        buttonbar_clear_label (b, 10, w);
         return MSG_HANDLED;
 
     case MSG_UNFOCUS:

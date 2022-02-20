@@ -976,23 +976,7 @@ tree_execute_cmd (WDOMTree * tree, long command)
     if (command != CK_Search)
         tree->searching = FALSE;
 
-    switch (command)
-    {
-    case CK_Help:
-        {
-            ev_help_t event_data = { NULL, "[DOM Tree]" };
-            mc_event_raise (MCEVENT_GROUP_CORE, "help", &event_data);
-        }
-        break;
-    case CK_Forget:
-        // tree_forget (tree);
-        break;
-    case CK_Copy:
-        // tree_copy (tree, "");
-        break;
-    case CK_Move:
-        // tree_move (tree, "");
-        break;
+    switch (command) {
     case CK_Up:
         tree_move_up (tree);
         break;
@@ -1014,25 +998,14 @@ tree_execute_cmd (WDOMTree * tree, long command)
     case CK_Enter:
         // tree_chdir_sel (tree);
         break;
-    case CK_Reread:
-        // tree_rescan (tree);
-        break;
     case CK_Search:
         // tree_start_search (tree);
         break;
-    case CK_Delete:
-        // tree_rmdir (tree);
-        break;
-    case CK_Quit:
-        dlg_run_done (DIALOG (WIDGET (tree)->owner));
-        //dlg_stop (DIALOG (WIDGET (tree)->owner));
-        return res;
     default:
         res = MSG_NOT_HANDLED;
     }
 
     show_tree (tree);
-
     return res;
 }
 
@@ -1129,32 +1102,15 @@ tree_callback (Widget * w, Widget * sender, widget_msg_t msg,
 {
     WDOMTree *tree = (WDOMTree *) w;
     WDialog *h = DIALOG (w->owner);
-    WButtonBar *b;
 
     switch (msg)
     {
     case MSG_DRAW:
         tree_frame (h, tree);
         show_tree (tree);
-        if (widget_get_state (w, WST_FOCUSED))
-        {
-            b = find_buttonbar (h);
-            widget_draw (WIDGET (b));
-        }
         return MSG_HANDLED;
 
     case MSG_FOCUS:
-        b = find_buttonbar (h);
-        buttonbar_set_label (b, 1, Q_ ("ButtonBar|Help"), w->keymap, w);
-        buttonbar_set_label (b, 2, Q_ ("ButtonBar|Reread"), w->keymap, w);
-        buttonbar_set_label (b, 3, Q_ ("ButtonBar|Fold"), w->keymap, w);
-        buttonbar_set_label (b, 4, Q_ ("ButtonBar|Unfold"), w->keymap, w);
-        buttonbar_set_label (b, 5, Q_ ("ButtonBar|Copy"), w->keymap, w);
-        buttonbar_set_label (b, 6, Q_ ("ButtonBar|Move"), w->keymap, w);
-        buttonbar_set_label (b, 7, Q_ ("ButtonBar|New"), w->keymap, w);
-        buttonbar_set_label (b, 8, Q_ ("ButtonBar|Delete"), w->keymap, w);
-        buttonbar_clear_label (b, 9, w);
-        buttonbar_clear_label (b, 10, w);
         return MSG_HANDLED;
 
     case MSG_UNFOCUS:

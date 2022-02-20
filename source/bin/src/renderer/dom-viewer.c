@@ -187,10 +187,21 @@ on_close_command(WDOMViewInfo * info)
 
         const char *name;
         kvlist_for_each(kv, name, data) {
+            html_doc = *(pchtml_html_document_t **)data;
+
             view_info.file_runner = name;
             view_info.dom_doc = pcdom_interface_document (html_doc);
+
+            bool succeed = dom_tree_load (view_info.dom_tree, view_info.dom_doc);
+            if (succeed) {
+                hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
+            }
             break;
         }
+    }
+
+    if (view_info.file_runner == NULL) {
+        dlg_stop (view_info.dlg);
     }
 }
 

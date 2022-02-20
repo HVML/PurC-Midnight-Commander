@@ -61,7 +61,7 @@ hook_t *select_element_hook;
 
 /*** file scope macro definitions */
 
-#define MAX_ENTRY_CHARS     6
+#define MAX_ENTRY_CHARS     10
 
 #define MC_DEFXPATHLEN      128
 

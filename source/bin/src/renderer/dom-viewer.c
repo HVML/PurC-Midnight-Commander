@@ -159,6 +159,12 @@ on_reload_command(WDOMViewInfo * info)
 }
 
 static void
+on_saveto_command(WDOMViewInfo * info)
+{
+    message (D_NORMAL, "DOM Viewer", "On saveto command");
+}
+
+static void
 on_close_command(WDOMViewInfo * info)
 {
     int sel;
@@ -268,8 +274,12 @@ domview_execute_cmd (WDOMViewInfo * info, Widget * sender, long command)
         on_switch_command (info);
         break;
 
-    case CK_Copy:   /* F5 */
+    case CK_Edit:   /* F4 */
         on_reload_command (info);
+        break;
+
+    case CK_Copy:   /* F5 */
+        on_saveto_command (info);
         break;
 
     case CK_Delete:
@@ -277,12 +287,9 @@ domview_execute_cmd (WDOMViewInfo * info, Widget * sender, long command)
         break;
 
     case CK_Quit:
+    case CK_Cancel:
         on_quit_command (info);
         dlg_stop (info->dlg);
-        break;
-
-    case CK_Cancel:
-        /* don't close panels due to SIGINT */
         break;
 
     default:
@@ -305,8 +312,8 @@ domview_dialog_callback (Widget * w, Widget * sender,
             buttonbar_set_label (  b, 1,  Q_ ("ButtonBar|Help"), w->keymap, w);
             buttonbar_clear_label (b, 2,  w);
             buttonbar_set_label (  b, 3,  Q_ ("ButtonBar|Switch"), w->keymap, w);
-            buttonbar_clear_label (b, 4,  w);
-            buttonbar_set_label (  b, 5,  Q_ ("ButtonBar|Reload"), w->keymap, w);
+            buttonbar_set_label (  b, 4,  Q_ ("ButtonBar|Reload"), w->keymap, w);
+            buttonbar_set_label (  b, 5,  Q_ ("ButtonBar|SaveTo"), w->keymap, w);
             buttonbar_clear_label (b, 6,  w);
             buttonbar_clear_label (b, 7,  w);
             buttonbar_set_label (  b, 8,  Q_ ("ButtonBar|Close"), w->keymap, w);
@@ -333,8 +340,12 @@ domview_dialog_callback (Widget * w, Widget * sender,
     case MSG_UNHANDLED_KEY:
         {
             cb_ret_t v = MSG_NOT_HANDLED;
+            long command;
 
-            long command = widget_lookup_key (w, parm);
+            if (parm == 0x1B)
+                command = CK_Cancel;
+            else
+                command = widget_lookup_key (w, parm);
             if (command != CK_IgnoreKey)
                 v = domview_execute_cmd (&view_info, NULL, command);
             return v;

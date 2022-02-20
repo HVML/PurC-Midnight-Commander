@@ -67,8 +67,7 @@ hook_t *select_element_hook;
 
 #define NF_UNFOLDED         0x0001
 
-#define tlines(t) (t->is_panel ? WIDGET (t)->lines - 2 - \
-        (panels_options.show_mini_info ? 2 : 0) : WIDGET (t)->lines)
+#define tlines(t) (t->is_panel ? WIDGET (t)->lines - 4 : WIDGET (t)->lines)
 
 /*** file scope type declarations */
 
@@ -104,10 +103,85 @@ struct WDOMTree {
 /*** file scope functions */
 
 static void
+prepend_ancestors(GString *string, pcdom_node_t *node)
+{
+    GString *buff = g_string_new ("");
+
+    do {
+        const gchar *name;
+        size_t len;
+        pcdom_element_t *element;
+
+        if (node->type != PCDOM_NODE_TYPE_ELEMENT)
+            break;
+
+        element = pcdom_interface_element (node);
+        name = (const gchar *)pcdom_element_local_name (element, &len);
+        buff = g_string_append_len (buff, name, len);
+
+        name = (const gchar *)pcdom_element_id (element, &len);
+        if (name) {
+            g_string_append (buff, "#");
+            g_string_append_len (buff, name, len);
+        }
+        else {
+            name = (const gchar *)pcdom_element_class (element, &len);
+            if (name) {
+                g_string_append (buff, ".");
+                g_string_append_len (buff, name, len);
+            }
+
+            for (gsize i = 0; i < buff->len; i++) {
+                if (buff->str[i] == ' ') {
+                    buff->str[i] = '.';
+                }
+            }
+        }
+        g_string_append_c (buff, ' ');
+
+        g_string_prepend_len (string, buff->str, buff->len);
+        g_string_truncate (buff, 0);
+
+        node = node->parent;
+    } while (node);
+
+    g_string_free (buff, TRUE);
+}
+
+static void
 get_xpath_to_entry (WDOMTree * tree, tree_entry *entry)
 {
-    // TODO
-    g_string_assign (tree->xpath_buffer, "<XPath>");
+    g_string_truncate (tree->xpath_buffer, 0);
+
+    if (entry && entry->node) {
+        switch (entry->node->type) {
+            case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
+                g_string_assign (tree->xpath_buffer, "<!doctype>");
+                break;
+
+            case PCDOM_NODE_TYPE_CDATA_SECTION:
+                g_string_assign (tree->xpath_buffer, "<![CDATA[]]>");
+                prepend_ancestors (tree->xpath_buffer, entry->node->parent);
+                break;
+
+            case PCDOM_NODE_TYPE_ELEMENT:
+                prepend_ancestors (tree->xpath_buffer, entry->node);
+                break;
+
+            case PCDOM_NODE_TYPE_TEXT:
+                g_string_assign (tree->xpath_buffer, "(text)");
+                prepend_ancestors (tree->xpath_buffer, entry->node->parent);
+                break;
+
+            case PCDOM_NODE_TYPE_COMMENT:
+                g_string_assign (tree->xpath_buffer, "<!-->");
+                prepend_ancestors (tree->xpath_buffer, entry->node->parent);
+                break;
+
+            default:
+                break;
+        }
+    }
 }
 
 static void
@@ -118,8 +192,6 @@ tree_show_mini_info (WDOMTree * tree, int tree_lines, int tree_cols)
 
     /* Show mini info */
     if (tree->is_panel) {
-        if (!panels_options.show_mini_info)
-            return;
         line = tree_lines + 2;
     }
     else
@@ -136,7 +208,7 @@ tree_show_mini_info (WDOMTree * tree, int tree_lines, int tree_cols)
         tty_print_char (' ');
     }
     else {
-        /* Show full XPath of selected element */
+        /* Show full XPath of selected node */
         const int *colors;
 
         colors = widget_get_colors (w);
@@ -146,7 +218,7 @@ tree_show_mini_info (WDOMTree * tree, int tree_lines, int tree_cols)
 
         get_xpath_to_entry(tree, tree->selected);
         tty_print_string (str_fit_to_term (tree->xpath_buffer->str,
-                    tree_cols, J_LEFT_FIT));
+                    tree_cols, J_RIGHT_FIT));
     }
 }
 
@@ -1062,8 +1134,7 @@ tree_frame (WDialog * h, WDOMTree * tree)
         tty_printf (" %s ", title);
         tty_setcolor (NORMAL_COLOR);
 
-        if (panels_options.show_mini_info)
-        {
+        if (1) {
             int y;
 
             y = w->lines - 3;

@@ -955,14 +955,14 @@ static int read_option_args (int argc, char **argv)
 
 int main (int argc, char **argv)
 {
-    int cnnfd = -1, ttyfd = -1, maxfd;
+    int ret, cnnfd = -1, ttyfd = -1, maxfd;
     pcrdr_conn* conn;
     fd_set rfds;
     struct timeval tv;
     char curr_time [16];
 
     purc_instance_extra_info extra_info = {
-        .renderer_uri = PCRDR_US_PATH,
+        .renderer_uri = "unix://" PCRDR_US_PATH,
         .enable_remote_fetcher = false,
     };
 
@@ -977,8 +977,13 @@ int main (int argc, char **argv)
     if (!the_client.runner_name[0])
         strcpy (the_client.runner_name, "cmdline");
 
-    purc_init_ex (PURC_MODULE_PCRDR, the_client.app_name,
+    ret = purc_init_ex (PURC_MODULE_PCRDR, the_client.app_name,
             the_client.runner_name, &extra_info);
+    if (ret != PURC_ERROR_OK) {
+        fprintf (stderr, "Failed to initialize the PurC instance: %s\n",
+                purc_get_error_message (ret));
+        return EXIT_FAILURE;
+    }
 
     if (test_basic_functions ()) {
         return EXIT_FAILURE;
@@ -993,14 +998,10 @@ int main (int argc, char **argv)
     if ((ttyfd = setup_tty ()) < 0)
         goto failed;
 
-    cnnfd = pcrdr_connect_via_unix_socket (PCRDR_US_PATH,
-            the_client.app_name, the_client.runner_name, &conn);
-
-    if (cnnfd < 0) {
-        fprintf (stderr, "Failed to connect to PurCRDR server: %s\n",
-                purc_get_error_message (cnnfd));
-        goto failed;
-    }
+    conn = purc_get_conn_to_renderer();
+    assert(conn != NULL);
+    cnnfd = pcrdr_conn_socket_fd(conn);
+    assert(cnnfd >= 0);
 
     the_client.ttyfd = ttyfd;
     the_client.curr_history_idx = -1;
@@ -1066,9 +1067,6 @@ int main (int argc, char **argv)
 failed:
     if (ttyfd >= 0)
         restore_tty (ttyfd);
-
-    if (cnnfd >= 0)
-        pcrdr_disconnect (conn);
 
     purc_cleanup ();
 

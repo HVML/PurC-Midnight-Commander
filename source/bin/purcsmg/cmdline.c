@@ -961,6 +961,11 @@ int main (int argc, char **argv)
     struct timeval tv;
     char curr_time [16];
 
+    purc_instance_extra_info extra_info = {
+        .renderer_uri = PCRDR_US_PATH,
+        .enable_remote_fetcher = false,
+    };
+
     print_copying ();
 
     if (read_option_args (argc, argv)) {
@@ -971,6 +976,9 @@ int main (int argc, char **argv)
         strcpy (the_client.app_name, "cn.fmsoft.app.purcsmg");
     if (!the_client.runner_name[0])
         strcpy (the_client.runner_name, "cmdline");
+
+    purc_init_ex (PURC_MODULE_PCRDR, the_client.app_name,
+            the_client.runner_name, &extra_info);
 
     if (test_basic_functions ()) {
         return EXIT_FAILURE;
@@ -1061,6 +1069,8 @@ failed:
 
     if (cnnfd >= 0)
         pcrdr_disconnect (conn);
+
+    purc_cleanup ();
 
     return EXIT_SUCCESS;
 }

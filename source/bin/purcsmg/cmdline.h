@@ -24,8 +24,9 @@
 #define _PCRDR_CMDLIEN_H
 
 #include <termio.h>
+#include <purc/purc-pcrdr.h>
+
 #include "lib/kvlist.h"
-#include "lib/purcrdr.h"
 
 #define NR_CMD_ARGS         4
 

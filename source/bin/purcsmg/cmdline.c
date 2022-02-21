@@ -1,5 +1,5 @@
 /*
-** cmdline.c -- The code for simple markup generator cmdline.
+** cmdline.c -- The code for simple markup generator.
 **
 ** Copyright (c) 2021 FMSoft (http://www.fmsoft.cn)
 **
@@ -849,7 +849,7 @@ static int serialize_and_parse_again(const pcrdr_msg *msg)
 
     if ((ret = pcrdr_parse_packet (buffer_a, info_a.pos, &msg_parsed))) {
         printf ("Failed pcrdr_parse_packet: %s\n",
-                pcrdr_get_err_message (ret));
+                purc_get_error_message (ret));
         return ret;
     }
 
@@ -968,9 +968,9 @@ int main (int argc, char **argv)
     }
 
     if (!the_client.app_name[0])
-        strcpy (the_client.app_name, PCRDR_APP_PURCSMG);
+        strcpy (the_client.app_name, "cn.fmsoft.app.purcsmg");
     if (!the_client.runner_name[0])
-        strcpy (the_client.runner_name, PCRDR_RUNNER_CMDLINE);
+        strcpy (the_client.runner_name, "cmdline");
 
     if (test_basic_functions ()) {
         return EXIT_FAILURE;
@@ -990,7 +990,7 @@ int main (int argc, char **argv)
 
     if (cnnfd < 0) {
         fprintf (stderr, "Failed to connect to PurCRDR server: %s\n",
-                pcrdr_get_err_message (cnnfd));
+                purc_get_error_message (cnnfd));
         goto failed;
     }
 
@@ -1025,8 +1025,8 @@ int main (int argc, char **argv)
                 int err_code = pcrdr_read_and_dispatch_packet (conn);
                 if (err_code) {
                     fprintf (stderr, "Failed to read and dispatch message: %s\n",
-                            pcrdr_get_err_message (err_code));
-                    if (err_code == PCRDR_EC_IO)
+                            purc_get_error_message (err_code));
+                    if (err_code == PCRDR_ERROR_IO)
                         break;
                 }
 

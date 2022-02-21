@@ -35,11 +35,12 @@
 #error no `epoll` either `select` found.
 #endif
 
+#include <purc/purc-pcrdr.h>
+
 #include "lib/list.h"
 #include "lib/kvlist.h"
 #include "lib/gslist.h"
 #include "lib/sorted-array.h"
-#include "lib/purcrdr.h"
 
 #define SERVER_FEATURES \
         PCRDR_PROTOCOL_NAME ":" PCRDR_PROTOCOL_VERSION_STRING "\n" \

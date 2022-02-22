@@ -175,7 +175,7 @@ set(purcsmg_LIBRARIES
 PURCMC_COMPUTE_SOURCES(purcsmg)
 PURCMC_FRAMEWORK(purcsmg)
 
-PURCMC_COPY_FILES(TEST_HTML_FILE
+PURCMC_COPY_FILES(purcmc_copy_samples
     DESTINATION ${CMAKE_BINARY_DIR}/
     FILES clock.html fmsoft-cn.html simplest.html
 )

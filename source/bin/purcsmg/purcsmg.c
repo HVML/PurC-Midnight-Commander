@@ -317,8 +317,8 @@ int main (int argc, char **argv)
         }
         else if (retval) {
             if (FD_ISSET (cnnfd, &rfds)) {
-                int err_code = pcrdr_purcmc_read_and_dispatch_packet (conn);
-                if (err_code) {
+                int err_code = pcrdr_read_and_dispatch_message (conn);
+                if (err_code < 0) {
                     fprintf (stderr, "Failed to read and dispatch message: %s\n",
                             purc_get_error_message (err_code));
                     if (err_code == PCRDR_ERROR_IO)
@@ -335,6 +335,7 @@ int main (int argc, char **argv)
             format_current_time (_new_clock, sizeof (_new_clock) - 1);
             if (strcmp (_new_clock, curr_time)) {
                 strcpy (curr_time, _new_clock);
+                pcrdr_ping_renderer (conn);
             }
         }
 

@@ -44,7 +44,7 @@
 
 #define SERVER_FEATURES \
         PCRDR_PURCMC_PROTOCOL_NAME ":" PCRDR_PURCMC_PROTOCOL_VERSION_STRING "\n" \
-        "HTML:5.3/XGML:1.0/XML:1.0\n" \
+        "HTML:5.3\n" \
         "workspace:0/tabbedWindow:0/tabbedPage:0/plainWindow:-1/windowLevel:0"
 
 /* max clients for each web socket and unix socket */

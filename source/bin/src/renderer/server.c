@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <time.h>
+#include <purc/purc.h>
 
 #include "lib/kvlist.h"
 #include "lib/hook.h"
@@ -236,6 +237,38 @@ update_endpoint_living_time (Server *srv, Endpoint* endpoint)
             avl_insert (&srv->living_avl, &endpoint->avl);
         }
     }
+}
+
+static struct sigaction old_pipe_sa;
+
+static void
+sig_handler_ignore (int sig_number)
+{
+    if (sig_number == SIGINT) {
+        the_server.running = false;
+    }
+    else if (sig_number == SIGPIPE) {
+        if (old_pipe_sa.sa_handler) {
+            old_pipe_sa.sa_handler (sig_number);
+        }
+    }
+}
+
+static int
+setup_signal_pipe (void)
+{
+    struct sigaction sa;
+
+    memset (&sa, 0, sizeof (sa));
+    sa.sa_handler = sig_handler_ignore;
+    sigemptyset (&sa.sa_mask);
+
+    if (sigaction (SIGPIPE, &sa, &old_pipe_sa) != 0) {
+        perror ("sigaction()");
+        return -1;
+    }
+
+    return 0;
 }
 
 /* max events for epoll */
@@ -634,6 +667,15 @@ intcmp(const void *sortv1, const void *sortv2)
 static int
 init_server (void)
 {
+    int ret;
+
+    ret = purc_init_ex (PURC_MODULE_PCRDR, NULL, NULL, NULL);
+    if (ret != PURC_ERROR_OK) {
+        ULOG_ERR ("Failed to initialize the PurC modules: %s\n",
+                purc_get_error_message (ret));
+        return -1;
+    }
+
 #if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
     the_server.maxfd = -1;
     the_server.fd2clients = sorted_array_create(SAFLAG_DEFAULT, 4, NULL,
@@ -804,6 +846,7 @@ purcmc_rdr_server_init (void)
         ULOG_NOTE ("Skip web socket");
     }
 
+    setup_signal_pipe ();
     prepare_server ();
     add_hook (&idle_hook, check_server_on_idle, &the_server);
 
@@ -817,6 +860,7 @@ int
 purcmc_rdr_server_term (void)
 {
     deinit_server ();
+    purc_cleanup ();
     return 0;
 }
 

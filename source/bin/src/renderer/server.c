@@ -646,7 +646,7 @@ init_server (void)
 #endif
 
     if (srvcfg.unixsocket == NULL) {
-        srvcfg.unixsocket = g_strdup(PCRDR_US_PATH);
+        srvcfg.unixsocket = g_strdup(PCRDR_PURCMC_US_PATH);
     }
 
     if (srvcfg.addr == NULL) {
@@ -654,7 +654,7 @@ init_server (void)
     }
 
     if (srvcfg.port == NULL) {
-        srvcfg.port = g_strdup(PCRDR_WS_PORT);
+        srvcfg.port = g_strdup(PCRDR_PURCMC_WS_PORT);
     }
 
     if (srvcfg.max_frm_size == 0) {

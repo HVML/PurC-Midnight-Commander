@@ -20,8 +20,8 @@
 ** along with this program.  If not, see http://www.gnu.org/licenses/.
 */
 
-#ifndef MC_RENDERER_PCRDR_H_
-#define MC_RENDERER_PCRDR_H_
+#ifndef MC_RENDERER_SERVER_H_
+#define MC_RENDERER_SERVER_H_
 
 #include <config.h>
 #include <time.h>
@@ -43,7 +43,7 @@
 #include "lib/sorted-array.h"
 
 #define SERVER_FEATURES \
-        PCRDR_PROTOCOL_NAME ":" PCRDR_PROTOCOL_VERSION_STRING "\n" \
+        PCRDR_PURCMC_PROTOCOL_NAME ":" PCRDR_PURCMC_PROTOCOL_VERSION_STRING "\n" \
         "HTML:5.3/XGML:1.0/XML:1.0\n" \
         "workspace:0/tabbedWindow:0/tabbedPage:0/plainWindow:-1/windowLevel:0"
 
@@ -180,5 +180,5 @@ typedef struct ServerConfig_
     int backlog;
 } ServerConfig;
 
-#endif /* !MC_RENDERER_PCRDR_H_*/
+#endif /* !MC_RENDERER_SERVER_H_*/
 

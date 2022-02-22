@@ -962,7 +962,8 @@ int main (int argc, char **argv)
     char curr_time [16];
 
     purc_instance_extra_info extra_info = {
-        .renderer_uri = "unix://" PCRDR_US_PATH,
+        .renderer_prot = PURC_RDRPROT_PURCMC,
+        .renderer_uri = "unix://" PCRDR_PURCMC_US_PATH,
         .enable_remote_fetcher = false,
     };
 
@@ -1031,7 +1032,7 @@ int main (int argc, char **argv)
         }
         else if (retval) {
             if (FD_ISSET (cnnfd, &rfds)) {
-                int err_code = pcrdr_read_and_dispatch_packet (conn);
+                int err_code = pcrdr_purcmc_read_and_dispatch_packet (conn);
                 if (err_code) {
                     fprintf (stderr, "Failed to read and dispatch message: %s\n",
                             purc_get_error_message (err_code));

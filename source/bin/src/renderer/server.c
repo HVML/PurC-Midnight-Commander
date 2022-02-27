@@ -1,7 +1,7 @@
 /*
 ** server.c -- the renderer server.
 **
-** Copyright (c) 2020, 2021 FMSoft (http://www.fmsoft.cn)
+** Copyright (c) 2020 ~ 2022 FMSoft (http://www.fmsoft.cn)
 **
 ** Author: Vincent Wei (https://github.com/VincentWei)
 **
@@ -61,27 +61,35 @@ on_accepted (void* sock_srv, SockClient* client)
     if (endpoint == NULL)
         return PCRDR_SC_INSUFFICIENT_STORAGE;
 
-    int ret_code;
     // send initial response
-    ret_code = send_initial_response (&the_server, endpoint);
-    if (ret_code != PCRDR_SC_OK)
-        return ret_code;
-
-    return PCRDR_SC_OK;
+    return send_initial_response (&the_server, endpoint);
 }
 
 static int
 on_packet (void* sock_srv, SockClient* client,
-            const char* body, unsigned int sz_body, int type)
+            char* body, unsigned int sz_body, int type)
 {
     assert (client->entity);
 
     (void)sock_srv;
+    (void)client;
+
     if (type == PT_TEXT) {
-        (void)client;
-        (void)body;
-        (void)sz_body;
-        // TODO: handle packet
+        int ret;
+        pcrdr_msg *msg;
+        Endpoint *endpoint = container_of (client->entity, Endpoint, entity);
+
+        ULOG_INFO ("Got a packet from @%s/%s/%s:\n%s\n",
+                endpoint->host_name, endpoint->app_name, endpoint->runner_name,
+                body);
+        if ((ret = pcrdr_parse_packet (body, sz_body, &msg))) {
+            ULOG_ERR ("Failed pcrdr_parse_packet: %s\n",
+                    purc_get_error_message (ret));
+            return PCRDR_SC_UNPROCESSABLE_PACKET;
+        }
+
+        ret = on_got_message (&the_server, endpoint, msg);
+        return ret;
     }
     else {
         /* discard all packet in binary */

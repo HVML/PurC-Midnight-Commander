@@ -108,6 +108,9 @@ typedef struct SockClient_ {
     struct UpperEntity_    *entity;
 } SockClient;
 
+struct SessionInfo_;
+typedef struct SessionInfo_ SessionInfo;
+
 /* A PurcMC Endpoint */
 typedef struct Endpoint_
 {
@@ -121,6 +124,8 @@ typedef struct Endpoint_
     char*   host_name;
     char*   app_name;
     char*   runner_name;
+
+    SessionInfo *session_info;
 
     /* AVL node for the AVL tree sorted by living time */
     struct avl_node avl;

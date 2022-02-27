@@ -26,6 +26,9 @@
 #include <time.h>
 #include <stdbool.h>
 
+#include <purc/purc-variant.h>
+#include <purc/purc-pcrdr.h>
+
 #include "server.h"
 
 Endpoint* new_endpoint (Server* srv, int type, void* client);
@@ -52,6 +55,7 @@ int check_dangling_endpoints (Server *srv);
 int send_packet_to_endpoint (Server* srv,
         Endpoint* endpoint, const char* body, int len_body);
 int send_initial_response (Server* srv, Endpoint* endpoint);
+int on_got_message(Server* srv, Endpoint* endpoint, const pcrdr_msg *msg);
 
 static inline int
 assemble_endpoint_name (Endpoint *endpoint, char *buff)

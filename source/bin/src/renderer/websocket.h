@@ -252,7 +252,7 @@ typedef struct WSServer_
   /* Callbacks */
   int (*on_accepted) (void *server, struct SockClient_* client);
   int (*on_packet) (void *server, struct SockClient_ * client,
-          const char* body, unsigned int sz_body, int type);
+          char* body, unsigned int sz_body, int type);
   int (*on_pending) (void *server, struct SockClient_* client);
   int (*on_close) (void *server, struct SockClient_ * client);
   void (*on_error) (void *server, struct SockClient_* client, int err_code);

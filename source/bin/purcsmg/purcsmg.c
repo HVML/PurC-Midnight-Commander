@@ -320,9 +320,8 @@ int main (int argc, char **argv)
                 int err_code = pcrdr_read_and_dispatch_message (conn);
                 if (err_code < 0) {
                     fprintf (stderr, "Failed to read and dispatch message: %s\n",
-                            purc_get_error_message (err_code));
-                    if (err_code == PCRDR_ERROR_IO)
-                        break;
+                            purc_get_error_message(purc_get_last_error()));
+                    break;
                 }
 
                 if (ttyfd >= 0) cmdline_print_prompt (conn, true);

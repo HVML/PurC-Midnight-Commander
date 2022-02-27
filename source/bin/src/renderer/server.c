@@ -669,7 +669,7 @@ init_server (void)
 {
     int ret;
 
-    ret = purc_init_ex (PURC_MODULE_PCRDR, NULL, NULL, NULL);
+    ret = purc_init_ex (PURC_MODULE_EJSON, NULL, NULL, NULL);
     if (ret != PURC_ERROR_OK) {
         ULOG_ERR ("Failed to initialize the PurC modules: %s\n",
                 purc_get_error_message (ret));

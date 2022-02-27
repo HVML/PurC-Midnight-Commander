@@ -32,11 +32,11 @@
 #include "unixsocket.h"
 #include "websocket.h"
 
-struct PlainWindow {
+typedef struct PlainWindow {
     purc_variant_t      name;
     purc_variant_t      title;
     pcdom_document_t    *dom;
-};
+} PlainWindow;
 
 struct SessionInfo_ {
     struct kvlist       wins;
@@ -428,8 +428,10 @@ static int on_start_session(Server* srv, Endpoint* endpoint,
         if (info == NULL) {
             retv = PCRDR_SC_INSUFFICIENT_STORAGE;
         }
-        else
+        else {
             kvlist_init(&info->wins, NULL);
+            endpoint->session_info = info;
+        }
     }
 
     response.type = PCRDR_MSG_TYPE_RESPONSE;
@@ -444,15 +446,112 @@ static int on_start_session(Server* srv, Endpoint* endpoint,
 static int on_end_session(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    return PCRDR_SC_OK;
+    pcrdr_msg response;
+    const char *name;
+    void *next, *data;
+    // PlainWindow *win;
+
+    kvlist_for_each_safe(&endpoint->session_info->wins, name, next, data) {
+        // win = *(PlainWindow **)data;
+
+        // TODO: delete window and DOM:
+        // del_endpoint (&the_server, endpoint, CDE_EXITING);
+        kvlist_delete (&endpoint->session_info->wins, name);
+    }
+    kvlist_free(&endpoint->session_info->wins);
+    free(endpoint->session_info);
+    endpoint->session_info = NULL;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_OK;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_create_plain_window(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_OK;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_update_plain_window(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_OK;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_destroy_plain_window(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_OK;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_load(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_OK;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_update(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_OK;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
 }
 
 static struct request_handler {
     const char *operation;
     request_handler handler;
 } handlers[] = {
+    { PCRDR_OPERATION_CREATEPLAINWINDOW, on_create_plain_window },
+    { PCRDR_OPERATION_DESTROYPLAINWINDOW, on_destroy_plain_window },
     { PCRDR_OPERATION_ENDSESSION, on_end_session },
+    { PCRDR_OPERATION_LOAD, on_load },
     { PCRDR_OPERATION_STARTSESSION, on_start_session },
+    { PCRDR_OPERATION_UPDATE, on_update },
+    { PCRDR_OPERATION_UPDATEPLAINWINDOW, on_update_plain_window },
 };
 
 static request_handler find_request_handler(const char* operation)

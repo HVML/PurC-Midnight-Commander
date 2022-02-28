@@ -33,7 +33,7 @@
 #include "websocket.h"
 
 typedef struct PlainWindow {
-    purc_variant_t      name;
+    purc_variant_t      id;
     purc_variant_t      title;
     pcdom_document_t    *dom;
 } PlainWindow;
@@ -456,7 +456,7 @@ static int on_end_session(Server* srv, Endpoint* endpoint,
 
         // TODO: delete window and DOM:
         // del_endpoint (&the_server, endpoint, CDE_EXITING);
-        kvlist_delete (&endpoint->session_info->wins, name);
+        kvlist_delete(&endpoint->session_info->wins, name);
     }
     kvlist_free(&endpoint->session_info->wins);
     free(endpoint->session_info);
@@ -474,12 +474,65 @@ static int on_end_session(Server* srv, Endpoint* endpoint,
 static int on_create_plain_window(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
+    int retv = PCRDR_SC_OK;
+    PlainWindow *win;
     pcrdr_msg response;
+
+    const char* str = NULL;
+    purc_variant_t tmp;
+
+    if ((win = calloc(1, sizeof(*win))) == NULL) {
+        retv = PCRDR_SC_INSUFFICIENT_STORAGE;
+        goto failed;
+    }
+
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_EJSON ||
+            !purc_variant_is_object(msg->data)) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(msg->data,
+                    "id", false))) {
+        str = purc_variant_get_string_const(tmp);
+        if (!pcrdr_is_valid_identifier(str)) {
+            retv = PCRDR_SC_BAD_REQUEST;
+            goto failed;
+        }
+
+        if (kvlist_get(&endpoint->session_info->wins, str)) {
+            ULOG_WARN("Duplicated plain window: %s\n", str);
+            retv = PCRDR_SC_CONFLICT;
+            goto failed;
+        }
+
+        if (!kvlist_set(&endpoint->session_info->wins, str, &win)) {
+            retv = PCRDR_SC_INSUFFICIENT_STORAGE;
+            goto failed;
+        }
+
+        win->id = purc_variant_ref(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(msg->data,
+                    "title", false))) {
+        win->title = purc_variant_ref(tmp);
+    }
+
+failed:
+    if (retv != PCRDR_SC_OK && win) {
+        if (win->id)
+            purc_variant_unref(win->id);
+        if (win->title)
+            purc_variant_unref(win->title);
+        free(win);
+        win = NULL;
+    }
 
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_OK;
-    response.resultValue = 0;
+    response.retCode = retv;
+    response.resultValue = (uintptr_t)win;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -488,12 +541,64 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
 static int on_update_plain_window(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
+    int retv = PCRDR_SC_OK;
+    const char *key;
+    void *data;
+    const char *element;
+    PlainWindow *win;
     pcrdr_msg response;
 
+    element = purc_variant_get_string_const(msg->element);
+    if (element == NULL) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
+        unsigned long long int p;
+
+        p = strtoull(element, NULL, 16);
+        kvlist_for_each(&endpoint->session_info->wins, key, data) {
+            PlainWindow *tmp = *(PlainWindow **)data;
+            if ((uintptr_t)p == (uintptr_t)tmp) {
+                win = tmp;
+                break;
+            }
+        }
+    }
+    else if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_ID) {
+        void *data = kvlist_get(&endpoint->session_info->wins, element);
+
+        if (data) {
+            win = *(PlainWindow **)data;
+        }
+    }
+
+    if (win == NULL) {
+        ULOG_WARN("Specified plain window not found: %s\n", element);
+        retv = PCRDR_SC_NOT_FOUND;
+        goto failed;
+    }
+
+    const char *property;
+    property = purc_variant_get_string_const(msg->property);
+    if (property == NULL || strcmp(property, "title") ||
+            msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (win->title)
+        purc_variant_unref(win->title);
+    win->title = purc_variant_ref(msg->data);
+
+    // TODO: Update DOM viewer.
+
+failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_OK;
-    response.resultValue = 0;
+    response.retCode = retv;
+    response.resultValue = (uintptr_t)win;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -502,12 +607,59 @@ static int on_update_plain_window(Server* srv, Endpoint* endpoint,
 static int on_destroy_plain_window(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
+    int retv = PCRDR_SC_OK;
+    const char *key;
+    void *data;
+    const char *element;
+    PlainWindow *win;
     pcrdr_msg response;
 
+    element = purc_variant_get_string_const(msg->element);
+    if (element == NULL) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
+        unsigned long long int p;
+
+        p = strtoull(element, NULL, 16);
+        kvlist_for_each(&endpoint->session_info->wins, key, data) {
+            PlainWindow *tmp = *(PlainWindow **)data;
+            if ((uintptr_t)p == (uintptr_t)tmp) {
+                win = tmp;
+                break;
+            }
+        }
+    }
+    else if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_ID) {
+        void *data = kvlist_get(&endpoint->session_info->wins, element);
+
+        if (data) {
+            win = *(PlainWindow **)data;
+        }
+    }
+
+    if (win == NULL) {
+        ULOG_WARN("Specified plain window not found: %s\n", element);
+        retv = PCRDR_SC_NOT_FOUND;
+        goto failed;
+    }
+
+    // TODO: Update DOM viewer.
+
+    kvlist_delete(&endpoint->session_info->wins,
+            purc_variant_get_string_const(win->id));
+    purc_variant_unref(win->id);
+    if (win->title)
+        purc_variant_unref(win->title);
+    free(win);
+
+failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_OK;
-    response.resultValue = 0;
+    response.retCode = retv;
+    response.resultValue = (uintptr_t)win;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -520,7 +672,105 @@ static int on_load(Server* srv, Endpoint* endpoint,
 
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_OK;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_append(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_prepend(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_insert_after(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_insert_before(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_displace(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_clear(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_erase(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
     response.resultValue = 0;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
@@ -534,7 +784,7 @@ static int on_update(Server* srv, Endpoint* endpoint,
 
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_OK;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
     response.resultValue = 0;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
@@ -545,14 +795,32 @@ static struct request_handler {
     const char *operation;
     request_handler handler;
 } handlers[] = {
+    { PCRDR_OPERATION_APPEND, on_append },
+    { PCRDR_OPERATION_CLEAR, on_clear },
     { PCRDR_OPERATION_CREATEPLAINWINDOW, on_create_plain_window },
+    { PCRDR_OPERATION_CREATETABBEDWINDOW, NULL },
+    { PCRDR_OPERATION_CREATETABPAGE, NULL },
+    { PCRDR_OPERATION_CREATEWORKSPACE, NULL },
     { PCRDR_OPERATION_DESTROYPLAINWINDOW, on_destroy_plain_window },
+    { PCRDR_OPERATION_DESTROYTABBEDWINDOW, NULL },
+    { PCRDR_OPERATION_DESTROYTABPAGE, NULL },
+    { PCRDR_OPERATION_DESTROYWORKSPACE, NULL },
+    { PCRDR_OPERATION_DISPLACE, on_displace },
     { PCRDR_OPERATION_ENDSESSION, on_end_session },
+    { PCRDR_OPERATION_ERASE, on_erase },
+    { PCRDR_OPERATION_INSERTAFTER, on_insert_after },
+    { PCRDR_OPERATION_INSERTBEFORE, on_insert_before },
     { PCRDR_OPERATION_LOAD, on_load },
+    { PCRDR_OPERATION_PREPEND, on_prepend },
     { PCRDR_OPERATION_STARTSESSION, on_start_session },
     { PCRDR_OPERATION_UPDATE, on_update },
     { PCRDR_OPERATION_UPDATEPLAINWINDOW, on_update_plain_window },
+    { PCRDR_OPERATION_UPDATETABBEDWINDOW, NULL },
+    { PCRDR_OPERATION_UPDATETABPAGE, NULL },
+    { PCRDR_OPERATION_UPDATEWORKSPACE, NULL },
 };
+
+#define NOT_FOUND_HANDLER   ((request_handler)-1)
 
 static request_handler find_request_handler(const char* operation)
 {
@@ -577,7 +845,7 @@ static request_handler find_request_handler(const char* operation)
         }
     }
 
-    return NULL;
+    return NOT_FOUND_HANDLER;
 
 found:
     return handlers[mid].handler;
@@ -589,17 +857,27 @@ int on_got_message(Server* srv, Endpoint* endpoint, const pcrdr_msg *msg)
         request_handler handler = find_request_handler(
                 purc_variant_get_string_const(msg->operation));
 
-        ULOG_INFO("Got a rquest message: %s (handler: %p)\n",
+        ULOG_INFO("Got a request message: %s (handler: %p)\n",
                 purc_variant_get_string_const(msg->operation), handler);
 
-        if (handler) {
+        if (handler == NOT_FOUND_HANDLER) {
+            pcrdr_msg response;
+            response.type = PCRDR_MSG_TYPE_RESPONSE;
+            response.requestId = msg->requestId;
+            response.retCode = PCRDR_SC_BAD_REQUEST;
+            response.resultValue = 0;
+            response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+            return send_simple_response(srv, endpoint, &response);
+        }
+        else if (handler) {
             return handler(srv, endpoint, msg);
         }
         else {
             pcrdr_msg response;
             response.type = PCRDR_MSG_TYPE_RESPONSE;
             response.requestId = msg->requestId;
-            response.retCode = PCRDR_SC_BAD_REQUEST;
+            response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
             response.resultValue = 0;
             response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 

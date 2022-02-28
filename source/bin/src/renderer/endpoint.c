@@ -679,6 +679,20 @@ static int on_load(Server* srv, Endpoint* endpoint,
     return send_simple_response(srv, endpoint, &response);
 }
 
+static int on_write(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
+    response.resultValue = 0;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
 static int on_append(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
@@ -818,7 +832,15 @@ static struct request_handler {
     { PCRDR_OPERATION_UPDATETABBEDWINDOW, NULL },
     { PCRDR_OPERATION_UPDATETABPAGE, NULL },
     { PCRDR_OPERATION_UPDATEWORKSPACE, NULL },
+    { PCRDR_OPERATION_WRITE, on_write },
 };
+
+/* Make sure the number of handlers matches the number of operations */
+#define _COMPILE_TIME_ASSERT(name, x)               \
+       typedef int _dummy_ ## name[(x) * 2 - 1]
+_COMPILE_TIME_ASSERT(hdl,
+        sizeof(handlers)/sizeof(handlers[0]) == PCRDR_NR_OPERATIONS);
+#undef _COMPILE_TIME_ASSERT
 
 #define NOT_FOUND_HANDLER   ((request_handler)-1)
 

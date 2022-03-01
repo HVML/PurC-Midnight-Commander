@@ -25,6 +25,7 @@
 #include <assert.h>
 
 #include <purc/purc-dom.h>
+#include <purc/purc-html.h>
 
 #include "lib/hiboxcompat.h"
 
@@ -35,7 +36,9 @@
 typedef struct PlainWindow {
     purc_variant_t      id;
     purc_variant_t      title;
-    pcdom_document_t    *dom;
+    pcdom_document_t    *dom_doc;
+
+    pchtml_html_parser_t *parser;
 } PlainWindow;
 
 struct SessionInfo_ {
@@ -92,18 +95,46 @@ Endpoint* new_endpoint (Server* srv, int type, void* client)
     return endpoint;
 }
 
+static void remove_window(PlainWindow *win)
+{
+    if (win->dom_doc) {
+        // TODO: Update DOM viewer.
+        pcdom_document_destroy(win->dom_doc);
+    }
+
+    if (win->parser) {
+        pchtml_html_parser_destroy(win->parser);
+    }
+
+    purc_variant_unref(win->id);
+    if (win->title)
+        purc_variant_unref(win->title);
+    free(win);
+}
+
+static void remove_session(Endpoint* endpoint)
+{
+    const char *name;
+    void *next, *data;
+    PlainWindow *win;
+
+    kvlist_for_each_safe(&endpoint->session_info->wins, name, next, data) {
+        win = *(PlainWindow **)data;
+
+        kvlist_delete(&endpoint->session_info->wins, name);
+        remove_window(win);
+    }
+    kvlist_free(&endpoint->session_info->wins);
+    free(endpoint->session_info);
+    endpoint->session_info = NULL;
+}
+
 int del_endpoint (Server* srv, Endpoint* endpoint, int cause)
 {
     char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
 
     if (assemble_endpoint_name (endpoint, endpoint_name) > 0) {
         ULOG_INFO ("Deleting an endpoint: %s (%p)\n", endpoint_name, endpoint);
-#if 0
-        if (cause == CDE_LOST_CONNECTION || cause == CDE_NO_RESPONDING) {
-            fire_system_event (srv, SBT_BROKEN_ENDPOINT, endpoint, NULL,
-                    (cause == CDE_LOST_CONNECTION) ? "lostConnection" : "noResponding");
-        }
-#endif
 
         if (endpoint->avl.key)
             avl_delete (&srv->living_avl, &endpoint->avl);
@@ -447,20 +478,8 @@ static int on_end_session(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
     pcrdr_msg response;
-    const char *name;
-    void *next, *data;
-    // PlainWindow *win;
 
-    kvlist_for_each_safe(&endpoint->session_info->wins, name, next, data) {
-        // win = *(PlainWindow **)data;
-
-        // TODO: delete window and DOM:
-        // del_endpoint (&the_server, endpoint, CDE_EXITING);
-        kvlist_delete(&endpoint->session_info->wins, name);
-    }
-    kvlist_free(&endpoint->session_info->wins);
-    free(endpoint->session_info);
-    endpoint->session_info = NULL;
+    remove_session(endpoint);
 
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
@@ -521,11 +540,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
 
 failed:
     if (retv != PCRDR_SC_OK && win) {
-        if (win->id)
-            purc_variant_unref(win->id);
-        if (win->title)
-            purc_variant_unref(win->title);
-        free(win);
+        remove_window(win);
         win = NULL;
     }
 
@@ -646,14 +661,9 @@ static int on_destroy_plain_window(Server* srv, Endpoint* endpoint,
         goto failed;
     }
 
-    // TODO: Update DOM viewer.
-
     kvlist_delete(&endpoint->session_info->wins,
             purc_variant_get_string_const(win->id));
-    purc_variant_unref(win->id);
-    if (win->title)
-        purc_variant_unref(win->title);
-    free(win);
+    remove_window(win);
 
 failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
@@ -669,25 +679,310 @@ static int on_load(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
     pcrdr_msg response;
+    int retv = PCRDR_SC_OK;
+    const char *doc_text;
+    size_t doc_len;
+    PlainWindow *win = NULL;
 
+    pchtml_html_parser_t *parser = NULL;
+    pchtml_html_document_t *html_doc = NULL;
+
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+            msg->data == PURC_VARIANT_INVALID) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    doc_text = purc_variant_get_string_const_ex(msg->data, &doc_len);
+    if (doc_text == NULL || doc_len == 0) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (msg->target == PCRDR_MSG_TARGET_PLAINWINDOW) {
+        const char *key;
+        void *data;
+
+        kvlist_for_each(&endpoint->session_info->wins, key, data) {
+            PlainWindow *tmp = *(PlainWindow **)data;
+            if (msg->targetValue == (uintptr_t)tmp) {
+                win = tmp;
+                break;
+            }
+        }
+    }
+    else {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (win == NULL) {
+        retv = PCRDR_SC_NOT_FOUND;
+        goto failed;
+    }
+
+    parser = pchtml_html_parser_create();
+    if (parser == NULL) {
+        retv = PCRDR_SC_INSUFFICIENT_STORAGE;
+        goto failed;
+    }
+    pchtml_html_parser_init(parser);
+
+    html_doc = pchtml_html_parse_with_buf(parser,
+            (const unsigned char *)doc_text, doc_len);
+    pchtml_html_parser_destroy(parser);
+
+    if (html_doc == NULL) {
+        retv = PCRDR_SC_UNPROCESSABLE_PACKET;
+        goto failed;
+    }
+
+    if (win->dom_doc) {
+        pcdom_document_destroy(win->dom_doc);
+    }
+    win->dom_doc = pcdom_interface_document(html_doc);
+    // TODO: update DOM viewer.
+
+failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
+    response.retCode = retv;
+    response.resultValue = (uintptr_t)html_doc;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
 }
 
-static int on_write(Server* srv, Endpoint* endpoint,
+static int on_write_begin(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
     pcrdr_msg response;
+    int retv = PCRDR_SC_OK;
+    const char *doc_text;
+    size_t doc_len;
+    PlainWindow *win = NULL;
+
+    pchtml_html_parser_t *parser = NULL;
+    pchtml_html_document_t *html_doc = NULL;
+
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+            msg->data == PURC_VARIANT_INVALID) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    doc_text = purc_variant_get_string_const_ex(msg->data, &doc_len);
+    if (doc_text == NULL || doc_len == 0) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (msg->target == PCRDR_MSG_TARGET_PLAINWINDOW) {
+        const char *key;
+        void *data;
+
+        kvlist_for_each(&endpoint->session_info->wins, key, data) {
+            PlainWindow *tmp = *(PlainWindow **)data;
+            if (msg->targetValue == (uintptr_t)tmp) {
+                win = tmp;
+                break;
+            }
+        }
+    }
+    else {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (win == NULL) {
+        retv = PCRDR_SC_NOT_FOUND;
+        goto failed;
+    }
+
+    if (win->parser) {
+        retv = PCRDR_SC_EXPECTATION_FAILED;
+        goto failed;
+    }
+
+    parser = pchtml_html_parser_create();
+    if (parser == NULL) {
+        retv = PCRDR_SC_INSUFFICIENT_STORAGE;
+        goto failed;
+    }
+    pchtml_html_parser_init(parser);
+    win->parser = parser;
+
+    html_doc = pchtml_html_parse_chunk_begin(parser);
+    pchtml_html_parse_chunk_process(parser,
+                (const unsigned char *)doc_text, doc_len);
+
+#if 0
+    pchtml_html_parse_chunk_end(parser);
+    pchtml_html_parser_destroy(parser);
+#endif
+
+    if (html_doc == NULL) {
+        retv = PCRDR_SC_UNPROCESSABLE_PACKET;
+        goto failed;
+    }
+
+    if (win->dom_doc) {
+        pcdom_document_destroy(win->dom_doc);
+    }
+    win->dom_doc = pcdom_interface_document(html_doc);
+
+    // TODO: update DOM viewer.
+
+failed:
+    if (retv != PCRDR_SC_OK) {
+        if (parser) {
+            pchtml_html_parser_destroy(parser);
+            win->parser = NULL;
+        }
+    }
 
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
+    response.retCode = retv;
+    response.resultValue = (uintptr_t)html_doc;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_write_more(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+    int retv = PCRDR_SC_OK;
+    const char *doc_text;
+    size_t doc_len;
+    PlainWindow *win = NULL;
+
+    pchtml_html_parser_t *parser = NULL;
+    pchtml_html_document_t *html_doc = NULL;
+
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+            msg->data == PURC_VARIANT_INVALID) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    doc_text = purc_variant_get_string_const_ex(msg->data, &doc_len);
+    if (doc_text == NULL || doc_len == 0) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (msg->target == PCRDR_MSG_TARGET_PLAINWINDOW) {
+        const char *key;
+        void *data;
+
+        kvlist_for_each(&endpoint->session_info->wins, key, data) {
+            PlainWindow *tmp = *(PlainWindow **)data;
+            if (msg->targetValue == (uintptr_t)tmp) {
+                win = tmp;
+                break;
+            }
+        }
+    }
+    else {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (win == NULL) {
+        retv = PCRDR_SC_NOT_FOUND;
+        goto failed;
+    }
+
+    if (win->parser == NULL || win->dom_doc == NULL) {
+        retv = PCRDR_SC_PRECONDITION_FAILED;
+        goto failed;
+    }
+
+    parser = win->parser;
+    pchtml_html_parse_chunk_process(parser,
+                (const unsigned char *)doc_text, doc_len);
+
+    // TODO: update DOM viewer.
+
+failed:
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = retv;
+    response.resultValue = (uintptr_t)html_doc;
+    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return send_simple_response(srv, endpoint, &response);
+}
+
+static int on_write_end(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg)
+{
+    pcrdr_msg response;
+    int retv = PCRDR_SC_OK;
+    const char *doc_text;
+    size_t doc_len;
+    PlainWindow *win = NULL;
+
+    pchtml_html_parser_t *parser = NULL;
+    pchtml_html_document_t *html_doc = NULL;
+
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+            msg->data == PURC_VARIANT_INVALID) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    doc_text = purc_variant_get_string_const_ex(msg->data, &doc_len);
+    if (doc_text == NULL || doc_len == 0) {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (msg->target == PCRDR_MSG_TARGET_PLAINWINDOW) {
+        const char *key;
+        void *data;
+
+        kvlist_for_each(&endpoint->session_info->wins, key, data) {
+            PlainWindow *tmp = *(PlainWindow **)data;
+            if (msg->targetValue == (uintptr_t)tmp) {
+                win = tmp;
+                break;
+            }
+        }
+    }
+    else {
+        retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (win == NULL) {
+        retv = PCRDR_SC_NOT_FOUND;
+        goto failed;
+    }
+
+    if (win->parser == NULL || win->dom_doc == NULL) {
+        retv = PCRDR_SC_PRECONDITION_FAILED;
+        goto failed;
+    }
+
+    parser = win->parser;
+    pchtml_html_parse_chunk_process(parser,
+                (const unsigned char *)doc_text, doc_len);
+
+    pchtml_html_parse_chunk_end(parser);
+    pchtml_html_parser_destroy(parser);
+    win->parser = NULL;
+
+    // TODO: update DOM viewer.
+
+failed:
+    response.type = PCRDR_MSG_TYPE_RESPONSE;
+    response.requestId = msg->requestId;
+    response.retCode = retv;
+    response.resultValue = (uintptr_t)html_doc;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -832,7 +1127,9 @@ static struct request_handler {
     { PCRDR_OPERATION_UPDATETABBEDWINDOW, NULL },
     { PCRDR_OPERATION_UPDATETABPAGE, NULL },
     { PCRDR_OPERATION_UPDATEWORKSPACE, NULL },
-    { PCRDR_OPERATION_WRITE, on_write },
+    { PCRDR_OPERATION_WRITEBEGIN, on_write_begin },
+    { PCRDR_OPERATION_WRITEEND, on_write_end },
+    { PCRDR_OPERATION_WRITEMORE, on_write_more },
 };
 
 /* Make sure the number of handlers matches the number of operations */

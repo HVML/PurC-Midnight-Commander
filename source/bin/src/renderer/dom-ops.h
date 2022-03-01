@@ -12,6 +12,14 @@
 /* build the map from HVML handles to elements */
 bool dom_build_hvml_handle_map(pcdom_document_t *dom_doc);
 
+bool dom_merge_hvml_handle_map(pcdom_document_t *dom_doc,
+        pcdom_node_t *subtree);
+
+bool dom_subtract_hvml_handle_map(pcdom_document_t *dom_doc,
+        pcdom_node_t *subtree);
+
+bool dom_destroy_hvml_handle_map(pcdom_document_t *dom_doc);
+
 pcdom_element_t *dom_get_element_by_handle(pcdom_document_t *dom_doc,
         uintptr_t handle);
 

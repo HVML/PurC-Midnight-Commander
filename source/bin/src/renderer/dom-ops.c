@@ -24,21 +24,174 @@
  */
 
 #include <config.h>
-#include <errno.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <assert.h>
 
+#include "lib/sorted-array.h"
+#include "lib/hiboxcompat.h"
+
 #include "dom-ops.h"
+
+#define SA_INITIAL_SIZE        128
+
+struct my_tree_walker_ctxt {
+    bool add_or_remove;
+    struct sorted_array *sa;
+};
+
+static uint64_t get_hvml_handle(pcdom_node_t *node)
+{
+    pcdom_element_t *element = (pcdom_element_t *)node;
+    pcdom_attr_t *attr = pcdom_element_first_attribute(element);
+
+    while (attr) {
+        const char *str;
+        size_t sz;
+
+        str = (const char *)pcdom_attr_local_name(attr, &sz);
+        if (strcasecmp(str, "hvml:handle") == 0) {
+            str = (const char *)pcdom_attr_value(attr, &sz);
+            return (uint64_t)strtoull(str, NULL, 16);
+        }
+
+        attr = pcdom_element_next_attribute (attr);
+    }
+
+    return 0;
+}
+
+static pchtml_action_t
+my_tree_walker(pcdom_node_t *node, void *ctx)
+{
+    struct my_tree_walker_ctxt *ctxt = ctx;
+    uint64_t handle;
+
+    switch (node->type) {
+    case PCDOM_NODE_TYPE_DOCUMENT_TYPE:
+        return PCHTML_ACTION_NEXT;
+
+    case PCDOM_NODE_TYPE_TEXT:
+    case PCDOM_NODE_TYPE_COMMENT:
+    case PCDOM_NODE_TYPE_CDATA_SECTION:
+        return PCHTML_ACTION_NEXT;
+
+    case PCDOM_NODE_TYPE_ELEMENT:
+        handle = get_hvml_handle(node);
+        if (handle) {
+            if (ctxt->add_or_remove) {
+                if (sorted_array_add(ctxt->sa, handle, node)) {
+                    ULOG_WARN("Failed to store handle/node pair\n");
+                }
+            }
+            else {
+                if (sorted_array_remove(ctxt->sa, handle)) {
+                    ULOG_WARN("Failed to remove handle/node pair\n");
+                }
+            }
+        }
+
+        if (node->first_child != NULL) {
+            return PCHTML_ACTION_OK;
+        }
+
+        /* walk to the siblings. */
+        return PCHTML_ACTION_NEXT;
+
+    default:
+        /* ignore any unknown node types */
+        break;
+    }
+
+    return PCHTML_ACTION_NEXT;
+}
 
 bool
 dom_build_hvml_handle_map(pcdom_document_t *dom_doc)
 {
-    return false;
+    struct sorted_array *sa;
+
+    assert(dom_doc->user == NULL);
+    sa = sorted_array_create(SAFLAG_DEFAULT, SA_INITIAL_SIZE, NULL, NULL);
+    if (sa == NULL) {
+        return false;
+    }
+
+    struct my_tree_walker_ctxt ctxt = {
+        .add_or_remove  = true,
+        .sa             = sa,
+    };
+
+    pcdom_node_simple_walk(&dom_doc->node, my_tree_walker, &ctxt);
+    dom_doc->user = sa;
+    return true;
+}
+
+bool
+dom_merge_hvml_handle_map(pcdom_document_t *dom_doc, pcdom_node_t *subtree)
+{
+    struct sorted_array *sa;
+    sa = dom_doc->user;
+    if (sa == NULL) {
+        return false;
+    }
+
+    struct my_tree_walker_ctxt ctxt = {
+        .add_or_remove  = true,
+        .sa             = sa,
+    };
+
+    pcdom_node_simple_walk(subtree, my_tree_walker, &ctxt);
+    return true;
+}
+
+bool
+dom_subtract_hvml_handle_map(pcdom_document_t *dom_doc, pcdom_node_t *subtree)
+{
+    struct sorted_array *sa;
+    sa = dom_doc->user;
+    if (sa == NULL) {
+        return false;
+    }
+
+    struct my_tree_walker_ctxt ctxt = {
+        .add_or_remove  = false,
+        .sa             = sa,
+    };
+
+    pcdom_node_simple_walk(subtree, my_tree_walker, &ctxt);
+    return true;
+}
+
+bool
+dom_destroy_hvml_handle_map(pcdom_document_t *dom_doc)
+{
+    struct sorted_array *sa;
+
+    sa = dom_doc->user;
+    if (sa == NULL) {
+        return false;
+    }
+
+    sorted_array_destroy(sa);
+    dom_doc->user = NULL;
+    return true;
 }
 
 pcdom_element_t *
-dom_get_element_by_handle(pcdom_document_t *dom_doc, uintptr_t handle)
+dom_get_element_by_handle(pcdom_document_t *dom_doc, uint64_t handle)
 {
+    void* data;
+    struct sorted_array *sa = dom_doc->user;
+
+    assert(sa);
+
+    if (sorted_array_find(sa, handle, &data))
+        return (pcdom_element_t *)data;
+
     return NULL;
 }
 

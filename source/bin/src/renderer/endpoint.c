@@ -32,6 +32,9 @@
 #include "endpoint.h"
 #include "unixsocket.h"
 #include "websocket.h"
+#include "dom-ops.h"
+
+#define DEF_NR_HANDLES  4
 
 typedef struct PlainWindow {
     purc_variant_t      id;
@@ -468,7 +471,7 @@ static int on_start_session(Server* srv, Endpoint* endpoint,
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uintptr_t)info;
+    response.resultValue = (uint64_t)info;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -547,7 +550,7 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uintptr_t)win;
+    response.resultValue = (uint64_t)win;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -575,7 +578,7 @@ static int on_update_plain_window(Server* srv, Endpoint* endpoint,
         p = strtoull(element, NULL, 16);
         kvlist_for_each(&endpoint->session_info->wins, key, data) {
             PlainWindow *tmp = *(PlainWindow **)data;
-            if ((uintptr_t)p == (uintptr_t)tmp) {
+            if ((uint64_t)p == (uint64_t)tmp) {
                 win = tmp;
                 break;
             }
@@ -613,7 +616,7 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uintptr_t)win;
+    response.resultValue = (uint64_t)win;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -641,7 +644,7 @@ static int on_destroy_plain_window(Server* srv, Endpoint* endpoint,
         p = strtoull(element, NULL, 16);
         kvlist_for_each(&endpoint->session_info->wins, key, data) {
             PlainWindow *tmp = *(PlainWindow **)data;
-            if ((uintptr_t)p == (uintptr_t)tmp) {
+            if ((uint64_t)p == (uint64_t)tmp) {
                 win = tmp;
                 break;
             }
@@ -669,7 +672,7 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uintptr_t)win;
+    response.resultValue = (uint64_t)win;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -705,7 +708,7 @@ static int on_load(Server* srv, Endpoint* endpoint,
 
         kvlist_for_each(&endpoint->session_info->wins, key, data) {
             PlainWindow *tmp = *(PlainWindow **)data;
-            if (msg->targetValue == (uintptr_t)tmp) {
+            if (msg->targetValue == (uint64_t)tmp) {
                 win = tmp;
                 break;
             }
@@ -747,7 +750,7 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uintptr_t)html_doc;
+    response.resultValue = (uint64_t)html_doc;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -783,7 +786,7 @@ static int on_write_begin(Server* srv, Endpoint* endpoint,
 
         kvlist_for_each(&endpoint->session_info->wins, key, data) {
             PlainWindow *tmp = *(PlainWindow **)data;
-            if (msg->targetValue == (uintptr_t)tmp) {
+            if (msg->targetValue == (uint64_t)tmp) {
                 win = tmp;
                 break;
             }
@@ -816,11 +819,6 @@ static int on_write_begin(Server* srv, Endpoint* endpoint,
     pchtml_html_parse_chunk_process(parser,
                 (const unsigned char *)doc_text, doc_len);
 
-#if 0
-    pchtml_html_parse_chunk_end(parser);
-    pchtml_html_parser_destroy(parser);
-#endif
-
     if (html_doc == NULL) {
         retv = PCRDR_SC_UNPROCESSABLE_PACKET;
         goto failed;
@@ -844,7 +842,7 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uintptr_t)html_doc;
+    response.resultValue = (uint64_t)html_doc;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -880,7 +878,7 @@ static int on_write_more(Server* srv, Endpoint* endpoint,
 
         kvlist_for_each(&endpoint->session_info->wins, key, data) {
             PlainWindow *tmp = *(PlainWindow **)data;
-            if (msg->targetValue == (uintptr_t)tmp) {
+            if (msg->targetValue == (uint64_t)tmp) {
                 win = tmp;
                 break;
             }
@@ -911,7 +909,7 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uintptr_t)html_doc;
+    response.resultValue = (uint64_t)html_doc;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -947,7 +945,7 @@ static int on_write_end(Server* srv, Endpoint* endpoint,
 
         kvlist_for_each(&endpoint->session_info->wins, key, data) {
             PlainWindow *tmp = *(PlainWindow **)data;
-            if (msg->targetValue == (uintptr_t)tmp) {
+            if (msg->targetValue == (uint64_t)tmp) {
                 win = tmp;
                 break;
             }
@@ -982,22 +980,273 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uintptr_t)html_doc;
+    response.resultValue = (uint64_t)html_doc;
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
 }
 
-static int on_append(Server* srv, Endpoint* endpoint,
-        const pcrdr_msg *msg)
+static PlainWindow *check_dom_request_msg(Endpoint *endpoint,
+        const pcrdr_msg *msg,
+        int *retv, const char **doc_text, size_t *doc_len)
+{
+    PlainWindow *win = NULL;
+
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+            msg->data == PURC_VARIANT_INVALID) {
+        *retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    *doc_text = purc_variant_get_string_const_ex(msg->data, doc_len);
+    if (*doc_text == NULL || *doc_len == 0) {
+        *retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (msg->target == PCRDR_MSG_TARGET_DOM && msg->targetValue != 0) {
+        const char *key;
+        void *data;
+
+        kvlist_for_each(&endpoint->session_info->wins, key, data) {
+            PlainWindow *tmp = *(PlainWindow **)data;
+            if (msg->targetValue == (uint64_t)tmp->dom_doc) {
+                win = tmp;
+                break;
+            }
+        }
+    }
+    else {
+        *retv = PCRDR_SC_BAD_REQUEST;
+        goto failed;
+    }
+
+    if (win == NULL) {
+        *retv = PCRDR_SC_NOT_FOUND;
+        goto failed;
+    }
+
+    /* we are in writeBegin/writeMore operations */
+    if (win->parser) {
+        win = NULL;
+        *retv = PCRDR_SC_PRECONDITION_FAILED;
+        goto failed;
+    }
+
+    *retv = PCRDR_SC_OK;
+
+failed:
+    return win;
+}
+
+static pcdom_element_t **get_dom_element_by_handle(pcdom_document_t *dom_doc,
+        const char *handle)
+{
+    uint64_t hval;
+    char *endptr;
+    pcdom_element_t *element;
+    pcdom_element_t **elements;
+
+    hval = strtoull(handle, &endptr, 16);
+    if (endptr == handle) {
+        return NULL;
+    }
+
+    element = dom_get_element_by_handle(dom_doc, hval);
+    if (elements == NULL) {
+        return NULL;
+    }
+
+    elements = malloc(sizeof(pcdom_element_t *));
+    if (elements)
+        elements[0] = element;
+
+    return elements;
+}
+
+static pcdom_element_t **get_dom_elements_by_handles(pcdom_document_t *dom_doc,
+        const char *handles, size_t *nr_elements)
+{
+    pcdom_element_t **elements;
+    size_t allocated = DEF_NR_HANDLES;
+
+    elements = malloc(sizeof(pcdom_element_t *) * DEF_NR_HANDLES);
+    *nr_elements = 0;
+    while (*handles) {
+        uint64_t hval;
+        char *endptr;
+
+        hval = (uint64_t)strtoull(handles, &endptr, 16);
+        if (endptr == handles) {
+            break;
+        }
+
+        elements[*nr_elements] = dom_get_element_by_handle(dom_doc, hval);
+        if (elements[*nr_elements] == NULL)
+            goto failed;
+
+        (*nr_elements)++;
+        if (*nr_elements > PCRDR_MAX_HANDLES) {
+            goto failed;
+        }
+
+        if (*nr_elements > allocated) {
+            allocated += DEF_NR_HANDLES;
+            elements = realloc(elements, sizeof(pcdom_element_t *) * allocated);
+            if (elements == NULL)
+                break;
+        }
+
+        handles = endptr;
+        while (*handles) {
+            if (isxdigit(*handles))
+                break;
+            handles++;
+        }
+    }
+
+    return elements;
+
+failed:
+    free(elements);
+    return NULL;
+}
+
+static int operate_dom_element(Server* srv, Endpoint* endpoint,
+        const pcrdr_msg *msg, int op, pcrdr_msg *response)
+{
+    int retv;
+    const char *doc_frag_text;
+    size_t doc_frag_len;
+    PlainWindow *win;
+    pcdom_element_t **elements = NULL;
+    size_t nr_elements;
+    pcdom_node_t *subtree = NULL;
+
+    win = check_dom_request_msg(endpoint, msg,
+            &retv, &doc_frag_text, &doc_frag_len);
+    if (win == NULL)
+        goto failed;
+
+    if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
+        nr_elements = 1;
+        elements = get_dom_element_by_handle(win->dom_doc,
+                purc_variant_get_string_const(msg->element));
+    }
+    else if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLES) {
+        elements = get_dom_elements_by_handles(win->dom_doc,
+                purc_variant_get_string_const(msg->element), &nr_elements);
+    }
+
+    if (elements == NULL) {
+        retv = PCRDR_SC_INSUFFICIENT_STORAGE;
+        goto failed;
+    }
+
+    if (op == PCRDR_K_OPERATION_ERASE) {
+        for (size_t n = 0; n < nr_elements; n++) {
+            dom_erase_element(win->dom_doc, elements[n]);
+        }
+    }
+    else if (op == PCRDR_K_OPERATION_CLEAR) {
+        for (size_t n = 0; n < nr_elements; n++) {
+            dom_clear_element(win->dom_doc, elements[n]);
+        }
+    }
+    else if (op == PCRDR_K_OPERATION_UPDATE) {
+        const char *property;
+        property = purc_variant_get_string_const(msg->property);
+        if (property == NULL) {
+            retv = PCRDR_SC_BAD_REQUEST;
+            goto failed;
+        }
+
+        for (size_t n = 0; n < nr_elements; n++) {
+            dom_update_element(win->dom_doc, elements[n], property,
+                    doc_frag_text, doc_frag_len);
+        }
+    }
+    else {
+        void (*dom_op)(pcdom_document_t *, pcdom_element_t *, pcdom_node_t *);
+
+        switch (op) {
+        case PCRDR_K_OPERATION_APPEND:
+            dom_op = dom_append_subtree_to_element;
+            break;
+
+        case PCRDR_K_OPERATION_PREPEND:
+            dom_op = dom_prepend_subtree_to_element;
+            break;
+
+        case PCRDR_K_OPERATION_INSERTBEFORE:
+            dom_op = dom_insert_subtree_before_element;
+            break;
+
+        case PCRDR_K_OPERATION_INSERTAFTER:
+            dom_op = dom_insert_subtree_after_element;
+            break;
+
+        case PCRDR_K_OPERATION_DISPLACE:
+            dom_op = dom_displace_subtree_of_element;
+            break;
+
+        default:
+            retv = PCRDR_SC_BAD_REQUEST;
+            goto failed;
+        }
+
+        subtree = dom_parse_fragment(win->dom_doc, doc_frag_text, doc_frag_len);
+        if (subtree == NULL) {
+            retv = PCRDR_SC_UNPROCESSABLE_PACKET;
+            goto failed;
+        }
+
+        for (size_t n = 1; n < nr_elements; n++) {
+            pcdom_node_t *cloned_subtree;
+            cloned_subtree = dom_clone_subtree(win->dom_doc, subtree, n);
+            if (cloned_subtree == NULL) {
+                retv = PCRDR_SC_INSUFFICIENT_STORAGE;
+                goto failed;
+            }
+
+            dom_op(win->dom_doc, elements[n], cloned_subtree);
+        }
+        dom_op(win->dom_doc, elements[0], subtree);
+        subtree = NULL;
+    }
+
+    // TODO: update DOM viewer.
+
+failed:
+    if (elements)
+        free(elements);
+    if (subtree)
+        dom_destroy_subtree(subtree);
+
+    response->type = PCRDR_MSG_TYPE_RESPONSE;
+    response->requestId = msg->requestId;
+    response->retCode = retv;
+    response->resultValue = (uint64_t)(win ? win->dom_doc : 0);
+    response->dataType = PCRDR_MSG_DATA_TYPE_VOID;
+
+    return retv;
+}
+
+static int on_append(Server* srv, Endpoint* endpoint, const pcrdr_msg *msg)
 {
     pcrdr_msg response;
 
-    response.type = PCRDR_MSG_TYPE_RESPONSE;
-    response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
-    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
+        operate_dom_element(srv, endpoint, msg,
+            PCRDR_K_OPERATION_APPEND, &response);
+    }
+    else {
+        response.type = PCRDR_MSG_TYPE_RESPONSE;
+        response.requestId = msg->requestId;
+        response.retCode = PCRDR_SC_METHOD_NOT_ALLOWED;
+        response.resultValue = 0;
+        response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    }
 
     return send_simple_response(srv, endpoint, &response);
 }
@@ -1007,11 +1256,17 @@ static int on_prepend(Server* srv, Endpoint* endpoint,
 {
     pcrdr_msg response;
 
-    response.type = PCRDR_MSG_TYPE_RESPONSE;
-    response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
-    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
+        operate_dom_element(srv, endpoint, msg,
+            PCRDR_K_OPERATION_PREPEND, &response);
+    }
+    else {
+        response.type = PCRDR_MSG_TYPE_RESPONSE;
+        response.requestId = msg->requestId;
+        response.retCode = PCRDR_SC_METHOD_NOT_ALLOWED;
+        response.resultValue = 0;
+        response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    }
 
     return send_simple_response(srv, endpoint, &response);
 }
@@ -1021,11 +1276,17 @@ static int on_insert_after(Server* srv, Endpoint* endpoint,
 {
     pcrdr_msg response;
 
-    response.type = PCRDR_MSG_TYPE_RESPONSE;
-    response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
-    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
+        operate_dom_element(srv, endpoint, msg,
+            PCRDR_K_OPERATION_INSERTAFTER, &response);
+    }
+    else {
+        response.type = PCRDR_MSG_TYPE_RESPONSE;
+        response.requestId = msg->requestId;
+        response.retCode = PCRDR_SC_METHOD_NOT_ALLOWED;
+        response.resultValue = 0;
+        response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    }
 
     return send_simple_response(srv, endpoint, &response);
 }
@@ -1035,11 +1296,17 @@ static int on_insert_before(Server* srv, Endpoint* endpoint,
 {
     pcrdr_msg response;
 
-    response.type = PCRDR_MSG_TYPE_RESPONSE;
-    response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
-    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
+        operate_dom_element(srv, endpoint, msg,
+            PCRDR_K_OPERATION_INSERTBEFORE, &response);
+    }
+    else {
+        response.type = PCRDR_MSG_TYPE_RESPONSE;
+        response.requestId = msg->requestId;
+        response.retCode = PCRDR_SC_METHOD_NOT_ALLOWED;
+        response.resultValue = 0;
+        response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    }
 
     return send_simple_response(srv, endpoint, &response);
 }
@@ -1049,11 +1316,17 @@ static int on_displace(Server* srv, Endpoint* endpoint,
 {
     pcrdr_msg response;
 
-    response.type = PCRDR_MSG_TYPE_RESPONSE;
-    response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
-    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
+        operate_dom_element(srv, endpoint, msg,
+            PCRDR_K_OPERATION_DISPLACE, &response);
+    }
+    else {
+        response.type = PCRDR_MSG_TYPE_RESPONSE;
+        response.requestId = msg->requestId;
+        response.retCode = PCRDR_SC_METHOD_NOT_ALLOWED;
+        response.resultValue = 0;
+        response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
+    }
 
     return send_simple_response(srv, endpoint, &response);
 }
@@ -1062,13 +1335,8 @@ static int on_clear(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
     pcrdr_msg response;
-
-    response.type = PCRDR_MSG_TYPE_RESPONSE;
-    response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
-    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
-
+    operate_dom_element(srv, endpoint, msg,
+            PCRDR_K_OPERATION_CLEAR, &response);
     return send_simple_response(srv, endpoint, &response);
 }
 
@@ -1076,13 +1344,8 @@ static int on_erase(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
     pcrdr_msg response;
-
-    response.type = PCRDR_MSG_TYPE_RESPONSE;
-    response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
-    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
-
+    operate_dom_element(srv, endpoint, msg,
+            PCRDR_K_OPERATION_ERASE, &response);
     return send_simple_response(srv, endpoint, &response);
 }
 
@@ -1090,13 +1353,8 @@ static int on_update(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
     pcrdr_msg response;
-
-    response.type = PCRDR_MSG_TYPE_RESPONSE;
-    response.requestId = msg->requestId;
-    response.retCode = PCRDR_SC_NOT_IMPLEMENTED;
-    response.resultValue = 0;
-    response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
-
+    operate_dom_element(srv, endpoint, msg,
+            PCRDR_K_OPERATION_UPDATE, &response);
     return send_simple_response(srv, endpoint, &response);
 }
 

@@ -22,8 +22,8 @@
 
 struct sorted_array;
 
-typedef void (*sacb_free)(void *sortv, void *data);
-typedef int  (*sacb_compare)(const void *sortv1, const void *sortv2);
+typedef void (*sacb_free)(uint64_t sortv, void *data);
+typedef int  (*sacb_compare)(uint64_t sortv1, uint64_t sortv2);
 
 #define SAFLAG_ORDER_ASC            0x0000
 #define SAFLAG_ORDER_DESC           0x0001
@@ -44,21 +44,20 @@ sorted_array_create(unsigned int flags, size_t sz_init,
 void sorted_array_destroy(struct sorted_array *sa);
 
 /* add a new member with the sort value and the data. */
-int sorted_array_add(struct sorted_array *sa, void *sortv, void *data);
+int sorted_array_add(struct sorted_array *sa, uint64_t sortv, void *data);
 
 /* remove one member which has the same sort value. */
-bool sorted_array_remove(struct sorted_array *sa, const void* sortv);
+bool sorted_array_remove(struct sorted_array *sa, uint64_t sortv);
 
 /* find the first member which has the same sort value. */
-bool sorted_array_find(struct sorted_array *sa,
-        const void *sortv, void **data);
+bool sorted_array_find(struct sorted_array *sa, uint64_t sortv, void **data);
 
 /* retrieve the number of the members of the sorted array */
 size_t sorted_array_count(struct sorted_array *sa);
 
 /* retrieve the member by the index and return the sort value;
    data can be NULL. */
-const void* sorted_array_get(struct sorted_array *sa, size_t idx, void **data);
+uint64_t sorted_array_get(struct sorted_array *sa, size_t idx, void **data);
 
 /* delete the member by the index */
 void sorted_array_delete(struct sorted_array *sa, size_t idx);

@@ -102,6 +102,8 @@ static void remove_window(PlainWindow *win)
 {
     if (win->dom_doc) {
         // TODO: Update DOM viewer.
+
+        dom_destroy_hvml_handle_map(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
     }
 
@@ -741,6 +743,7 @@ static int on_load(Server* srv, Endpoint* endpoint,
     }
 
     if (win->dom_doc) {
+        dom_destroy_hvml_handle_map(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
     }
     win->dom_doc = pcdom_interface_document(html_doc);
@@ -825,6 +828,7 @@ static int on_write_begin(Server* srv, Endpoint* endpoint,
     }
 
     if (win->dom_doc) {
+        dom_destroy_hvml_handle_map(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
     }
     win->dom_doc = pcdom_interface_document(html_doc);
@@ -1168,26 +1172,36 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
     }
     else {
         void (*dom_op)(pcdom_document_t *, pcdom_element_t *, pcdom_node_t *);
+        pcdom_element_t *parent = NULL;
 
         switch (op) {
         case PCRDR_K_OPERATION_APPEND:
             dom_op = dom_append_subtree_to_element;
+            parent = elements[0];
             break;
 
         case PCRDR_K_OPERATION_PREPEND:
             dom_op = dom_prepend_subtree_to_element;
+            parent = elements[0];
             break;
 
         case PCRDR_K_OPERATION_INSERTBEFORE:
             dom_op = dom_insert_subtree_before_element;
+            parent = pcdom_interface_element(
+                    pcdom_node_parent(
+                        pcdom_interface_node(elements[0])));
             break;
 
         case PCRDR_K_OPERATION_INSERTAFTER:
             dom_op = dom_insert_subtree_after_element;
+            parent = pcdom_interface_element(
+                    pcdom_node_parent(
+                        pcdom_interface_node(elements[0])));
             break;
 
         case PCRDR_K_OPERATION_DISPLACE:
             dom_op = dom_displace_subtree_of_element;
+            parent = elements[0];
             break;
 
         default:
@@ -1195,7 +1209,8 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
             goto failed;
         }
 
-        subtree = dom_parse_fragment(win->dom_doc, doc_frag_text, doc_frag_len);
+        subtree = dom_parse_fragment(win->dom_doc,
+                parent, doc_frag_text, doc_frag_len);
         if (subtree == NULL) {
             retv = PCRDR_SC_UNPROCESSABLE_PACKET;
             goto failed;

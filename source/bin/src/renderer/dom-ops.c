@@ -88,7 +88,7 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
                 }
             }
             else {
-                if (sorted_array_remove(ctxt->sa, handle)) {
+                if (!sorted_array_remove(ctxt->sa, handle)) {
                     ULOG_WARN("Failed to remove handle/node pair\n");
                 }
             }
@@ -197,9 +197,36 @@ dom_get_element_by_handle(pcdom_document_t *dom_doc, uint64_t handle)
 
 pcdom_node_t *
 dom_parse_fragment(pcdom_document_t *dom_doc,
-        const char *fragment, size_t length)
+        pcdom_element_t *parent, const char *fragment, size_t length)
 {
-    return NULL;
+    unsigned int status;
+    pchtml_html_document_t *html_doc;
+    pcdom_node_t *root = NULL;
+
+    html_doc = (pchtml_html_document_t *)dom_doc;
+    status = pchtml_html_document_parse_fragment_chunk_begin(html_doc, parent);
+    if (status)
+        goto failed;
+
+    status = pchtml_html_document_parse_fragment_chunk(html_doc,
+            (const unsigned char*)"<div>", 5);
+    if (status)
+        goto failed;
+
+    status = pchtml_html_document_parse_fragment_chunk(html_doc,
+            (const unsigned char*)fragment, length);
+    if (status)
+        goto failed;
+
+    status = pchtml_html_document_parse_fragment_chunk(html_doc,
+            (const unsigned char*)"</div>", 6);
+    if (status)
+        goto failed;
+
+    root = pchtml_html_document_parse_fragment_chunk_end(html_doc);
+
+failed:
+    return root;
 }
 
 pcdom_node_t *
@@ -213,53 +240,184 @@ void
 dom_append_subtree_to_element(pcdom_document_t *dom_doc,
         pcdom_element_t *element, pcdom_node_t *subtree)
 {
-    return;
+    pcdom_node_t *parent = pcdom_interface_node(element);
+
+    if (subtree && subtree->first_child) {
+        pcdom_node_t *div;
+        div = subtree->first_child;
+
+        dom_merge_hvml_handle_map(dom_doc, div);
+        while (div->first_child) {
+            pcdom_node_t *child = div->first_child;
+            pcdom_node_remove(child);
+            pcdom_node_append_child(parent, child);
+        }
+    }
+
+    if (subtree)
+        pcdom_node_destroy_deep(subtree);
 }
 
 void
 dom_prepend_subtree_to_element(pcdom_document_t *dom_doc,
         pcdom_element_t *element, pcdom_node_t *subtree)
 {
+    pcdom_node_t *parent = pcdom_interface_node(element);
+
+    if (subtree && subtree->first_child) {
+        pcdom_node_t *div;
+        div = subtree->first_child;
+
+        dom_merge_hvml_handle_map(dom_doc, div);
+        while (div->last_child) {
+            pcdom_node_t *child = div->last_child;
+            pcdom_node_remove(child);
+            pcdom_node_prepend_child(parent, child);
+        }
+    }
+
+    if (subtree)
+        pcdom_node_destroy_deep(subtree);
 }
 
 void
 dom_insert_subtree_before_element(pcdom_document_t *dom_doc,
         pcdom_element_t *element, pcdom_node_t *subtree)
 {
+    pcdom_node_t *to = pcdom_interface_node(element);
+
+    if (subtree && subtree->first_child) {
+        pcdom_node_t *div;
+        div = subtree->first_child;
+
+        dom_merge_hvml_handle_map(dom_doc, div);
+        while (div->last_child) {
+            pcdom_node_t *child = div->last_child;
+            pcdom_node_remove(child);
+            pcdom_node_insert_before(to, child);
+        }
+    }
+
+    if (subtree)
+        pcdom_node_destroy_deep(subtree);
 }
 
 void
 dom_insert_subtree_after_element(pcdom_document_t *dom_doc,
         pcdom_element_t *element, pcdom_node_t *subtree)
 {
+    pcdom_node_t *to = pcdom_interface_node(element);
+
+    if (subtree && subtree->first_child) {
+        pcdom_node_t *div;
+        div = subtree->first_child;
+
+        dom_merge_hvml_handle_map(dom_doc, div);
+        while (div->first_child) {
+            pcdom_node_t *child = div->first_child;
+            pcdom_node_remove(child);
+            pcdom_node_insert_after(to, child);
+        }
+    }
+
+    if (subtree)
+        pcdom_node_destroy_deep(subtree);
 }
 
 void
 dom_displace_subtree_of_element(pcdom_document_t *dom_doc,
         pcdom_element_t *element, pcdom_node_t *subtree)
 {
+    pcdom_node_t *parent = pcdom_interface_node(element);
+
+    dom_subtract_hvml_handle_map(dom_doc, parent);
+    while (parent->first_child != NULL) {
+        pcdom_node_destroy_deep(parent->first_child);
+    }
+
+    if (subtree && subtree->first_child) {
+        pcdom_node_t *div;
+        div = subtree->first_child;
+
+        dom_merge_hvml_handle_map(dom_doc, div);
+        while (div->first_child) {
+            pcdom_node_t *child = div->first_child;
+            pcdom_node_remove(child);
+            pcdom_node_append_child(parent, child);
+        }
+    }
+
+    if (subtree)
+        pcdom_node_destroy_deep(subtree);
 }
 
 void
 dom_destroy_subtree(pcdom_node_t *subtree)
 {
-    return;
+    pcdom_node_destroy_deep(subtree);
 }
 
 void
 dom_erase_element(pcdom_document_t *dom_doc, pcdom_element_t *element)
 {
+    pcdom_node_t *node = pcdom_interface_node(element);
+    uint64_t handle = 0;
+
+    if (dom_doc->user)
+        handle = get_hvml_handle(node);
+
+    dom_subtract_hvml_handle_map(dom_doc, node);
+    pcdom_node_destroy_deep(node);
+
+    if (handle) {
+        if (!sorted_array_remove(dom_doc->user, handle)) {
+            ULOG_WARN("Failed to store handle/node pair\n");
+        }
+    }
 }
 
 void
 dom_clear_element(pcdom_document_t *dom_doc, pcdom_element_t *element)
 {
+    pcdom_node_t *parent = pcdom_interface_node(element);
+    dom_subtract_hvml_handle_map(dom_doc, parent);
+    while (parent->first_child != NULL) {
+        pcdom_node_destroy_deep(parent->first_child);
+    }
 }
 
 bool
 dom_update_element(pcdom_document_t *dom_doc, pcdom_element_t *element,
         const char* property, const char* content, size_t sz_cnt)
 {
-    return false;
+    bool retv;
+
+    if (strcmp(property, "textContent") == 0) {
+        pcdom_node_t *parent = pcdom_interface_node(element);
+        pcdom_text_t *text_node;
+
+        text_node = pcdom_document_create_text_node(dom_doc,
+            (const unsigned char *)content, sz_cnt);
+        if (text_node) {
+            dom_subtract_hvml_handle_map(dom_doc, parent);
+            pcdom_node_replace_all(parent, pcdom_interface_node(text_node));
+        }
+
+        retv = text_node ? true : false;
+    }
+    else if (strncmp(property, "attr.", 5) == 0) {
+        property += 5;
+        pcdom_attr_t *attr;
+
+        attr = pcdom_element_set_attribute(element,
+                (const unsigned char*)property, strlen(property),
+                (const unsigned char*)content, sz_cnt);
+        retv = attr ? true : false;
+    }
+    else {
+        retv = false;
+    }
+
+    return retv;
 }
 

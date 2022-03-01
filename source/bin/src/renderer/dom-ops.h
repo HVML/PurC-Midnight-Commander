@@ -24,7 +24,7 @@ pcdom_element_t *dom_get_element_by_handle(pcdom_document_t *dom_doc,
         uintptr_t handle);
 
 pcdom_node_t *dom_parse_fragment(pcdom_document_t *dom_doc,
-        const char *fragment, size_t length);
+        pcdom_element_t *parent, const char *fragment, size_t length);
 
 pcdom_node_t *dom_clone_subtree(pcdom_document_t *dom_doc,
         pcdom_node_t *subtree, uint64_t handle_msb);

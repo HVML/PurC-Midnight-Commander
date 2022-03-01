@@ -233,6 +233,8 @@ pcdom_node_t *
 dom_clone_subtree(pcdom_document_t *dom_doc, pcdom_node_t *subtree,
         uint64_t handle_msb)
 {
+    ULOG_ERR("Unexpected call to %s\n", __func__);
+    assert(0);
     return NULL;
 }
 

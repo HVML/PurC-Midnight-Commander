@@ -53,6 +53,9 @@ void dom_clear_element(pcdom_document_t *dom_doc, pcdom_element_t *element);
 bool dom_update_element(pcdom_document_t *dom_doc, pcdom_element_t *element,
         const char* property, const char* content, size_t sz_cnt);
 
+bool dom_remove_element_attr(pcdom_document_t *dom_doc, pcdom_element_t *element,
+        const char* property);
+
 /*** inline functions */
 
 #endif /* MC_DOM_OPS_H */

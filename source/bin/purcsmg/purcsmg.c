@@ -283,6 +283,8 @@ static void init_autotest(pcrdr_conn* conn)
 
     for (int i = 0; i < NR_WINDOWS; i++) {
         info->max_changes[i] = (int) (time(NULL) % MAX_CHANGES);
+        if (info->max_changes[i] < 8)
+            info->max_changes[i] = 8;
     }
 
     if (info->doc_content == NULL)
@@ -303,15 +305,6 @@ static int my_response_handler(pcrdr_conn* conn,
     printf("Got a respoinse for request (%s) for window %d: %d\n",
             purc_variant_get_string_const(response_msg->requestId), win,
             response_msg->retCode);
-
-    // we can only allow failed request when we are running testing.
-    if (info->state[win] != STATE_DOCUMENT_TESTING &&
-            response_msg->retCode != PCRDR_SC_OK) {
-        info->state[win] = STATE_FATAL;
-
-        printf("Window %d encountered fatal error\n", win);
-        return 0;
-    }
 
     switch (info->state[win]) {
         case STATE_INITIAL:
@@ -343,6 +336,7 @@ static int my_response_handler(pcrdr_conn* conn,
         case STATE_DOCUMENT_TESTING:
             if (info->changes[win] == info->max_changes[win]) {
                 info->state[win] = STATE_DOCUMENT_RESET;
+                return 0;
             }
             break;
 
@@ -355,6 +349,14 @@ static int my_response_handler(pcrdr_conn* conn,
         case STATE_WINDOW_DESTROYED:
             // do nothing.
             break;
+    }
+
+    // we only allow failed request when we are running testing.
+    if (info->state[win] != STATE_DOCUMENT_TESTING &&
+            response_msg->retCode != PCRDR_SC_OK) {
+        info->state[win] = STATE_FATAL;
+
+        printf("Window %d encountered a fatal error\n", win);
     }
 
     return 0;
@@ -615,6 +617,191 @@ static pcrdr_msg *make_change_message_3(struct run_info *info, int win)
             PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
 }
 
+static const char *fragment =
+"<li class=""><a href=\"https://www.fmsoft.cn/products\" target=\"_self\" class=\"\">产品</a></li>"
+"<li class=""><a href=\"https://www.fmsoft.cn/blog\" target=\"_self\" class=\"\">动态</a></li>"
+"<li class=""><a href=\"https://www.fmsoft.cn/partners\" target=\"_self\" class=\"\">合作伙伴</a></li>"
+"<li class=""><a href=\"https://www.fmsoft.cn/about\" target=\"_self\" class="">关于</a></li>";
+
+static pcrdr_msg *make_change_message_4(struct run_info *info, int win)
+{
+    pcrdr_msg *msg;
+
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_HTMLCONTENT);
+
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_APPEND, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    msg->data = purc_variant_make_string_static(fragment, false);
+    if (msg->data) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    }
+    else {
+        pcrdr_release_message(msg);
+        return NULL;
+    }
+
+    return msg;
+}
+
+static pcrdr_msg *make_change_message_5(struct run_info *info, int win)
+{
+    pcrdr_msg *msg;
+
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_HTMLCONTENT);
+
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_PREPEND, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    msg->data = purc_variant_make_string_static(fragment, false);
+    if (msg->data) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    }
+    else {
+        pcrdr_release_message(msg);
+        return NULL;
+    }
+
+    return msg;
+}
+
+static pcrdr_msg *make_change_message_6(struct run_info *info, int win)
+{
+    pcrdr_msg *msg;
+
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_HTMLCONTENT);
+
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_INSERTBEFORE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    msg->data = purc_variant_make_string_static(fragment, false);
+    if (msg->data) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    }
+    else {
+        pcrdr_release_message(msg);
+        return NULL;
+    }
+
+    return msg;
+}
+
+static pcrdr_msg *make_change_message_7(struct run_info *info, int win)
+{
+    pcrdr_msg *msg;
+
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_HTMLCONTENT);
+
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_INSERTAFTER, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    msg->data = purc_variant_make_string_static(fragment, false);
+    if (msg->data) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    }
+    else {
+        pcrdr_release_message(msg);
+        return NULL;
+    }
+
+    return msg;
+}
+
+static pcrdr_msg *make_change_message_8(struct run_info *info, int win)
+{
+    pcrdr_msg *msg;
+
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_HTMLCONTENT);
+
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_DISPLACE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    msg->data = purc_variant_make_string_static(fragment, false);
+    if (msg->data) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    }
+    else {
+        pcrdr_release_message(msg);
+        return NULL;
+    }
+
+    return msg;
+}
+
+static pcrdr_msg *make_change_message_9(struct run_info *info, int win)
+{
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_HTMLCONTENT);
+
+    return pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_ERASE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+}
+
+static pcrdr_msg *make_change_message_a(struct run_info *info, int win)
+{
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_HTMLCONTENT);
+
+    return pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_CLEAR, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+}
+
+static pcrdr_msg *make_change_message_b(struct run_info *info, int win)
+{
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_ATTR_VALUE1);
+
+    return pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_ERASE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            "attr.value",
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+}
+
+static pcrdr_msg *make_change_message_c(struct run_info *info, int win)
+{
+    char handles[128];
+    sprintf(handles, "%llx,%llx",
+            (long long)HANDLE_ATTR_VALUE1,
+            (long long)HANDLE_ATTR_VALUE2);
+
+    return pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_ERASE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
+            "attr.value",
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+}
+
 static int change_document(pcrdr_conn* conn, int win)
 {
     struct run_info *info = pcrdr_conn_get_user_data(conn);
@@ -625,6 +812,15 @@ static int change_document(pcrdr_conn* conn, int win)
         make_change_message_1,
         make_change_message_2,
         make_change_message_3,
+        make_change_message_4,
+        make_change_message_5,
+        make_change_message_6,
+        make_change_message_7,
+        make_change_message_8,
+        make_change_message_9,
+        make_change_message_a,
+        make_change_message_b,
+        make_change_message_c,
     };
 
     pcrdr_msg *msg;

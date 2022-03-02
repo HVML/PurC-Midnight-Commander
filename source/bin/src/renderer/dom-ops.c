@@ -427,3 +427,21 @@ dom_update_element(pcdom_document_t *dom_doc, pcdom_element_t *element,
     return retv;
 }
 
+bool
+dom_remove_element_attr(pcdom_document_t *dom_doc, pcdom_element_t *element,
+        const char* property)
+{
+    bool retv = false;
+
+    if (strncmp(property, "attr.", 5) == 0) {
+        property += 5;
+
+        if (pcdom_element_remove_attribute(element,
+                (const unsigned char*)property,
+                strlen(property)) == PURC_ERROR_OK)
+            retv = true;
+    }
+
+    return retv;
+}
+

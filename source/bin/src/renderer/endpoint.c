@@ -1148,8 +1148,17 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
     }
 
     if (op == PCRDR_K_OPERATION_ERASE) {
-        for (size_t n = 0; n < nr_elements; n++) {
-            dom_erase_element(win->dom_doc, elements[n]);
+        const char *property;
+        property = purc_variant_get_string_const(msg->property);
+        if (property) {
+            for (size_t n = 0; n < nr_elements; n++) {
+                dom_remove_element_attr(win->dom_doc, elements[n], property);
+            }
+        }
+        else {
+            for (size_t n = 0; n < nr_elements; n++) {
+                dom_erase_element(win->dom_doc, elements[n]);
+            }
         }
     }
     else if (op == PCRDR_K_OPERATION_CLEAR) {

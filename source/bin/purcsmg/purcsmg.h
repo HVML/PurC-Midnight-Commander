@@ -41,7 +41,7 @@
 
 #define TABLESIZE(table)    (sizeof(table)/sizeof(table[0]))
 
-#define NR_WINDOWS          4
+#define NR_WINDOWS          8
 #define MAX_CHANGES         128
 
 /* 0 is not a valid handle */

@@ -747,6 +747,8 @@ static int on_load(Server* srv, Endpoint* endpoint,
         pcdom_document_destroy(win->dom_doc);
     }
     win->dom_doc = pcdom_interface_document(html_doc);
+    dom_build_hvml_handle_map(win->dom_doc);
+
     // TODO: update DOM viewer.
 
 failed:
@@ -830,6 +832,7 @@ static int on_write_begin(Server* srv, Endpoint* endpoint,
     if (win->dom_doc) {
         dom_destroy_hvml_handle_map(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
+        win->dom_doc->user = NULL;
     }
     win->dom_doc = pcdom_interface_document(html_doc);
 
@@ -862,7 +865,6 @@ static int on_write_more(Server* srv, Endpoint* endpoint,
     PlainWindow *win = NULL;
 
     pchtml_html_parser_t *parser = NULL;
-    pchtml_html_document_t *html_doc = NULL;
 
     if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
             msg->data == PURC_VARIANT_INVALID) {
@@ -913,7 +915,7 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uint64_t)html_doc;
+    response.resultValue = (uint64_t)(win ? win->dom_doc : 0);
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -928,9 +930,6 @@ static int on_write_end(Server* srv, Endpoint* endpoint,
     size_t doc_len;
     PlainWindow *win = NULL;
 
-    pchtml_html_parser_t *parser = NULL;
-    pchtml_html_document_t *html_doc = NULL;
-
     if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
             msg->data == PURC_VARIANT_INVALID) {
         retv = PCRDR_SC_BAD_REQUEST;
@@ -970,13 +969,14 @@ static int on_write_end(Server* srv, Endpoint* endpoint,
         goto failed;
     }
 
-    parser = win->parser;
-    pchtml_html_parse_chunk_process(parser,
+    pchtml_html_parse_chunk_process(win->parser,
                 (const unsigned char *)doc_text, doc_len);
 
-    pchtml_html_parse_chunk_end(parser);
-    pchtml_html_parser_destroy(parser);
+    pchtml_html_parse_chunk_end(win->parser);
+    pchtml_html_parser_destroy(win->parser);
     win->parser = NULL;
+
+    dom_build_hvml_handle_map(win->dom_doc);
 
     // TODO: update DOM viewer.
 
@@ -984,7 +984,7 @@ failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
     response.retCode = retv;
-    response.resultValue = (uint64_t)html_doc;
+    response.resultValue = (uint64_t)(win ? win->dom_doc : 0);
     response.dataType = PCRDR_MSG_DATA_TYPE_VOID;
 
     return send_simple_response(srv, endpoint, &response);
@@ -1031,7 +1031,7 @@ static PlainWindow *check_dom_request_msg(Endpoint *endpoint,
     }
 
     /* we are in writeBegin/writeMore operations */
-    if (win->parser) {
+    if (win->parser || win->dom_doc == NULL || win->dom_doc->user == NULL) {
         win = NULL;
         *retv = PCRDR_SC_PRECONDITION_FAILED;
         goto failed;
@@ -1057,7 +1057,7 @@ static pcdom_element_t **get_dom_element_by_handle(pcdom_document_t *dom_doc,
     }
 
     element = dom_get_element_by_handle(dom_doc, hval);
-    if (elements == NULL) {
+    if (element == NULL) {
         return NULL;
     }
 

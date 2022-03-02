@@ -41,16 +41,17 @@
 
 #define TABLESIZE(table)    (sizeof(table)/sizeof(table[0]))
 
-#define NR_WINDOWS          8
+#define NR_WINDOWS          4
 #define MAX_CHANGES         128
 
+/* 0 is not a valid handle */
 enum {
-    HANDLE_TEXTCONTENT_TITLE = 0,
     HANDLE_TEXTCONTENT_CLOCK1 = 1,
-    HANDLE_CTEXTONTENT_CLOCK2 = 2,
-    HANDLE_HTMLCONTENT = 3,
-    HANDLE_ATTR_VALUE = 4,
-    HANDLE_ATTR_SRC = 5,
+    HANDLE_TEXTCONTENT_CLOCK2,
+    HANDLE_HTMLCONTENT,
+    HANDLE_ATTR_VALUE1,
+    HANDLE_ATTR_VALUE2,
+    HANDLE_TEXTCONTENT_TITLE,
 };
 
 enum {

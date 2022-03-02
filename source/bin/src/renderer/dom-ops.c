@@ -187,6 +187,10 @@ dom_get_element_by_handle(pcdom_document_t *dom_doc, uint64_t handle)
     void* data;
     struct sorted_array *sa = dom_doc->user;
 
+    if (handle == 0) {
+        return dom_doc->element;
+    }
+
     assert(sa);
 
     if (sorted_array_find(sa, handle, &data))

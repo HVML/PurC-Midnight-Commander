@@ -66,13 +66,16 @@ static void print_copying (void)
     fprintf (stdout, "\n");
 }
 
-static void format_current_time (char* buff, size_t sz)
+static void format_current_time (char* buff, size_t sz, bool has_second)
 {
     struct tm tm;
     time_t curr_time = time (NULL);
 
     localtime_r (&curr_time, &tm);
-    strftime (buff, sz, "%H:%M", &tm);
+    if (has_second)
+        strftime (buff, sz, "%H:%M:%S", &tm);
+    else
+        strftime (buff, sz, "%H:%M", &tm);
 }
 
 static char buffer_a[4096];
@@ -284,6 +287,8 @@ static void init_autotest(pcrdr_conn* conn)
 
     if (info->doc_content == NULL)
         info->doc_content = strdup(empty_content);
+
+    info->len_content = strlen(info->doc_content);
 }
 
 static int my_response_handler(pcrdr_conn* conn,
@@ -295,10 +300,16 @@ static int my_response_handler(pcrdr_conn* conn,
 
     int win = (int)(uintptr_t)context;
 
+    printf("Got a respoinse for request (%s) for window %d: %d\n",
+            purc_variant_get_string_const(response_msg->requestId), win,
+            response_msg->retCode);
+
     // we can only allow failed request when we are running testing.
     if (info->state[win] != STATE_DOCUMENT_TESTING &&
             response_msg->retCode != PCRDR_SC_OK) {
         info->state[win] = STATE_FATAL;
+
+        printf("Window %d encountered fatal error\n", win);
         return 0;
     }
 
@@ -314,6 +325,7 @@ static int my_response_handler(pcrdr_conn* conn,
             }
             else {
                 info->state[win] = STATE_DOCUMENT_LOADED;
+                info->dom_handles[win] = response_msg->resultValue;
             }
             break;
 
@@ -337,6 +349,7 @@ static int my_response_handler(pcrdr_conn* conn,
         case STATE_DOCUMENT_RESET:
             info->dom_handles[win] = response_msg->resultValue;
             info->state[win] = STATE_WINDOW_DESTROYED;
+            info->nr_destroyed_wins++;
             break;
 
         case STATE_WINDOW_DESTROYED:
@@ -353,13 +366,12 @@ static int create_plain_win(pcrdr_conn* conn, int win)
 {
     pcrdr_msg *msg;
 
-    /* send startSession request and wait for the response */
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
             PCRDR_OPERATION_CREATEPLAINWINDOW, NULL,
             PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
-        return -1;
+        goto failed;
     }
 
     char id_buff[64];
@@ -369,11 +381,11 @@ static int create_plain_win(pcrdr_conn* conn, int win)
 
     purc_variant_t data = purc_variant_make_object(2,
             purc_variant_make_string_static("id", false),
-            purc_variant_make_string(id_buff, false),
+            purc_variant_make_string_static(id_buff, false),
             purc_variant_make_string_static("title", false),
-            purc_variant_make_string(title_buff, false));
+            purc_variant_make_string_static(title_buff, false));
     if (data == PURC_VARIANT_INVALID) {
-        return -1;
+        goto failed;
     }
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_EJSON;
@@ -382,11 +394,26 @@ static int create_plain_win(pcrdr_conn* conn, int win)
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
                 my_response_handler) < 0) {
-        return -1;
+        goto failed;
     }
 
+    printf("Request (%s) `%s` for window %d sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
+
+failed:
+    printf("Failed call to (%s) for window %d\n", __func__, win);
+
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+    else if (data) {
+        purc_variant_unref(data);
+    }
+
+    return -1;
 }
 
 #define DEF_LEN_ONE_WRITE   1024
@@ -398,19 +425,8 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
 
     pcrdr_msg *msg = NULL;
     purc_variant_t data = PURC_VARIANT_INVALID;
-    if (info->len_content < PCRDR_MAX_INMEM_PAYLOAD_SIZE &&
-            (run_times % 2 || info->len_content < DEF_LEN_ONE_WRITE)) {
-        // use load
-        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
-                info->win_handles[win],
-                PCRDR_OPERATION_LOAD, NULL,
-                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
-                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        data = purc_variant_make_string_static(info->doc_content, true);
-        info->len_wrotten[win] = info->len_content;
-    }
-    else {
+    if (info->len_content > PCRDR_MAX_INMEM_PAYLOAD_SIZE || (run_times % 2)) {
         // use writeBegin
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
@@ -420,7 +436,18 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
 
         data = purc_variant_make_string_ex(info->doc_content,
                 DEF_LEN_ONE_WRITE, true);
-        info->len_wrotten[win] = DEF_LEN_ONE_WRITE;
+        info->len_wrotten[win] = purc_variant_string_size(data) - 1;
+    }
+    else {
+        // use load
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+                info->win_handles[win],
+                PCRDR_OPERATION_LOAD, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+
+        data = purc_variant_make_string_static(info->doc_content, true);
+        info->len_wrotten[win] = info->len_content;
     }
 
     if (msg == NULL || data == PURC_VARIANT_INVALID) {
@@ -436,10 +463,15 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
         goto failed;
     }
 
+    printf("Request (%s) `%s` for window %d sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
+    printf("Failed call to (%s) for window %d\n", __func__, win);
+
     if (msg) {
         pcrdr_release_message(msg);
     }
@@ -496,10 +528,15 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
         goto failed;
     }
 
+    printf("Request (%s) `%s` for window %d sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
+    printf("Failed call to (%s) for window %d\n", __func__, win);
+
     if (msg) {
         pcrdr_release_message(msg);
     }
@@ -510,14 +547,113 @@ failed:
     return -1;
 }
 
+static pcrdr_msg *make_change_message_0(struct run_info *info, int win)
+{
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_TEXTCONTENT_CLOCK1);
+
+    char text[128];
+    format_current_time (text, sizeof(text) - 1, true);
+
+    return pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            "textContent",
+            PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
+}
+
+static pcrdr_msg *make_change_message_1(struct run_info *info, int win)
+{
+    char handles[128];
+    sprintf(handles, "%llx,%llx",
+            (long long)HANDLE_TEXTCONTENT_CLOCK1,
+            (long long)HANDLE_TEXTCONTENT_CLOCK2);
+
+    char text[128];
+    format_current_time (text, sizeof(text) - 1, true);
+
+    return pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
+            "textContent",
+            PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
+}
+
+static pcrdr_msg *make_change_message_2(struct run_info *info, int win)
+{
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_ATTR_VALUE1);
+
+    char text[128];
+    format_current_time(text, sizeof(text) - 1, true);
+
+    return pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            "attr.value",
+            PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
+}
+
+static pcrdr_msg *make_change_message_3(struct run_info *info, int win)
+{
+    char handles[128];
+    sprintf(handles, "%llx,%llx",
+            (long long)HANDLE_ATTR_VALUE1,
+            (long long)HANDLE_ATTR_VALUE2);
+
+    char text[128];
+    format_current_time (text, sizeof(text) - 1, true);
+
+    return pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
+            "textContent",
+            PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
+}
+
 static int change_document(pcrdr_conn* conn, int win)
 {
     struct run_info *info = pcrdr_conn_get_user_data(conn);
     assert(win < NR_WINDOWS && info);
 
-    info->changes[win]++;
+    static pcrdr_msg *(*makers[])(struct run_info *info, int win) = {
+        make_change_message_0,
+        make_change_message_1,
+        make_change_message_2,
+        make_change_message_3,
+    };
 
+    pcrdr_msg *msg;
+
+    unsigned int method = run_times % TABLESIZE(makers);
+    msg = makers[method](info, win);
+    if (msg == NULL)
+        return -1;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                my_response_handler) < 0) {
+        goto failed;
+    }
+
+    info->changes[win]++;
+    printf("Request (%s) `%s` (%s) for window %d sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation),
+            msg->property?purc_variant_get_string_const(msg->property):"N/A",
+            win);
+    pcrdr_release_message(msg);
     return 0;
+
+failed:
+    printf("Failed call to (%s) for window %d\n", __func__, win);
+
+    pcrdr_release_message(msg);
+    return -1;
 }
 
 static int reset_window(pcrdr_conn* conn, int win)
@@ -548,10 +684,15 @@ static int reset_window(pcrdr_conn* conn, int win)
         goto failed;
     }
 
+    printf("Request (%s) `%s` for window %d sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
+    printf("Failed call to (%s) for window %d\n", __func__, win);
+
     if (msg) {
         pcrdr_release_message(msg);
     }
@@ -594,12 +735,21 @@ static int destroy_window(pcrdr_conn* conn, int win)
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
                 my_response_handler) < 0) {
-        pcrdr_release_message(msg);
-        return -1;
+        goto failed;
     }
 
+    printf("Request (%s) `%s` for window %d sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
+
+failed:
+    printf("Failed call to (%s) for window %d\n", __func__, win);
+
+    if (msg)
+        pcrdr_release_message(msg);
+    return -1;
 }
 
 static int check_quit(pcrdr_conn* conn, int win)
@@ -607,8 +757,10 @@ static int check_quit(pcrdr_conn* conn, int win)
     struct run_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    if (info->nr_destroyed_wins == NR_WINDOWS)
+    if (info->nr_destroyed_wins == NR_WINDOWS) {
+        printf("all window destroyed; quitting...\n");
         return -1;
+    }
 
     return 0;
 }
@@ -644,6 +796,8 @@ static int run_autotest(pcrdr_conn* conn)
         return destroy_window(conn, win);
     case STATE_WINDOW_DESTROYED:
         return check_quit(conn, win);
+    case STATE_FATAL:
+        return -1;
     }
 
     return -1;
@@ -702,7 +856,7 @@ int main (int argc, char **argv)
     the_client.curr_history_idx = -1;
     pcrdr_conn_set_user_data (conn, &the_client);
 
-    format_current_time (curr_time, sizeof (curr_time) - 1);
+    format_current_time (curr_time, sizeof (curr_time) - 1, false);
 
     if (ttyfd >= 0)
         cmdline_print_prompt (conn, true);
@@ -747,7 +901,7 @@ int main (int argc, char **argv)
             }
         }
         else {
-            format_current_time (new_clock, sizeof (new_clock) - 1);
+            format_current_time (new_clock, sizeof (new_clock) - 1, false);
             if (strcmp (new_clock, curr_time)) {
                 strcpy (curr_time, new_clock);
                 pcrdr_ping_renderer (conn);

@@ -183,6 +183,35 @@ static void print_usage (void)
             );
 }
 
+static char *load_doc_content(const char *file)
+{
+    FILE *f = fopen(file, "r");
+    char *buf = NULL;
+
+    if (f) {
+        if (fseek(f, 0, SEEK_END))
+            goto failed;
+
+        long len = ftell(f);
+        if (len < 0)
+            goto failed;
+
+        buf = malloc(len);
+        if (buf == NULL)
+            goto failed;
+
+        fseek(f, 0, SEEK_SET);
+        if (fread(buf, 1, len, f) < (size_t)len) {
+            free(buf);
+            buf = NULL;
+        }
+failed:
+        fclose(f);
+    }
+
+    return buf;
+}
+
 static char short_options[] = "a:r:f:cvh";
 static struct option long_opts[] = {
     {"app"            , required_argument , NULL , 'a' } ,
@@ -217,7 +246,10 @@ static int read_option_args (int argc, char **argv)
                 strcpy (the_client.runner_name, optarg);
             break;
         case 'f':
-            the_client.initial_file = strdup (optarg);
+            the_client.doc_content = load_doc_content(optarg);
+            if (the_client.doc_content == NULL) {
+                return -1;
+            }
             break;
         case 'c':
             the_client.use_cmdline = true;
@@ -236,6 +268,385 @@ static int read_option_args (int argc, char **argv)
     }
 
     return 0;
+}
+
+static const char *empty_content =
+    "<html><body><div hvml:handle='3'></div></body></html>";
+
+static void init_autotest(pcrdr_conn* conn)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    for (int i = 0; i < NR_WINDOWS; i++) {
+        info->max_changes[i] = (int) (time(NULL) % MAX_CHANGES);
+    }
+
+    if (info->doc_content == NULL)
+        info->doc_content = strdup(empty_content);
+}
+
+static int my_response_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    int win = (int)(uintptr_t)context;
+
+    // we can only allow failed request when we are running testing.
+    if (info->state[win] != STATE_DOCUMENT_TESTING &&
+            response_msg->retCode != PCRDR_SC_OK) {
+        info->state[win] = STATE_FATAL;
+        return 0;
+    }
+
+    switch (info->state[win]) {
+        case STATE_INITIAL:
+            info->state[win] = STATE_WINDOW_CREATED;
+            info->win_handles[win] = response_msg->resultValue;
+            break;
+
+        case STATE_WINDOW_CREATED:
+            if (info->len_wrotten[win] < info->len_content) {
+                info->state[win] = STATE_DOCUMENT_WROTTEN;
+            }
+            else {
+                info->state[win] = STATE_DOCUMENT_LOADED;
+            }
+            break;
+
+        case STATE_DOCUMENT_WROTTEN:
+            if (info->len_wrotten[win] == info->len_content) {
+                info->state[win] = STATE_DOCUMENT_LOADED;
+                info->dom_handles[win] = response_msg->resultValue;
+            }
+            break;
+
+        case STATE_DOCUMENT_LOADED:
+            info->state[win] = STATE_DOCUMENT_TESTING;
+            break;
+
+        case STATE_DOCUMENT_TESTING:
+            if (info->changes[win] == info->max_changes[win]) {
+                info->state[win] = STATE_DOCUMENT_RESET;
+            }
+            break;
+
+        case STATE_DOCUMENT_RESET:
+            info->dom_handles[win] = response_msg->resultValue;
+            info->state[win] = STATE_WINDOW_DESTROYED;
+            break;
+
+        case STATE_WINDOW_DESTROYED:
+            // do nothing.
+            break;
+    }
+
+    return 0;
+}
+
+static unsigned int run_times;
+
+static int create_plain_win(pcrdr_conn* conn, int win)
+{
+    pcrdr_msg *msg;
+
+    /* send startSession request and wait for the response */
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_CREATEPLAINWINDOW, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        return -1;
+    }
+
+    char id_buff[64];
+    char title_buff[64];
+    sprintf(id_buff, "the-plain-window-%d", win);
+    sprintf(title_buff, "The Plain Window No. %d", win);
+
+    purc_variant_t data = purc_variant_make_object(2,
+            purc_variant_make_string_static("id", false),
+            purc_variant_make_string(id_buff, false),
+            purc_variant_make_string_static("title", false),
+            purc_variant_make_string(title_buff, false));
+    if (data == PURC_VARIANT_INVALID) {
+        return -1;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_EJSON;
+    msg->data = data;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                my_response_handler) < 0) {
+        return -1;
+    }
+
+    pcrdr_release_message(msg);
+    return 0;
+}
+
+#define DEF_LEN_ONE_WRITE   1024
+
+static int load_or_write_doucment(pcrdr_conn* conn, int win)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+    assert(win < NR_WINDOWS && info);
+
+    pcrdr_msg *msg = NULL;
+    purc_variant_t data = PURC_VARIANT_INVALID;
+    if (info->len_content < PCRDR_MAX_INMEM_PAYLOAD_SIZE &&
+            (run_times % 2 || info->len_content < DEF_LEN_ONE_WRITE)) {
+        // use load
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+                info->win_handles[win],
+                PCRDR_OPERATION_LOAD, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+
+        data = purc_variant_make_string_static(info->doc_content, true);
+        info->len_wrotten[win] = info->len_content;
+    }
+    else {
+        // use writeBegin
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+                info->win_handles[win],
+                PCRDR_OPERATION_WRITEBEGIN, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+
+        data = purc_variant_make_string_ex(info->doc_content,
+                DEF_LEN_ONE_WRITE, true);
+        info->len_wrotten[win] = DEF_LEN_ONE_WRITE;
+    }
+
+    if (msg == NULL || data == PURC_VARIANT_INVALID) {
+        goto failed;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->data = data;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                my_response_handler) < 0) {
+        goto failed;
+    }
+
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+    else if (data) {
+        purc_variant_unref(data);
+    }
+
+    return -1;
+}
+
+static int write_more_doucment(pcrdr_conn* conn, int win)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+    assert(win < NR_WINDOWS && info);
+
+    pcrdr_msg *msg = NULL;
+    purc_variant_t data = PURC_VARIANT_INVALID;
+
+    if (info->len_wrotten[win] + DEF_LEN_ONE_WRITE > info->len_content) {
+        // writeEnd
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+                info->win_handles[win],
+                PCRDR_OPERATION_WRITEEND, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+
+        data = purc_variant_make_string(
+                info->doc_content + info->len_wrotten[win], true);
+        info->len_wrotten[win] = info->len_content;
+    }
+    else {
+        // writeMore
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+                info->win_handles[win],
+                PCRDR_OPERATION_WRITEMORE, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+
+        data = purc_variant_make_string_ex(
+                info->doc_content + info->len_wrotten[win],
+                DEF_LEN_ONE_WRITE, true);
+        info->len_wrotten[win] += DEF_LEN_ONE_WRITE;
+    }
+
+    if (msg == NULL || data == PURC_VARIANT_INVALID) {
+        goto failed;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->data = data;
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                my_response_handler) < 0) {
+        goto failed;
+    }
+
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+    else if (data) {
+        purc_variant_unref(data);
+    }
+
+    return -1;
+}
+
+static int change_document(pcrdr_conn* conn, int win)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+    assert(win < NR_WINDOWS && info);
+
+    info->changes[win]++;
+
+    return 0;
+}
+
+static int reset_window(pcrdr_conn* conn, int win)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+    assert(win < NR_WINDOWS && info);
+
+    pcrdr_msg *msg = NULL;
+    purc_variant_t data = PURC_VARIANT_INVALID;
+
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+            info->win_handles[win],
+            PCRDR_OPERATION_LOAD, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    data = purc_variant_make_string_static(empty_content, false);
+
+    if (msg == NULL || data == PURC_VARIANT_INVALID) {
+        goto failed;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->data = data;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                my_response_handler) < 0) {
+        goto failed;
+    }
+
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+    else if (data) {
+        purc_variant_unref(data);
+    }
+
+    return -1;
+}
+
+static int destroy_window(pcrdr_conn* conn, int win)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    pcrdr_msg *msg;
+    char buff[128];
+
+    if (run_times % 2) {
+        // use identifier
+        sprintf(buff, "the-plain-window-%d", win);
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+                PCRDR_OPERATION_DESTROYPLAINWINDOW, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_ID, buff, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    }
+    else {
+        // use handle
+        sprintf(buff, "%llx", (unsigned long long)info->win_handles[win]);
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+                PCRDR_OPERATION_DESTROYPLAINWINDOW, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_HANDLE, buff, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    }
+
+    if (msg == NULL) {
+        return -1;
+    }
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                my_response_handler) < 0) {
+        pcrdr_release_message(msg);
+        return -1;
+    }
+
+    pcrdr_release_message(msg);
+    return 0;
+}
+
+static int check_quit(pcrdr_conn* conn, int win)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    if (info->nr_destroyed_wins == NR_WINDOWS)
+        return -1;
+
+    return 0;
+}
+
+/*
+ * this function will be called every second.
+ * returns -1 on failure.
+ */
+static int run_autotest(pcrdr_conn* conn)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+
+    assert(info);
+
+    int win = run_times % NR_WINDOWS;
+    run_times++;
+
+    switch (info->state[win]) {
+    case STATE_INITIAL:
+        return create_plain_win(conn, win);
+    case STATE_WINDOW_CREATED:
+        return load_or_write_doucment(conn, win);
+    case STATE_DOCUMENT_WROTTEN:
+        return write_more_doucment(conn, win);
+    case STATE_DOCUMENT_LOADED:
+        return change_document(conn, win);
+    case STATE_DOCUMENT_TESTING:
+        if (info->changes[win] == info->max_changes[win]) {
+            return reset_window(conn, win);
+        }
+        return change_document(conn, win);
+    case STATE_DOCUMENT_RESET:
+        return destroy_window(conn, win);
+    case STATE_WINDOW_DESTROYED:
+        return check_quit(conn, win);
+    }
+
+    return -1;
 }
 
 int main (int argc, char **argv)
@@ -293,12 +704,17 @@ int main (int argc, char **argv)
 
     format_current_time (curr_time, sizeof (curr_time) - 1);
 
-    if (ttyfd >= 0) cmdline_print_prompt (conn, true);
+    if (ttyfd >= 0)
+        cmdline_print_prompt (conn, true);
+    else
+        init_autotest(conn);
+
     maxfd = cnnfd > ttyfd ? cnnfd : ttyfd;
 
     do {
         int retval;
-        char _new_clock [16];
+        char new_clock [16];
+        time_t old_time;
 
         FD_ZERO (&rfds);
         FD_SET (cnnfd, &rfds);
@@ -331,10 +747,17 @@ int main (int argc, char **argv)
             }
         }
         else {
-            format_current_time (_new_clock, sizeof (_new_clock) - 1);
-            if (strcmp (_new_clock, curr_time)) {
-                strcpy (curr_time, _new_clock);
+            format_current_time (new_clock, sizeof (new_clock) - 1);
+            if (strcmp (new_clock, curr_time)) {
+                strcpy (curr_time, new_clock);
                 pcrdr_ping_renderer (conn);
+            }
+
+            time_t new_time = time(NULL);
+            if (old_time != new_time) {
+                old_time = new_time;
+                if (ttyfd < 0 && run_autotest(conn) < 0)
+                    goto failed;
             }
         }
 
@@ -348,8 +771,8 @@ int main (int argc, char **argv)
     fputs ("\n", stderr);
 
 failed:
-    if (the_client.initial_file)
-        free (the_client.initial_file);
+    if (the_client.doc_content)
+        free (the_client.doc_content);
 
     if (ttyfd >= 0)
         restore_tty (ttyfd);

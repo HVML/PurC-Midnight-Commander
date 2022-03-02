@@ -41,6 +41,29 @@
 
 #define TABLESIZE(table)    (sizeof(table)/sizeof(table[0]))
 
+#define NR_WINDOWS          8
+#define MAX_CHANGES         128
+
+enum {
+    HANDLE_TEXTCONTENT_TITLE = 0,
+    HANDLE_TEXTCONTENT_CLOCK1 = 1,
+    HANDLE_CTEXTONTENT_CLOCK2 = 2,
+    HANDLE_HTMLCONTENT = 3,
+    HANDLE_ATTR_VALUE = 4,
+    HANDLE_ATTR_SRC = 5,
+};
+
+enum {
+    STATE_INITIAL = 0,
+    STATE_WINDOW_CREATED,
+    STATE_DOCUMENT_WROTTEN,
+    STATE_DOCUMENT_LOADED,
+    STATE_DOCUMENT_TESTING,
+    STATE_DOCUMENT_RESET,
+    STATE_WINDOW_DESTROYED,
+    STATE_FATAL,
+};
+
 /* original terminal modes */
 struct run_info {
     int ttyfd;
@@ -56,8 +79,6 @@ struct run_info {
     char builtin_endpoint [PCRDR_LEN_ENDPOINT_NAME + 1];
     char self_endpoint [PCRDR_LEN_ENDPOINT_NAME + 1];
 
-    char* initial_file;
-
     struct kvlist ret_value_list;
 
     char edit_buff [LEN_EDIT_BUFF + 1];
@@ -72,6 +93,22 @@ struct run_info {
     /* fields for drum-game */
     int nr_players;
     char* ball_content;
+
+    /* fields for autotest */
+    char* doc_content;
+    size_t len_content;
+
+    int nr_destroyed_wins;
+    int state[NR_WINDOWS];
+
+    size_t len_wrotten[NR_WINDOWS];
+    int max_changes[NR_WINDOWS];
+    int changes[NR_WINDOWS];
+
+    // handles of windows.
+    uint64_t win_handles[NR_WINDOWS];
+    // handles of DOM.
+    uint64_t dom_handles[NR_WINDOWS];
 };
 
 extern struct run_info the_client;

@@ -79,9 +79,12 @@ on_packet (void* sock_srv, SockClient* client,
         pcrdr_msg *msg;
         Endpoint *endpoint = container_of (client->entity, Endpoint, entity);
 
-        ULOG_INFO ("Got a packet from @%s/%s/%s:\n%s\n",
-                endpoint->host_name, endpoint->app_name, endpoint->runner_name,
-                body);
+        if (srvcfg.accesslog) {
+            ULOG_INFO ("Got a packet from @%s/%s/%s:\n%s\n",
+                    endpoint->host_name, endpoint->app_name,
+                    endpoint->runner_name, body);
+        }
+
         if ((ret = pcrdr_parse_packet (body, sz_body, &msg))) {
             ULOG_ERR ("Failed pcrdr_parse_packet: %s\n",
                     purc_get_error_message (ret));

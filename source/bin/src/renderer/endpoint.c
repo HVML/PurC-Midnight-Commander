@@ -27,6 +27,7 @@
 #include <purc/purc-dom.h>
 #include <purc/purc-html.h>
 
+#include "lib/global.h"
 #include "lib/hiboxcompat.h"
 
 #include "endpoint.h"
@@ -34,6 +35,8 @@
 #include "websocket.h"
 #include "dom-ops.h"
 #include "dom-viewer.h"
+
+#define srvcfg mc_global.rdr
 
 #define DEF_NR_HANDLES  4
 
@@ -143,8 +146,6 @@ int del_endpoint (Server* srv, Endpoint* endpoint, int cause)
     char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
 
     if (assemble_endpoint_name (endpoint, endpoint_name) > 0) {
-        ULOG_INFO ("Deleting an endpoint: %s (%p)\n", endpoint_name, endpoint);
-
         if (endpoint->avl.key)
             avl_delete (&srv->living_avl, &endpoint->avl);
     }
@@ -267,7 +268,8 @@ int check_no_responding_endpoints (Server *srv)
             ULOG_INFO ("Ping client: %s\n", name);
         }
         else {
-            ULOG_INFO ("Skip left endpoints since (%s): %ld\n", name, endpoint->t_living);
+            ULOG_INFO ("Skip left endpoints since (%s): %ld\n",
+                    name, endpoint->t_living);
             break;
         }
     }
@@ -1117,15 +1119,15 @@ static pcdom_element_t **get_dom_elements_by_handles(pcdom_document_t *dom_doc,
             if (*nr_elements > PCRDR_MAX_HANDLES) {
                 goto done;
             }
+
+            if (*nr_elements > allocated) {
+                allocated += DEF_NR_HANDLES;
+                elements = realloc(elements, sizeof(pcdom_element_t *) * allocated);
+                if (elements == NULL)
+                    return NULL;
+            }
         }
         // skip not found
-
-        if (*nr_elements > allocated) {
-            allocated += DEF_NR_HANDLES;
-            elements = realloc(elements, sizeof(pcdom_element_t *) * allocated);
-            if (elements == NULL)
-                return NULL;
-        }
 
         handles = endptr;
         while (*handles) {

@@ -33,6 +33,7 @@
 #include "unixsocket.h"
 #include "websocket.h"
 #include "dom-ops.h"
+#include "dom-viewer.h"
 
 #define DEF_NR_HANDLES  4
 
@@ -98,12 +99,15 @@ Endpoint* new_endpoint (Server* srv, int type, void* client)
     return endpoint;
 }
 
-static void remove_window(PlainWindow *win)
+static void remove_window(Endpoint *endpoint, PlainWindow *win)
 {
     if (win->dom_doc) {
-        // TODO: Update DOM viewer.
+        char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
 
-        dom_destroy_hvml_handle_map(win->dom_doc);
+        assemble_endpoint_name (endpoint, endpoint_name);
+        domview_detach_window_dom(endpoint_name,
+            purc_variant_get_string_const(win->id));
+        dom_cleanup_user_data(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
     }
 
@@ -127,7 +131,7 @@ static void remove_session(Endpoint* endpoint)
         win = *(PlainWindow **)data;
 
         kvlist_delete(&endpoint->session_info->wins, name);
-        remove_window(win);
+        remove_window(endpoint, win);
     }
     kvlist_free(&endpoint->session_info->wins);
     free(endpoint->session_info);
@@ -545,7 +549,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
 
 failed:
     if (retv != PCRDR_SC_OK && win) {
-        remove_window(win);
+        remove_window(endpoint, win);
         win = NULL;
     }
 
@@ -611,8 +615,7 @@ static int on_update_plain_window(Server* srv, Endpoint* endpoint,
     if (win->title)
         purc_variant_unref(win->title);
     win->title = purc_variant_ref(msg->data);
-
-    // TODO: Update DOM viewer.
+    dom_set_title(win->dom_doc, purc_variant_get_string_const(win->title));
 
 failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
@@ -668,7 +671,7 @@ static int on_destroy_plain_window(Server* srv, Endpoint* endpoint,
 
     kvlist_delete(&endpoint->session_info->wins,
             purc_variant_get_string_const(win->id));
-    remove_window(win);
+    remove_window(endpoint, win);
 
 failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
@@ -742,14 +745,21 @@ static int on_load(Server* srv, Endpoint* endpoint,
         goto failed;
     }
 
+    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+    assemble_endpoint_name (endpoint, endpoint_name);
+
     if (win->dom_doc) {
-        dom_destroy_hvml_handle_map(win->dom_doc);
+        domview_detach_window_dom(endpoint_name,
+            purc_variant_get_string_const(win->id));
+        dom_cleanup_user_data(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
     }
     win->dom_doc = pcdom_interface_document(html_doc);
-    dom_build_hvml_handle_map(win->dom_doc);
-
-    // TODO: update DOM viewer.
+    dom_prepare_user_data(win->dom_doc, true);
+    domview_attach_window_dom(endpoint_name,
+            purc_variant_get_string_const(win->id),
+            purc_variant_get_string_const(win->title),
+            win->dom_doc);
 
 failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
@@ -830,13 +840,15 @@ static int on_write_begin(Server* srv, Endpoint* endpoint,
     }
 
     if (win->dom_doc) {
-        dom_destroy_hvml_handle_map(win->dom_doc);
+        char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+
+        assemble_endpoint_name (endpoint, endpoint_name);
+        domview_detach_window_dom(endpoint_name,
+            purc_variant_get_string_const(win->id));
+        dom_cleanup_user_data(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
-        win->dom_doc->user = NULL;
     }
     win->dom_doc = pcdom_interface_document(html_doc);
-
-    // TODO: update DOM viewer.
 
 failed:
     if (retv != PCRDR_SC_OK) {
@@ -909,8 +921,6 @@ static int on_write_more(Server* srv, Endpoint* endpoint,
     pchtml_html_parse_chunk_process(parser,
                 (const unsigned char *)doc_text, doc_len);
 
-    // TODO: update DOM viewer.
-
 failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
     response.requestId = msg->requestId;
@@ -971,14 +981,19 @@ static int on_write_end(Server* srv, Endpoint* endpoint,
 
     pchtml_html_parse_chunk_process(win->parser,
                 (const unsigned char *)doc_text, doc_len);
-
     pchtml_html_parse_chunk_end(win->parser);
+
     pchtml_html_parser_destroy(win->parser);
     win->parser = NULL;
 
-    dom_build_hvml_handle_map(win->dom_doc);
+    dom_prepare_user_data(win->dom_doc, true);
 
-    // TODO: update DOM viewer.
+    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+    assemble_endpoint_name (endpoint, endpoint_name);
+    domview_attach_window_dom(endpoint_name,
+            purc_variant_get_string_const(win->id),
+            purc_variant_get_string_const(win->title),
+            win->dom_doc);
 
 failed:
     response.type = PCRDR_MSG_TYPE_RESPONSE;
@@ -996,18 +1011,6 @@ static PlainWindow *check_dom_request_msg(Endpoint *endpoint,
 {
     PlainWindow *win = NULL;
 
-    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
-            msg->data == PURC_VARIANT_INVALID) {
-        *retv = PCRDR_SC_BAD_REQUEST;
-        goto failed;
-    }
-
-    *doc_text = purc_variant_get_string_const_ex(msg->data, doc_len);
-    if (*doc_text == NULL || *doc_len == 0) {
-        *retv = PCRDR_SC_BAD_REQUEST;
-        goto failed;
-    }
-
     if (msg->target == PCRDR_MSG_TARGET_DOM && msg->targetValue != 0) {
         const char *key;
         void *data;
@@ -1019,19 +1022,36 @@ static PlainWindow *check_dom_request_msg(Endpoint *endpoint,
                 break;
             }
         }
+
+        if (win == NULL) {
+            *retv = PCRDR_SC_NOT_FOUND;
+            goto failed;
+        }
+
+        // any operation except `erase` and `clear` should have a text data.
+        const char *op = purc_variant_get_string_const(msg->operation);
+        if (strcmp(PCRDR_OPERATION_ERASE, op) &&
+                strcmp(PCRDR_OPERATION_ERASE, op)) {
+            if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+                    msg->data == PURC_VARIANT_INVALID) {
+                *retv = PCRDR_SC_BAD_REQUEST;
+                goto failed;
+            }
+
+            *doc_text = purc_variant_get_string_const_ex(msg->data, doc_len);
+            if (*doc_text == NULL || *doc_len == 0) {
+                *retv = PCRDR_SC_BAD_REQUEST;
+                goto failed;
+            }
+        }
     }
     else {
         *retv = PCRDR_SC_BAD_REQUEST;
         goto failed;
     }
 
-    if (win == NULL) {
-        *retv = PCRDR_SC_NOT_FOUND;
-        goto failed;
-    }
-
     /* we are in writeBegin/writeMore operations */
-    if (win->parser || win->dom_doc == NULL || win->dom_doc->user == NULL) {
+    if (win->parser || win->dom_doc == NULL) {
         win = NULL;
         *retv = PCRDR_SC_PRECONDITION_FAILED;
         goto failed;
@@ -1044,27 +1064,32 @@ failed:
 }
 
 static pcdom_element_t **get_dom_element_by_handle(pcdom_document_t *dom_doc,
-        const char *handle)
+        const char *handle, size_t *nr_elements)
 {
     uint64_t hval;
     char *endptr;
     pcdom_element_t *element;
     pcdom_element_t **elements;
 
+    *nr_elements = 0;
+    elements = malloc(sizeof(pcdom_element_t *));
+    if (elements == NULL)
+        return NULL;
+
     hval = strtoull(handle, &endptr, 16);
     if (endptr == handle) {
-        return NULL;
+        goto done;
     }
 
     element = dom_get_element_by_handle(dom_doc, hval);
     if (element == NULL) {
-        return NULL;
+        goto done;
     }
 
-    elements = malloc(sizeof(pcdom_element_t *));
-    if (elements)
-        elements[0] = element;
+    *nr_elements = 1;
+    elements[0] = element;
 
+done:
     return elements;
 }
 
@@ -1074,8 +1099,8 @@ static pcdom_element_t **get_dom_elements_by_handles(pcdom_document_t *dom_doc,
     pcdom_element_t **elements;
     size_t allocated = DEF_NR_HANDLES;
 
-    elements = malloc(sizeof(pcdom_element_t *) * DEF_NR_HANDLES);
     *nr_elements = 0;
+    elements = malloc(sizeof(pcdom_element_t *) * DEF_NR_HANDLES);
     while (*handles) {
         uint64_t hval;
         char *endptr;
@@ -1086,19 +1111,20 @@ static pcdom_element_t **get_dom_elements_by_handles(pcdom_document_t *dom_doc,
         }
 
         elements[*nr_elements] = dom_get_element_by_handle(dom_doc, hval);
-        if (elements[*nr_elements] == NULL)
-            goto failed;
+        if (elements[*nr_elements]) {
+            (*nr_elements)++;
 
-        (*nr_elements)++;
-        if (*nr_elements > PCRDR_MAX_HANDLES) {
-            goto failed;
+            if (*nr_elements > PCRDR_MAX_HANDLES) {
+                goto done;
+            }
         }
+        // skip not found
 
         if (*nr_elements > allocated) {
             allocated += DEF_NR_HANDLES;
             elements = realloc(elements, sizeof(pcdom_element_t *) * allocated);
             if (elements == NULL)
-                break;
+                return NULL;
         }
 
         handles = endptr;
@@ -1109,11 +1135,8 @@ static pcdom_element_t **get_dom_elements_by_handles(pcdom_document_t *dom_doc,
         }
     }
 
+done:
     return elements;
-
-failed:
-    free(elements);
-    return NULL;
 }
 
 static int operate_dom_element(Server* srv, Endpoint* endpoint,
@@ -1133,9 +1156,8 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
         goto failed;
 
     if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
-        nr_elements = 1;
         elements = get_dom_element_by_handle(win->dom_doc,
-                purc_variant_get_string_const(msg->element));
+                purc_variant_get_string_const(msg->element), &nr_elements);
     }
     else if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLES) {
         elements = get_dom_elements_by_handles(win->dom_doc,
@@ -1144,6 +1166,11 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
 
     if (elements == NULL) {
         retv = PCRDR_SC_INSUFFICIENT_STORAGE;
+        goto failed;
+    }
+
+    if (nr_elements == 0) {
+        retv = PCRDR_SC_NOT_FOUND;
         goto failed;
     }
 
@@ -1239,7 +1266,10 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
         subtree = NULL;
     }
 
-    // TODO: update DOM viewer.
+    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+    assemble_endpoint_name (endpoint, endpoint_name);
+    domview_reload_window_dom(endpoint_name,
+        purc_variant_get_string_const(win->id), elements[0]);
 
 failed:
     if (elements)

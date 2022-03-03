@@ -52,6 +52,7 @@
 #include "src/setup.h"          /* confirm_delete, panels_options */
 #include "src/keymap.h"
 
+#include "dom-ops.h"
 #include "dom-viewer.h"
 #include "dom-tree.h"
 #include "dom-text.h"
@@ -1420,7 +1421,8 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
 }
 
 bool
-dom_tree_load (WDOMTree *tree, pcdom_document_t *doc)
+dom_tree_load (WDOMTree *tree, pcdom_document_t *doc,
+        pcdom_element_t* selected)
 {
     struct my_tree_walker_ctxt ctxt = {
         .is_first_time      = false,
@@ -1433,10 +1435,12 @@ dom_tree_load (WDOMTree *tree, pcdom_document_t *doc)
 
     /* use the user-defined pointer of document for
        whether it is the first time to load the tree. */
-    if (doc->user == NULL) {
+    struct my_dom_user_data *user = doc->user;
+
+    if (user->tree == NULL) {
         ctxt.is_first_time = true;
     }
-    doc->user = tree;
+    user->tree = tree;
 
     pcdom_node_simple_walk (&doc->node, my_tree_walker, &ctxt);
 

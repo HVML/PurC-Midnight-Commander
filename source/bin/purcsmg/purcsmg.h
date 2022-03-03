@@ -98,6 +98,7 @@ struct run_info {
     /* fields for autotest */
     char* doc_content;
     size_t len_content;
+    size_t nr_chars;
 
     int nr_destroyed_wins;
     int state[NR_WINDOWS];

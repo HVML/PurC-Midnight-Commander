@@ -290,7 +290,14 @@ static void init_autotest(pcrdr_conn* conn)
     if (info->doc_content == NULL)
         info->doc_content = strdup(empty_content);
 
-    info->len_content = strlen(info->doc_content);
+    const char *end;
+    pcutils_string_check_utf8(info->doc_content, -1, &info->nr_chars, &end);
+    if (info->nr_chars == 0) {
+        fprintf(stderr, "No valid UTF-8 characters in the content\n");
+        exit(1);
+    }
+
+    info->len_content = end - info->doc_content;
 }
 
 static int my_response_handler(pcrdr_conn* conn,
@@ -436,9 +443,19 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        data = purc_variant_make_string_ex(info->doc_content,
-                DEF_LEN_ONE_WRITE, true);
-        info->len_wrotten[win] = purc_variant_string_size(data) - 1;
+        const char *start = info->doc_content;
+        const char *end;
+        pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
+        if (end > start) {
+            size_t len_to_write = end - start;
+
+            data = purc_variant_make_string_ex(start, len_to_write, false);
+            info->len_wrotten[win] = len_to_write;
+        }
+        else {
+            printf("In %s for window %d: no valid character\n", __func__, win);
+            goto failed;
+        }
     }
     else {
         // use load
@@ -448,7 +465,7 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        data = purc_variant_make_string_static(info->doc_content, true);
+        data = purc_variant_make_string_static(info->doc_content, false);
         info->len_wrotten[win] = info->len_content;
     }
 
@@ -501,7 +518,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
         data = purc_variant_make_string(
-                info->doc_content + info->len_wrotten[win], true);
+                info->doc_content + info->len_wrotten[win], false);
         info->len_wrotten[win] = info->len_content;
     }
     else {
@@ -512,10 +529,19 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        data = purc_variant_make_string_ex(
-                info->doc_content + info->len_wrotten[win],
-                DEF_LEN_ONE_WRITE, true);
-        info->len_wrotten[win] += DEF_LEN_ONE_WRITE;
+        const char *start = info->doc_content + info->len_wrotten[win];
+        const char *end;
+        pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
+        if (end > start) {
+            size_t len_to_write = end - start;
+
+            data = purc_variant_make_string_ex(start, len_to_write, false);
+            info->len_wrotten[win] += len_to_write;
+        }
+        else {
+            printf("In %s for window %d: no valid character\n", __func__, win);
+            goto failed;
+        }
     }
 
     if (msg == NULL || data == PURC_VARIANT_INVALID) {

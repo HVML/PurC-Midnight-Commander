@@ -24,7 +24,7 @@
 /*** structures declarations (and typedefs of structures) */
 
 typedef struct WDOMViewInfo {
-    const char *     file_runner;   /* current file runner name */
+    const char *     file_window;       /* current file or window */
     pcdom_document_t *dom_doc;          /* current DOM document */
 
     WDialog         *dlg;
@@ -36,8 +36,27 @@ typedef struct WDOMViewInfo {
 
 /*** declarations of public functions */
 
-/* Load HTML from a file and show DOM in the internal DOM viewer */
-extern bool domview_load_html (const vfs_path_t * file_vpath);
+/* Show DOM viewer. Return @false when there is no any file or window */
+extern bool
+domview_show(void);
+
+/* Load HTML from a file and show the DOM Document */
+extern bool
+domview_load_html(const vfs_path_t * file_vpath);
+
+/* Attach a DOM Document created by a remote endpoint */
+extern bool
+domview_attach_window_dom(const char *endpoint,
+        const char* win_id, const char *title, pcdom_document_t *dom_doc);
+
+/* Detach a DOM Document created by a remote endpoint */
+extern bool
+domview_detach_window_dom(const char *endpoint, const char* win_id);
+
+/* Reload a DOM Document changed by a remote endpoint */
+extern bool
+domview_reload_window_dom(const char *endpoint, const char* win_id,
+        pcdom_element_t *element);
 
 /*** inline functions */
 

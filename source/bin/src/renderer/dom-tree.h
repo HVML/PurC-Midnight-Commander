@@ -34,6 +34,7 @@
 #include <purc/purc-html.h>
 
 #include "lib/global.h"
+#include "lib/widget.h"
 
 /*** typedefs(not structures) and defined constants */
 
@@ -50,7 +51,8 @@ extern hook_t *select_element_hook;
 
 WDOMTree *dom_tree_new (int y, int x, int lines, int cols, bool is_panel);
 
-bool dom_tree_load (WDOMTree *tree, pcdom_document_t *doc);
+bool dom_tree_load (WDOMTree *tree, pcdom_document_t *doc,
+        pcdom_element_t* selected);
 
 WDOMTree *find_dom_tree (const WDialog * h);
 

@@ -38,11 +38,6 @@
 
 #define SA_INITIAL_SIZE        128
 
-struct my_tree_walker_ctxt {
-    bool add_or_remove;
-    struct sorted_array *sa;
-};
-
 static uint64_t get_hvml_handle(pcdom_node_t *node)
 {
     pcdom_element_t *element = (pcdom_element_t *)node;
@@ -63,6 +58,11 @@ static uint64_t get_hvml_handle(pcdom_node_t *node)
 
     return 0;
 }
+
+struct my_tree_walker_ctxt {
+    bool add_or_remove;
+    struct sorted_array *sa;
+};
 
 static pchtml_action_t
 my_tree_walker(pcdom_node_t *node, void *ctx)
@@ -109,12 +109,13 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
     return PCHTML_ACTION_NEXT;
 }
 
-bool
+static bool
 dom_build_hvml_handle_map(pcdom_document_t *dom_doc)
 {
     struct sorted_array *sa;
+    struct my_dom_user_data *user = dom_doc->user;
 
-    assert(dom_doc->user == NULL);
+    assert(user && user->sa == NULL);
     sa = sorted_array_create(SAFLAG_DEFAULT, SA_INITIAL_SIZE, NULL, NULL);
     if (sa == NULL) {
         return false;
@@ -126,22 +127,100 @@ dom_build_hvml_handle_map(pcdom_document_t *dom_doc)
     };
 
     pcdom_node_simple_walk(&dom_doc->node, my_tree_walker, &ctxt);
-    dom_doc->user = sa;
+    user->sa = sa;
+    return true;
+}
+
+static bool
+dom_destroy_hvml_handle_map(pcdom_document_t *dom_doc)
+{
+    struct my_dom_user_data *user = dom_doc->user;
+
+    assert(user);
+
+    if (user->sa == NULL) {
+        return false;
+    }
+
+    sorted_array_destroy(user->sa);
+    user->sa = NULL;
+    return true;
+}
+
+pcdom_element_t *
+dom_get_element_by_handle(pcdom_document_t *dom_doc, uint64_t handle)
+{
+    void* data;
+    struct my_dom_user_data *user = dom_doc->user;
+
+    if (handle == 0) {
+        return dom_doc->element;
+    }
+
+    assert(user && user->sa);
+
+    if (sorted_array_find(user->sa, handle, &data))
+        return (pcdom_element_t *)data;
+
+    return NULL;
+}
+
+char *dom_set_title(pcdom_document_t *dom_doc, const char *title)
+{
+    struct my_dom_user_data *user = dom_doc->user;
+
+    assert(user);
+
+    if (user->title)
+        free(user->title);
+    user->title = strdup(title);
+
+    return user->title;
+}
+
+bool dom_prepare_user_data(pcdom_document_t *dom_doc, bool with_handle)
+{
+    if (dom_doc->user == NULL) {
+        dom_doc->user = calloc(1, sizeof(struct my_dom_user_data));
+        if (dom_doc->user && with_handle)
+            dom_build_hvml_handle_map(dom_doc);
+    }
+    else
+        return false;
+
+    return dom_doc->user != NULL;
+}
+
+bool dom_cleanup_user_data(pcdom_document_t *dom_doc)
+{
+    struct my_dom_user_data *user = dom_doc->user;
+
+    if (user == NULL) {
+        return false;
+    }
+
+    if (user->sa) {
+        dom_destroy_hvml_handle_map(dom_doc);
+    }
+
+    if (user->title)
+        free(user->title);
+
+    free(user);
+    dom_doc->user = NULL;
     return true;
 }
 
 bool
 dom_merge_hvml_handle_map(pcdom_document_t *dom_doc, pcdom_node_t *subtree)
 {
-    struct sorted_array *sa;
-    sa = dom_doc->user;
-    if (sa == NULL) {
-        return false;
-    }
+    struct my_dom_user_data *user = dom_doc->user;
+
+    assert(user && user->sa);
 
     struct my_tree_walker_ctxt ctxt = {
         .add_or_remove  = true,
-        .sa             = sa,
+        .sa             = user->sa,
     };
 
     pcdom_node_simple_walk(subtree, my_tree_walker, &ctxt);
@@ -152,10 +231,10 @@ bool
 dom_subtract_hvml_handle_map(pcdom_document_t *dom_doc, pcdom_node_t *subtree)
 {
     struct sorted_array *sa;
-    sa = dom_doc->user;
-    if (sa == NULL) {
-        return false;
-    }
+    struct my_dom_user_data *user = dom_doc->user;
+
+    assert(user && user->sa);
+    sa = user->sa;
 
     struct my_tree_walker_ctxt ctxt = {
         .add_or_remove  = false,
@@ -164,39 +243,6 @@ dom_subtract_hvml_handle_map(pcdom_document_t *dom_doc, pcdom_node_t *subtree)
 
     pcdom_node_simple_walk(subtree, my_tree_walker, &ctxt);
     return true;
-}
-
-bool
-dom_destroy_hvml_handle_map(pcdom_document_t *dom_doc)
-{
-    struct sorted_array *sa;
-
-    sa = dom_doc->user;
-    if (sa == NULL) {
-        return false;
-    }
-
-    sorted_array_destroy(sa);
-    dom_doc->user = NULL;
-    return true;
-}
-
-pcdom_element_t *
-dom_get_element_by_handle(pcdom_document_t *dom_doc, uint64_t handle)
-{
-    void* data;
-    struct sorted_array *sa = dom_doc->user;
-
-    if (handle == 0) {
-        return dom_doc->element;
-    }
-
-    assert(sa);
-
-    if (sorted_array_find(sa, handle, &data))
-        return (pcdom_element_t *)data;
-
-    return NULL;
 }
 
 pcdom_node_t *
@@ -367,16 +413,16 @@ void
 dom_erase_element(pcdom_document_t *dom_doc, pcdom_element_t *element)
 {
     pcdom_node_t *node = pcdom_interface_node(element);
-    uint64_t handle = 0;
+    uint64_t handle;
 
-    if (dom_doc->user)
-        handle = get_hvml_handle(node);
+    handle = get_hvml_handle(node);
 
     dom_subtract_hvml_handle_map(dom_doc, node);
     pcdom_node_destroy_deep(node);
 
     if (handle) {
-        if (!sorted_array_remove(dom_doc->user, handle)) {
+        struct my_dom_user_data *user = dom_doc->user;
+        if (!sorted_array_remove(user->sa, handle)) {
             ULOG_WARN("Failed to store handle/node pair\n");
         }
     }

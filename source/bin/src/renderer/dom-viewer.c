@@ -27,6 +27,8 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <purc/purc-pcrdr.h>
+
 #include "lib/global.h"
 #include "lib/tty/tty.h"
 #include "lib/vfs/vfs.h"
@@ -35,11 +37,13 @@
 #include "lib/kvlist.h"
 #include "lib/widget.h"
 #include "lib/event.h"          /* mc_event_raise() */
+#include "lib/hiboxcompat.h"
 
 #include "src/filemanager/ext.h" /* get_file_mime_type() */
 #include "src/keymap.h"
 
 #include "dom-viewer.h"
+#include "dom-ops.h"
 
 /*** global variables */
 
@@ -62,13 +66,13 @@ on_dom_changed (Widget * w, WDOMViewInfo *info)
 {
     WDialog *h = DIALOG (w);
 
-    hline_set_textv (info->caption, " %s ", info->file_runner);
+    hline_set_textv (info->caption, " %s ", info->file_window);
 
-    if (dom_tree_load (info->dom_tree, info->dom_doc)) {
+    if (dom_tree_load (info->dom_tree, info->dom_doc, NULL)) {
         WButtonBar *b;
         b = find_buttonbar (h);
 
-        if (info->file_runner[0] == '@') {
+        if (info->file_window[0] == '@') {
             /* runner */
             buttonbar_set_label (  b, 7,  Q_ ("ButtonBar|Disconnect"), w->keymap, w);
         }
@@ -86,7 +90,7 @@ on_dom_changed (Widget * w, WDOMViewInfo *info)
 }
 
 static inline int
-get_number_doms (void)
+number_of_doms (void)
 {
     int n = 0;
     struct kvlist *kv = &file2dom_map;
@@ -106,10 +110,25 @@ get_hotkey (int n)
     return (n <= 9) ? '0' + n : 'a' + n - 10;
 }
 
+static bool
+switch_dom(const char* name, pcdom_document_t *dom_doc)
+{
+    view_info.file_window = name;
+    view_info.dom_doc = dom_doc;
+
+    bool succeed = dom_tree_load (view_info.dom_tree,
+            view_info.dom_doc, NULL);
+    if (succeed) {
+        hline_set_textv (view_info.caption, " %s ", view_info.file_window);
+    }
+
+    return succeed;
+}
+
 static void
 on_switch_command(WDOMViewInfo * info)
 {
-    const int nr_doms = get_number_doms ();
+    const int nr_doms = number_of_doms ();
     int lines, cols;
     Listbox *listbox;
 
@@ -135,20 +154,14 @@ on_switch_command(WDOMViewInfo * info)
                 name, (void *)name, FALSE);
     }
 
-    name = run_listbox_with_data (listbox, view_info.file_runner);
+    name = run_listbox_with_data (listbox, view_info.file_window);
 
-    if (name != NULL && strcmp (name, view_info.file_runner)) {
+    if (name != NULL && strcmp (name, view_info.file_window)) {
 
         data = kvlist_get (kv, name);
         pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
 
-        view_info.file_runner = name;
-        view_info.dom_doc = pcdom_interface_document (html_doc);
-
-        bool succeed = dom_tree_load (view_info.dom_tree, view_info.dom_doc);
-        if (succeed) {
-            hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
-        }
+        switch_dom(name, pcdom_interface_document (html_doc));
     }
 }
 
@@ -170,7 +183,7 @@ on_close_command(WDOMViewInfo * info)
     int sel;
 
     sel = query_dialog (_("Confirmation"),
-            (view_info.file_runner[0] == '@') ?
+            (view_info.file_window[0] == '@') ?
                 _("Unload the DOM and shutdown the current renderer instance for the remote runner?") :
                 _("Unload the DOM which was originated from a file?"),
             D_NORMAL, 2,
@@ -182,31 +195,39 @@ on_close_command(WDOMViewInfo * info)
     struct kvlist *kv = &file2dom_map;
     void *data;
 
-    data = kvlist_get (kv, view_info.file_runner);
+    data = kvlist_get (kv, view_info.file_window);
     if (data) {
         pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
-        kvlist_delete (kv, view_info.file_runner);
-        pchtml_html_document_destroy (html_doc);
+        kvlist_delete (kv, view_info.file_window);
 
-        view_info.file_runner = NULL;
+        if (view_info.file_window[0] == '@') {
+            // TODO: close the window and notify the runner.
+        }
+        else {
+            dom_cleanup_user_data (pcdom_interface_document (html_doc));
+            pchtml_html_document_destroy (html_doc);
+        }
+
+        view_info.file_window = NULL;
         view_info.dom_doc = NULL;
 
         const char *name;
         kvlist_for_each(kv, name, data) {
             html_doc = *(pchtml_html_document_t **)data;
 
-            view_info.file_runner = name;
+            view_info.file_window = name;
             view_info.dom_doc = pcdom_interface_document (html_doc);
 
-            bool succeed = dom_tree_load (view_info.dom_tree, view_info.dom_doc);
+            bool succeed = dom_tree_load (view_info.dom_tree,
+                    view_info.dom_doc, NULL);
             if (succeed) {
-                hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
+                hline_set_textv (view_info.caption, " %s ", view_info.file_window);
             }
             break;
         }
     }
 
-    if (view_info.file_runner == NULL) {
+    if (view_info.file_window == NULL) {
         dlg_stop (view_info.dlg);
     }
 }
@@ -234,22 +255,24 @@ on_quit_command(WDOMViewInfo * info)
         // Files
         if (name[0] != '@' && (sel & 1)) {
             kvlist_delete (kv, name);
+            dom_cleanup_user_data (pcdom_interface_document (html_doc));
             pchtml_html_document_destroy (html_doc);
         }
 
         // Runners
         if (name[0] == '@' && (sel & 2)) {
-            kvlist_delete (kv, name);
-            pchtml_html_document_destroy (html_doc);
+            // kvlist_delete (kv, name);
+            // pchtml_html_document_destroy (html_doc);
+            // TODO: close the window and notify the runner.
         }
     }
 
-    view_info.file_runner = NULL;
+    view_info.file_window = NULL;
     view_info.dom_doc = NULL;
     kvlist_for_each(kv, name, data) {
         pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
 
-        view_info.file_runner = name;
+        view_info.file_window = name;
         view_info.dom_doc = pcdom_interface_document (html_doc);
         break;
     }
@@ -399,6 +422,8 @@ parse_html (const vfs_path_t * filename_vpath)
 
     mc_close (fdin);
     pchtml_html_parser_destroy (parser);
+
+    dom_prepare_user_data (pcdom_interface_document (html_doc), false);
     return html_doc;
 
 fail:
@@ -435,8 +460,9 @@ get_or_load_html_file (const vfs_path_t * vpath)
 
     html_doc = parse_html (vpath);
     if (html_doc) {
-        view_info.file_runner = kvlist_set_ex (&file2dom_map, filename, &html_doc);
-        if (view_info.file_runner == NULL) {
+        view_info.file_window = kvlist_set_ex (&file2dom_map, filename, &html_doc);
+        if (view_info.file_window == NULL) {
+            dom_cleanup_user_data (pcdom_interface_document (html_doc));
             pchtml_html_document_destroy (html_doc);
             html_doc = NULL;
         }
@@ -492,7 +518,7 @@ domview_create_dialog (WDOMViewInfo *info)
 }
 
 static bool
-domview_show_dom (void)
+show_dom_within_info (void)
 {
     bool succeed = false;
 
@@ -503,9 +529,10 @@ domview_show_dom (void)
     else {
         domview_create_dialog (&view_info);
 
-        succeed = dom_tree_load (view_info.dom_tree, view_info.dom_doc);
+        succeed = dom_tree_load (view_info.dom_tree,
+                view_info.dom_doc, NULL);
         if (succeed) {
-            hline_set_textv (view_info.caption, " %s ", view_info.file_runner);
+            hline_set_textv (view_info.caption, " %s ", view_info.file_window);
             view_info.dlg->data = &view_info;
             dlg_run (view_info.dlg);
         }
@@ -526,6 +553,33 @@ domview_show_dom (void)
 /*** public functions */
 
 bool
+domview_show(void)
+{
+    struct kvlist *kv = &file2dom_map;
+    const char *name;
+    void *data;
+
+    if (view_info.dlg) {
+        return true;
+    }
+
+    view_info.file_window = NULL;
+    view_info.dom_doc = NULL;
+    kvlist_for_each(kv, name, data) {
+        view_info.file_window = name;
+        view_info.dom_doc = *(pcdom_document_t **)data;
+        break;
+    }
+
+    if (view_info.file_window == NULL) {
+        message (D_NORMAL, "DOM Viewer", "There is no any active DOM documents!");
+        return false;
+    }
+
+    return show_dom_within_info();
+}
+
+bool
 domview_load_html (const vfs_path_t * file_vpath)
 {
     bool succeed;
@@ -537,8 +591,7 @@ domview_load_html (const vfs_path_t * file_vpath)
         mime = NULL;
 
         if (get_or_load_html_file (file_vpath)) {
-            succeed = domview_show_dom ();
-            // pchtml_html_document_destroy (html_doc);
+            succeed = show_dom_within_info ();
         }
     }
 
@@ -546,5 +599,119 @@ domview_load_html (const vfs_path_t * file_vpath)
         g_free (mime);
 
     return succeed;
+}
+
+static inline char *
+get_winname(char *winname, const char *endpoint, const char *win_id)
+{
+    size_t sz_1 = strlen(endpoint);
+
+    assert(sz_1 <= PCRDR_LEN_ENDPOINT_NAME);
+    assert(strlen(win_id) <= PCRDR_LEN_IDENTIFIER);
+
+    strcpy(winname, endpoint);
+    strcpy(winname + sz_1, "/");
+    strcpy(winname + sz_1 + 1, win_id);
+
+    return winname;
+}
+
+bool
+domview_attach_window_dom(const char *endpoint, const char* win_id,
+        const char *title, pcdom_document_t *dom_doc)
+{
+    pcdom_document_t **data;
+
+    char winname[PCRDR_LEN_ENDPOINT_NAME + PCRDR_LEN_IDENTIFIER + 2];
+    get_winname(winname, endpoint, win_id);
+
+    data = kvlist_get(&file2dom_map, winname);
+    if (data) {
+        goto failed;
+    }
+
+    view_info.file_window = kvlist_set_ex(&file2dom_map, winname, &dom_doc);
+    if (view_info.file_window == NULL)
+        goto failed;
+
+    if (title)
+        dom_set_title(dom_doc, title);
+
+    if (view_info.dlg) {
+        // TODO
+    }
+
+    return true;
+
+failed:
+    return false;
+}
+
+bool
+domview_detach_window_dom(const char *endpoint, const char* win_id)
+{
+    char winname[PCRDR_LEN_ENDPOINT_NAME + PCRDR_LEN_IDENTIFIER + 2];
+
+    get_winname(winname, endpoint, win_id);
+    if (!kvlist_delete(&file2dom_map, winname)) {
+        goto failed;
+    }
+
+    if (view_info.dlg && strcmp(view_info.file_window, winname) == 0) {
+        const char *name;
+        void *data;
+
+        view_info.file_window = NULL;
+        view_info.dom_doc = NULL;
+        kvlist_for_each(&file2dom_map, name, data) {
+            view_info.file_window = name;
+            view_info.dom_doc = *(pcdom_document_t **)data;
+            break;
+        }
+
+        if (view_info.file_window == NULL) {
+            message (D_NORMAL, "DOM Viewer", "There is no any active DOM documents!");
+            dlg_stop (view_info.dlg);
+        }
+        else {
+            // TODO
+            show_dom_within_info();
+        }
+    }
+
+    return true;
+
+failed:
+    return false;
+}
+
+/* Reload a DOM Document changed by a remote endpoint */
+bool
+domview_reload_window_dom(const char *endpoint, const char* win_id,
+        pcdom_element_t *element)
+{
+    pcdom_document_t **data;
+    pcdom_document_t *dom_doc;
+    char winname[PCRDR_LEN_ENDPOINT_NAME + PCRDR_LEN_IDENTIFIER + 2];
+    get_winname(winname, endpoint, win_id);
+
+    if ((data = kvlist_get(&file2dom_map, winname)) == NULL) {
+        return false;
+    }
+
+    if (view_info.dlg) {
+
+        // TODO: show change
+
+        if (strcmp(view_info.file_window, winname) == 0) {
+            dom_doc = *data;
+
+            view_info.file_window = winname;
+            view_info.dom_doc = dom_doc;
+            return dom_tree_load(view_info.dom_tree, dom_doc, element);
+        }
+    }
+
+    return true;
 }
 

@@ -9,8 +9,19 @@
 #include <purc/purc-dom.h>
 #include <purc/purc-html.h>
 
-/* build the map from HVML handles to elements */
-bool dom_build_hvml_handle_map(pcdom_document_t *dom_doc);
+#include "lib/sorted-array.h"
+
+#include "dom-tree.h"
+
+struct my_dom_user_data {
+    struct sorted_array *sa;    // handle to element map
+    char                *title; // the title
+    WDOMTree            *tree;  // the DOMTree widget
+};
+
+bool dom_prepare_user_data(pcdom_document_t *dom_doc, bool with_handle);
+
+bool dom_cleanup_user_data(pcdom_document_t *dom_doc);
 
 bool dom_merge_hvml_handle_map(pcdom_document_t *dom_doc,
         pcdom_node_t *subtree);
@@ -18,10 +29,10 @@ bool dom_merge_hvml_handle_map(pcdom_document_t *dom_doc,
 bool dom_subtract_hvml_handle_map(pcdom_document_t *dom_doc,
         pcdom_node_t *subtree);
 
-bool dom_destroy_hvml_handle_map(pcdom_document_t *dom_doc);
-
 pcdom_element_t *dom_get_element_by_handle(pcdom_document_t *dom_doc,
         uintptr_t handle);
+
+char *dom_set_title(pcdom_document_t *dom_doc, const char *title);
 
 pcdom_node_t *dom_parse_fragment(pcdom_document_t *dom_doc,
         pcdom_element_t *parent, const char *fragment, size_t length);

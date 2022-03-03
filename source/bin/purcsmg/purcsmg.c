@@ -199,7 +199,7 @@ static char *load_doc_content(const char *file)
         if (len < 0)
             goto failed;
 
-        buf = malloc(len);
+        buf = malloc(len + 1);
         if (buf == NULL)
             goto failed;
 
@@ -208,6 +208,8 @@ static char *load_doc_content(const char *file)
             free(buf);
             buf = NULL;
         }
+        buf[len] = '\0';
+
 failed:
         fclose(f);
     }
@@ -215,11 +217,12 @@ failed:
     return buf;
 }
 
-static char short_options[] = "a:r:f:cvh";
+static char short_options[] = "a:r:f:m:cvh";
 static struct option long_opts[] = {
     {"app"            , required_argument , NULL , 'a' } ,
     {"runner"         , required_argument , NULL , 'r' } ,
     {"file"           , required_argument , NULL , 'f' } ,
+    {"testmethod"     , required_argument , NULL , 'm' } ,
     {"cmdline"        , no_argument       , NULL , 'c' } ,
     {"version"        , no_argument       , NULL , 'v' } ,
     {"help"           , no_argument       , NULL , 'h' } ,
@@ -254,6 +257,10 @@ static int read_option_args (int argc, char **argv)
                 return -1;
             }
             break;
+        case 'm':
+            the_client.test_method = atoi(optarg);
+            the_client.nr_windows = 1;
+            break;
         case 'c':
             the_client.use_cmdline = true;
             break;
@@ -273,22 +280,37 @@ static int read_option_args (int argc, char **argv)
     return 0;
 }
 
-static const char *empty_content =
-    "<html><body><div hvml:handle='3'></div></body></html>";
+static const char *test_content =
+    "<html><body>"
+    "<div hvml:handle='1'></div>"
+    "<div hvml:handle='2'></div>"
+    "<div hvml:handle='3'></div>"
+    "<div hvml:handle='4'></div>"
+    "<div hvml:handle='5'></div>"
+    "</body></html>";
 
 static void init_autotest(pcrdr_conn* conn)
 {
     struct run_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    for (int i = 0; i < NR_WINDOWS; i++) {
-        info->max_changes[i] = (int) (time(NULL) % MAX_CHANGES);
-        if (info->max_changes[i] < 8)
-            info->max_changes[i] = 8;
+    if (info->doc_content == NULL) {
+        info->doc_content = strdup(test_content);
     }
 
-    if (info->doc_content == NULL)
-        info->doc_content = strdup(empty_content);
+    if (info->nr_windows != 1) {
+        // autotest
+        info->nr_windows = MAX_NR_WINDOWS;
+
+        for (int i = 0; i < MAX_NR_WINDOWS; i++) {
+            info->max_changes[i] = (int) (time(NULL) % MAX_CHANGES);
+            if (info->max_changes[i] < 8)
+                info->max_changes[i] = 8;
+        }
+    }
+    else {
+        info->max_changes[0] = 128;
+    }
 
     const char *end;
     pcutils_string_check_utf8(info->doc_content, -1, &info->nr_chars, &end);
@@ -298,6 +320,7 @@ static void init_autotest(pcrdr_conn* conn)
     }
 
     info->len_content = end - info->doc_content;
+    fprintf(stderr, "No valid UTF-8 characters in the content\n");
 }
 
 static int my_response_handler(pcrdr_conn* conn,
@@ -430,7 +453,7 @@ failed:
 static int load_or_write_doucment(pcrdr_conn* conn, int win)
 {
     struct run_info *info = pcrdr_conn_get_user_data(conn);
-    assert(win < NR_WINDOWS && info);
+    assert(win < info->nr_windows && info);
 
     pcrdr_msg *msg = NULL;
     purc_variant_t data = PURC_VARIANT_INVALID;
@@ -504,7 +527,7 @@ failed:
 static int write_more_doucment(pcrdr_conn* conn, int win)
 {
     struct run_info *info = pcrdr_conn_get_user_data(conn);
-    assert(win < NR_WINDOWS && info);
+    assert(win < info->nr_windows && info);
 
     pcrdr_msg *msg = NULL;
     purc_variant_t data = PURC_VARIANT_INVALID;
@@ -828,10 +851,34 @@ static pcrdr_msg *make_change_message_c(struct run_info *info, int win)
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 }
 
+static pcrdr_msg *make_change_message_d(struct run_info *info, int win)
+{
+    pcrdr_msg *msg;
+    char handle[64];
+    sprintf(handle, "%llx", (long long)HANDLE_TEXTCONTENT_TITLE);
+
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
+            "textContent",
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    msg->data = purc_variant_make_string_static("FMSoft", false);
+    if (msg->data) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    }
+    else {
+        pcrdr_release_message(msg);
+        return NULL;
+    }
+
+    return msg;
+}
+
 static int change_document(pcrdr_conn* conn, int win)
 {
     struct run_info *info = pcrdr_conn_get_user_data(conn);
-    assert(win < NR_WINDOWS && info);
+    assert(win < info->nr_windows && info);
 
     static pcrdr_msg *(*makers[])(struct run_info *info, int win) = {
         make_change_message_0,
@@ -847,11 +894,22 @@ static int change_document(pcrdr_conn* conn, int win)
         make_change_message_a,
         make_change_message_b,
         make_change_message_c,
+        make_change_message_d,
     };
 
     pcrdr_msg *msg;
 
-    unsigned int method = run_times % TABLESIZE(makers);
+    unsigned int method;
+    if (info->nr_windows == 1) {
+        if (info->test_method > 0 && info->test_method < TABLESIZE(makers))
+            method = (unsigned int)info->test_method;
+        else
+            method = 0;
+    }
+    else {
+        method = run_times % TABLESIZE(makers);
+    }
+
     msg = makers[method](info, win);
     if (msg == NULL)
         return -1;
@@ -881,7 +939,7 @@ failed:
 static int reset_window(pcrdr_conn* conn, int win)
 {
     struct run_info *info = pcrdr_conn_get_user_data(conn);
-    assert(win < NR_WINDOWS && info);
+    assert(win < info->nr_windows && info);
 
     pcrdr_msg *msg = NULL;
     purc_variant_t data = PURC_VARIANT_INVALID;
@@ -891,7 +949,7 @@ static int reset_window(pcrdr_conn* conn, int win)
             PCRDR_OPERATION_LOAD, NULL,
             PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
-    data = purc_variant_make_string_static(empty_content, false);
+    data = purc_variant_make_string_static(test_content, false);
 
     if (msg == NULL || data == PURC_VARIANT_INVALID) {
         goto failed;
@@ -979,7 +1037,7 @@ static int check_quit(pcrdr_conn* conn, int win)
     struct run_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    if (info->nr_destroyed_wins == NR_WINDOWS) {
+    if (info->nr_destroyed_wins == info->nr_windows) {
         printf("all window destroyed; quitting...\n");
         return -1;
     }
@@ -997,7 +1055,7 @@ static int run_autotest(pcrdr_conn* conn)
 
     assert(info);
 
-    int win = run_times % NR_WINDOWS;
+    int win = run_times % info->nr_windows;
     run_times++;
 
     switch (info->state[win]) {

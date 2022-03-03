@@ -41,7 +41,7 @@
 
 #define TABLESIZE(table)    (sizeof(table)/sizeof(table[0]))
 
-#define NR_WINDOWS          8
+#define MAX_NR_WINDOWS      8
 #define MAX_CHANGES         128
 
 /* 0 is not a valid handle */
@@ -99,18 +99,20 @@ struct run_info {
     char* doc_content;
     size_t len_content;
     size_t nr_chars;
+    int    nr_windows;
+    int    test_method;
 
     int nr_destroyed_wins;
-    int state[NR_WINDOWS];
+    int state[MAX_NR_WINDOWS];
 
-    size_t len_wrotten[NR_WINDOWS];
-    int max_changes[NR_WINDOWS];
-    int changes[NR_WINDOWS];
+    size_t len_wrotten[MAX_NR_WINDOWS];
+    int max_changes[MAX_NR_WINDOWS];
+    int changes[MAX_NR_WINDOWS];
 
     // handles of windows.
-    uint64_t win_handles[NR_WINDOWS];
+    uint64_t win_handles[MAX_NR_WINDOWS];
     // handles of DOM.
-    uint64_t dom_handles[NR_WINDOWS];
+    uint64_t dom_handles[MAX_NR_WINDOWS];
 };
 
 extern struct run_info the_client;

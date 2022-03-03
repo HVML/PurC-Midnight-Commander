@@ -61,6 +61,15 @@ static WDOMViewInfo view_info;
 
 /*** file scope functions */
 
+static inline void
+set_view_info(const char *filewin, pcdom_document_t *dom_doc)
+{
+    if (view_info.file_window)
+        free(view_info.file_window);
+    view_info.file_window = filewin ? strdup(filewin) : NULL;
+    view_info.dom_doc = dom_doc;
+}
+
 static cb_ret_t
 on_dom_changed (Widget * w, WDOMViewInfo *info)
 {
@@ -113,8 +122,7 @@ get_hotkey (int n)
 static bool
 switch_dom(const char* name, pcdom_document_t *dom_doc)
 {
-    view_info.file_window = name;
-    view_info.dom_doc = dom_doc;
+    set_view_info(name, dom_doc);
 
     bool succeed = dom_tree_load (view_info.dom_tree,
             view_info.dom_doc, NULL);
@@ -161,7 +169,7 @@ on_switch_command(WDOMViewInfo * info)
         data = kvlist_get (kv, name);
         pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
 
-        switch_dom(name, pcdom_interface_document (html_doc));
+        switch_dom(name, pcdom_interface_document(html_doc));
     }
 }
 
@@ -208,20 +216,19 @@ on_close_command(WDOMViewInfo * info)
             pchtml_html_document_destroy (html_doc);
         }
 
-        view_info.file_window = NULL;
-        view_info.dom_doc = NULL;
+        set_view_info(NULL, NULL);
 
         const char *name;
         kvlist_for_each(kv, name, data) {
             html_doc = *(pchtml_html_document_t **)data;
 
-            view_info.file_window = name;
-            view_info.dom_doc = pcdom_interface_document (html_doc);
+            set_view_info(name, pcdom_interface_document (html_doc));
 
             bool succeed = dom_tree_load (view_info.dom_tree,
                     view_info.dom_doc, NULL);
             if (succeed) {
-                hline_set_textv (view_info.caption, " %s ", view_info.file_window);
+                hline_set_textv (view_info.caption, " %s ",
+                        view_info.file_window);
             }
             break;
         }
@@ -267,13 +274,11 @@ on_quit_command(WDOMViewInfo * info)
         }
     }
 
-    view_info.file_window = NULL;
-    view_info.dom_doc = NULL;
+    set_view_info(NULL, NULL);
     kvlist_for_each(kv, name, data) {
         pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
 
-        view_info.file_window = name;
-        view_info.dom_doc = pcdom_interface_document (html_doc);
+        set_view_info(name, pcdom_interface_document (html_doc));
         break;
     }
 }
@@ -460,19 +465,14 @@ get_or_load_html_file (const vfs_path_t * vpath)
 
     html_doc = parse_html (vpath);
     if (html_doc) {
-        view_info.file_window = kvlist_set_ex (&file2dom_map, filename, &html_doc);
-        if (view_info.file_window == NULL) {
-            dom_cleanup_user_data (pcdom_interface_document (html_doc));
-            pchtml_html_document_destroy (html_doc);
-            html_doc = NULL;
-        }
+        kvlist_set_ex(&file2dom_map, filename, &html_doc);
+        set_view_info(filename, pcdom_interface_document (html_doc));
     }
 
 done:
     if (filename)
         free (filename);
 
-    view_info.dom_doc = pcdom_interface_document (html_doc);
     return view_info.dom_doc != NULL;
 }
 
@@ -496,21 +496,35 @@ domview_create_dialog (WDOMViewInfo *info)
 
     int left_lines = vw->lines - 1;
     int half_cols = vw->cols / 2;
-    int cnt_lines = left_lines / 2 - 2;
-    info->dom_tree = dom_tree_new (vw->y + 1, vw->x, left_lines - 1, half_cols, TRUE);
+    int attr_lines = left_lines / 2;
+    int info_lines = 3;
+    int cnt_lines = left_lines - attr_lines - info_lines - 1;
+
+    info->dom_tree = dom_tree_new (vw->y + 1, vw->x,
+            left_lines - 1, half_cols, TRUE);
     group_add_widget_autopos (g, info->dom_tree,
             WPOS_KEEP_LEFT | WPOS_KEEP_VERT, NULL);
 
     info->ele_attrs = dom_ele_attrs_new (vw->y + 1, vw->x + half_cols,
-            left_lines - cnt_lines, vw->cols - half_cols);
+            attr_lines, vw->cols - half_cols);
     group_add_widget_autopos (g, info->ele_attrs,
             WPOS_KEEP_RIGHT | WPOS_KEEP_TOP, NULL);
 
     info->dom_cnt = dom_content_new (
-            vw->y + 1 + left_lines - cnt_lines, vw->x + vw->cols / 2,
-            cnt_lines - 1, vw->cols - half_cols,
+            vw->y + 1 + attr_lines,
+            vw->x + vw->cols / 2,
+            cnt_lines, vw->cols - half_cols,
             _("Content"), NULL);
     group_add_widget_autopos (g, info->dom_cnt,
+            WPOS_KEEP_RIGHT | WPOS_KEEP_BOTTOM, NULL);
+
+    info->srv_info = dom_content_new (
+            vw->y + 1 + attr_lines + cnt_lines,
+            vw->x + vw->cols / 2,
+            info_lines, vw->cols - half_cols,
+            _("Information"), NULL);
+    widget_set_options (WIDGET (info->srv_info), WOP_SELECTABLE, FALSE);
+    group_add_widget_autopos (g, info->srv_info,
             WPOS_KEEP_RIGHT | WPOS_KEEP_BOTTOM, NULL);
 
     b = WIDGET (buttonbar_new ());
@@ -563,11 +577,9 @@ domview_show(void)
         return true;
     }
 
-    view_info.file_window = NULL;
-    view_info.dom_doc = NULL;
+    set_view_info(NULL, NULL);
     kvlist_for_each(kv, name, data) {
-        view_info.file_window = name;
-        view_info.dom_doc = *(pcdom_document_t **)data;
+        set_view_info(name, *(pcdom_document_t **)data);
         break;
     }
 
@@ -630,15 +642,17 @@ domview_attach_window_dom(const char *endpoint, const char* win_id,
         goto failed;
     }
 
-    view_info.file_window = kvlist_set_ex(&file2dom_map, winname, &dom_doc);
-    if (view_info.file_window == NULL)
-        goto failed;
-
+    kvlist_set_ex(&file2dom_map, winname, &dom_doc);
     if (title)
         dom_set_title(dom_doc, title);
 
+    // set_view_info(winname, dom_doc);
     if (view_info.dlg) {
-        // TODO
+        GString *buff = g_string_new (endpoint);
+        g_string_append (buff, "/");
+        g_string_append (buff, win_id);
+        g_string_append (buff, " attached");
+        dom_content_load(view_info.srv_info, buff);
     }
 
     return true;
@@ -657,25 +671,31 @@ domview_detach_window_dom(const char *endpoint, const char* win_id)
         goto failed;
     }
 
-    if (view_info.dlg && strcmp(view_info.file_window, winname) == 0) {
-        const char *name;
-        void *data;
+    if (view_info.dlg) {
 
-        view_info.file_window = NULL;
-        view_info.dom_doc = NULL;
-        kvlist_for_each(&file2dom_map, name, data) {
-            view_info.file_window = name;
-            view_info.dom_doc = *(pcdom_document_t **)data;
-            break;
-        }
+        GString *buff = g_string_new (endpoint);
+        g_string_append (buff, "/");
+        g_string_append (buff, win_id);
+        g_string_append (buff, " detached");
+        dom_content_load(view_info.srv_info, buff);
 
-        if (view_info.file_window == NULL) {
-            message (D_NORMAL, "DOM Viewer", "There is no any active DOM documents!");
-            dlg_stop (view_info.dlg);
-        }
-        else {
-            // TODO
-            show_dom_within_info();
+        if (strcmp(view_info.file_window, winname) == 0) {
+            const char *name;
+            void *data;
+
+            set_view_info(NULL, NULL);
+            kvlist_for_each(&file2dom_map, name, data) {
+                set_view_info(name, *(pcdom_document_t **)data);
+                break;
+            }
+
+            if (view_info.file_window == NULL) {
+                message (D_NORMAL, "DOM Viewer", "There is no any active DOM documents!");
+                dlg_stop (view_info.dlg);
+            }
+            else {
+                show_dom_within_info();
+            }
         }
     }
 
@@ -685,29 +705,84 @@ failed:
     return false;
 }
 
+static bool
+is_window_of_endpoint(const char* filewin, const char *endpoint)
+{
+    int len = strlen(endpoint);
+
+    if (strncasecmp(filewin, endpoint, len) == 0 && filewin[len] == '/')
+        return true;
+
+    return false;
+}
+
+void
+domview_detach_all_doms(const char *endpoint)
+{
+    struct kvlist *kv = &file2dom_map;
+    const char* name;
+    void *next, *data;
+
+    kvlist_for_each_safe (kv, name, next, data) {
+        if (is_window_of_endpoint(name, endpoint)) {
+            kvlist_delete (kv, name);
+        }
+    }
+
+    if (view_info.dlg) {
+
+        GString *buff = g_string_new (endpoint);
+        g_string_append (buff, " detached");
+        dom_content_load(view_info.srv_info, buff);
+
+        if (is_window_of_endpoint(view_info.file_window, endpoint)) {
+            const char *name;
+            void *data;
+
+            set_view_info(NULL, NULL);
+            kvlist_for_each(&file2dom_map, name, data) {
+                set_view_info(name, *(pcdom_document_t **)data);
+                break;
+            }
+
+            if (view_info.file_window == NULL) {
+                message (D_NORMAL, "DOM Viewer", "There is no any active DOM documents!");
+                dlg_stop (view_info.dlg);
+            }
+            else {
+                show_dom_within_info();
+            }
+        }
+    }
+}
+
 /* Reload a DOM Document changed by a remote endpoint */
 bool
 domview_reload_window_dom(const char *endpoint, const char* win_id,
         pcdom_element_t *element)
 {
     pcdom_document_t **data;
-    pcdom_document_t *dom_doc;
     char winname[PCRDR_LEN_ENDPOINT_NAME + PCRDR_LEN_IDENTIFIER + 2];
     get_winname(winname, endpoint, win_id);
 
     if ((data = kvlist_get(&file2dom_map, winname)) == NULL) {
+        ULOG_ERR("can not find DOM for %s\n", winname);
         return false;
     }
 
     if (view_info.dlg) {
 
-        // TODO: show change
+        GString *buff = g_string_new (endpoint);
+        g_string_append (buff, "/");
+        g_string_append (buff, win_id);
+        g_string_append (buff, " changed");
+        dom_content_load(view_info.srv_info, buff);
 
         if (strcmp(view_info.file_window, winname) == 0) {
+            pcdom_document_t *dom_doc;
             dom_doc = *data;
 
-            view_info.file_window = winname;
-            view_info.dom_doc = dom_doc;
+            set_view_info(winname, dom_doc);
             return dom_tree_load(view_info.dom_tree, dom_doc, element);
         }
     }

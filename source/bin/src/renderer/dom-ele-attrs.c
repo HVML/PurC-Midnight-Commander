@@ -223,7 +223,10 @@ domattrs_show_element_attrs (WEleAttrs * attrs)
         }
 
         str = (const gchar *)pcdom_attr_value (attr, &sz);
-        buff = g_string_overwrite_len (buff, 0, str, sz);
+        if (sz > 0)
+            buff = g_string_overwrite_len (buff, 0, str, sz);
+        else
+            buff = g_string_overwrite (buff, 0, "");
         widget_gotoyx (w, y, FIELD_WIDTH_NAME + 1);
         tty_print_string (str_fit_to_term (buff->str,
                 w->cols - FIELD_WIDTH_NAME - 2, J_LEFT_FIT));

@@ -60,6 +60,7 @@ static uint64_t get_hvml_handle(pcdom_node_t *node)
 }
 
 struct my_tree_walker_ctxt {
+    bool mark_dirty;
     bool add_or_remove;
     struct sorted_array *sa;
 };
@@ -94,6 +95,9 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
             }
         }
 
+        if (ctxt->mark_dirty)
+            node->flags |= NF_DIRTY;
+
         if (node->first_child != NULL) {
             return PCHTML_ACTION_OK;
         }
@@ -122,6 +126,7 @@ dom_build_hvml_handle_map(pcdom_document_t *dom_doc)
     }
 
     struct my_tree_walker_ctxt ctxt = {
+        .mark_dirty     = false,
         .add_or_remove  = true,
         .sa             = sa,
     };
@@ -219,6 +224,7 @@ dom_merge_hvml_handle_map(pcdom_document_t *dom_doc, pcdom_node_t *subtree)
     assert(user && user->sa);
 
     struct my_tree_walker_ctxt ctxt = {
+        .mark_dirty     = true,
         .add_or_remove  = true,
         .sa             = user->sa,
     };
@@ -237,6 +243,7 @@ dom_subtract_hvml_handle_map(pcdom_document_t *dom_doc, pcdom_node_t *subtree)
     sa = user->sa;
 
     struct my_tree_walker_ctxt ctxt = {
+        .mark_dirty     = false,
         .add_or_remove  = false,
         .sa             = sa,
     };

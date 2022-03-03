@@ -24,7 +24,7 @@
 /*** structures declarations (and typedefs of structures) */
 
 typedef struct WDOMViewInfo {
-    const char *     file_window;       /* current file or window */
+    char *            file_window;      /* current file or window */
     pcdom_document_t *dom_doc;          /* current DOM document */
 
     WDialog         *dlg;
@@ -32,6 +32,7 @@ typedef struct WDOMViewInfo {
     WDOMTree        *dom_tree;
     WEleAttrs       *ele_attrs;
     WDOMContent     *dom_cnt;
+    WDOMContent     *srv_info;
 } WDOMViewInfo;
 
 /*** declarations of public functions */
@@ -52,6 +53,9 @@ domview_attach_window_dom(const char *endpoint,
 /* Detach a DOM Document created by a remote endpoint */
 extern bool
 domview_detach_window_dom(const char *endpoint, const char* win_id);
+
+extern void
+domview_detach_all_doms(const char *endpoint);
 
 /* Reload a DOM Document changed by a remote endpoint */
 extern bool

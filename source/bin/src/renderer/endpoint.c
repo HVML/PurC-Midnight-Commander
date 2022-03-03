@@ -130,21 +130,24 @@ static void remove_session(Endpoint* endpoint)
     void *next, *data;
     PlainWindow *win;
 
-    kvlist_for_each_safe(&endpoint->session_info->wins, name, next, data) {
-        win = *(PlainWindow **)data;
+    if (endpoint->session_info) {
+        kvlist_for_each_safe(&endpoint->session_info->wins, name, next, data) {
+            win = *(PlainWindow **)data;
 
-        kvlist_delete(&endpoint->session_info->wins, name);
-        remove_window(endpoint, win);
+            kvlist_delete(&endpoint->session_info->wins, name);
+            remove_window(endpoint, win);
+        }
+        kvlist_free(&endpoint->session_info->wins);
+        free(endpoint->session_info);
+        endpoint->session_info = NULL;
     }
-    kvlist_free(&endpoint->session_info->wins);
-    free(endpoint->session_info);
-    endpoint->session_info = NULL;
 }
 
 int del_endpoint (Server* srv, Endpoint* endpoint, int cause)
 {
     char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
 
+    remove_session(endpoint);
     if (assemble_endpoint_name (endpoint, endpoint_name) > 0) {
         if (endpoint->avl.key)
             avl_delete (&srv->living_avl, &endpoint->avl);

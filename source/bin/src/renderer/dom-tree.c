@@ -66,8 +66,6 @@ hook_t *select_element_hook;
 
 #define MC_DEFXPATHLEN      128
 
-#define NF_UNFOLDED         0x0001
-
 #define tlines(t) (t->is_panel ? WIDGET (t)->lines - 4 : WIDGET (t)->lines)
 
 /*** file scope type declarations */
@@ -1420,10 +1418,43 @@ my_tree_walker(pcdom_node_t *node, void *ctx)
     return PCHTML_ACTION_OK;
 }
 
+static size_t
+mark_ancestors_unfold(pcdom_node_t *node)
+{
+    int n = 0;
+
+    do {
+        if (node->type != PCDOM_NODE_TYPE_ELEMENT)
+            break;
+
+        node->flags |= NF_UNFOLDED;
+        n++;
+
+        node = node->parent;
+    } while (node);
+
+    return n;
+}
+
+static tree_entry *
+retrive_entry_by_node(WDOMTree *tree, pcdom_node_t* node)
+{
+    tree_entry *p;
+
+    list_for_each_entry(p, &tree->entries, list) {
+        if (p->node == node)
+            return p;
+    }
+
+    return NULL;
+}
+
 bool
 dom_tree_load (WDOMTree *tree, pcdom_document_t *doc,
-        pcdom_element_t* selected)
+        pcdom_element_t* highlight)
 {
+    int highlight_levels = 0;
+
     struct my_tree_walker_ctxt ctxt = {
         .is_first_time      = false,
         .tree               = tree,
@@ -1440,6 +1471,11 @@ dom_tree_load (WDOMTree *tree, pcdom_document_t *doc,
     if (user->tree == NULL) {
         ctxt.is_first_time = true;
     }
+    else if (highlight) {
+        highlight_levels = mark_ancestors_unfold(
+                pcdom_interface_node(highlight));
+    }
+
     user->tree = tree;
 
     pcdom_node_simple_walk (&doc->node, my_tree_walker, &ctxt);
@@ -1448,6 +1484,15 @@ dom_tree_load (WDOMTree *tree, pcdom_document_t *doc,
         tree->doc = doc;
         tree->topmost = list_entry (tree->entries.next, tree_entry, list);
         tree->selected = tree->topmost;
+
+        if (highlight_levels > 0) {
+            tree_entry *new_selected = retrive_entry_by_node(tree,
+                    pcdom_interface_node(highlight));
+
+            if (new_selected)
+                tree_set_selected (tree, new_selected, true);
+        }
+
         show_tree (tree);
         return true;
     }

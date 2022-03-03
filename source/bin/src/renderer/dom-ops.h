@@ -13,6 +13,9 @@
 
 #include "dom-tree.h"
 
+#define NF_UNFOLDED         0x0001
+#define NF_DIRTY            0x0002
+
 struct my_dom_user_data {
     struct sorted_array *sa;    // handle to element map
     char                *title; // the title

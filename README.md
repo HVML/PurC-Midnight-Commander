@@ -22,14 +22,21 @@ GNU [Midnight Commander].
 
 It keeps almost all functions of GNU MC with the following enhancements:
 
-1. We use cmake as the building system instead of autoconf/automake.
+1. We use `cmake` as the building system instead of autoconf/automake.
 1. We cleaned up the code and removed some features, such as support for
-   various charsets (codepages). PurcMC supports only UTF-8.
+   various charsets (codepages). PurcMC assumes that the encoding is
+   always UTF-8 by default.
+1. It can load a HTML file on file systems and show the DOM tree. The user can
+   travel the DOM tree and check the attributes and text content of elements.
 1. It runs as a HVML renderer, accepts the connections from PurC-based HVML
    interpreter instances via Unix Domain Socket or Web Socket, and shows
-   the uDOMs as trees in dialogs.
-1. The user can edit a uDOM tree, e.g., changing attributes and contents
-   of an element.
+   the uDOMs as trees in a screen. Driven by the remove HVML programs,
+   it can update the uDOMs dynamically.
+
+The following features are still under development:
+
+1. The user can edit a uDOM tree, e.g., changing the attributes and contents
+   of an element, or creating a new element.
 
 ## Source Tree of PurcMC
 
@@ -55,6 +62,8 @@ For the community conduct, please refer to [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## Building
 
+Building and install the latest PurC to your system first.
+
 ### Commands
 
 To build the source on Linux:
@@ -75,6 +84,69 @@ $ cmake .. -DPORT=Mac
 $ make
 ```
 
+## Usage
+
+### Start HVML Renderer
+
+First, change to the `build/` directory:
+
+```
+$ cd build/
+```
+
+Run `purcmc` with `--help` or `--help-renderer` option to show the command
+line options:
+
+```
+$ source/bin/purcmc --help
+```
+
+Run `purcmc` with `-R` option to start the PurCMC renderer server:
+
+```
+$ source/bin/purcmc -R
+```
+
+If you want to disable the support on WebSocket, you can run:
+
+```
+$ source/bin/purcmc -R --nowebsocket
+```
+
+Sencond, open another terminal to run an HVML interpreter or the sample client
+`purcsmg` in this repo.
+
+Here are some tips:
+
+1. In the default screen, you can select a HTML file, press `F3` or click `View` on
+   the button bar to load the file and show the DOM tree in the DOM viewer.
+1. In the DOM viewer, you can press `F3` or click `Switch` on the button bar
+   to switch to another opened HTML file or loaded uDOM.
+1. In the DOM viewer, you can use `Tab` key to travel among widgets.
+   In the DOM Tree widget, you can use arrow keys to travel the elements,
+   fold or unfold a sub tree in DOM Tree widget.
+
+### Sample Client
+
+First, change to the `build/` directory:
+
+```
+$ cd build/
+```
+
+Run `purcsmg` with `--help` option to show the command line options:
+
+```
+$ source/bin/purcsmg --help
+```
+
+Use `--file` (`-f`) to load a HTML file, and use `--testmethod` (`-m`) to
+specify a test method (a value in 0 ~ 13):
+
+```
+$ source/bin/purcsmg -f clock.html -m 0
+```
+
 ## Authors and Contributors
 
 - Vincent Wei
@@ -82,7 +154,7 @@ $ make
 
 ## Copying
 
-Copyright (C) 2021 Beijing FMSoft Technologies Co., Ltd.  
+Copyright (C) 2022 Beijing FMSoft Technologies Co., Ltd.  
 Copyright (C) 2005-2021 Free Software Foundation, Inc.
 
 This program is free software: you can redistribute it and/or modify

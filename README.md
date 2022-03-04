@@ -10,6 +10,9 @@ __Table of Contents__
 - [Current Status](#current-status)
 - [Building](#building)
    + [Commands](#commands)
+- [Usage](#usage)
+   + [Start HVML Renderer](#start-hvml-renderer)
+   + [Run Sample Client](#run-sample-client)
 - [Authors and Contributors](#authors-and-contributors)
 - [Copying](#copying)
 
@@ -118,15 +121,18 @@ Sencond, open another terminal to run an HVML interpreter or the sample client
 
 Here are some tips:
 
-1. In the default screen, you can select a HTML file, press `F3` or click `View` on
-   the button bar to load the file and show the DOM tree in the DOM viewer.
+1. In the default screen, you can choose a HTML file, press `F3` or click `View`
+   on the button bar to load the file and show the DOM tree in the DOM viewer.
+1. If there is some clients connected to the renderer server and load
+   a HTML content successfully, you can also choose `DOM viewer` in
+   the `Commands` pull-down menu to show the DOM viewer.
 1. In the DOM viewer, you can press `F3` or click `Switch` on the button bar
    to switch to another opened HTML file or loaded uDOM.
 1. In the DOM viewer, you can use `Tab` key to travel among widgets.
    In the DOM Tree widget, you can use arrow keys to travel the elements,
    fold or unfold a sub tree in DOM Tree widget.
 
-### Sample Client
+### Run Sample Client
 
 First, change to the `build/` directory:
 
@@ -146,6 +152,9 @@ specify a test method (a value in 0 ~ 13):
 ```
 $ source/bin/purcsmg -f clock.html -m 0
 ```
+
+Switch to the terminal running `purcmc`. In the DOM viewer screen, you can
+show the uDOM and see the dynamically changes of the uDOM.
 
 ## Authors and Contributors
 

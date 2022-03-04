@@ -298,6 +298,7 @@ create_command_menu (void)
     entries = g_list_prepend (entries, menu_entry_create (_("&Background jobs"), CK_Jobs));
 #endif
     entries = g_list_prepend (entries, menu_entry_create (_("Screen lis&t"), CK_ScreenList));
+    entries = g_list_prepend (entries, menu_entry_create (_("DOM &Viewer"), CK_DOMViewer));
     entries = g_list_prepend (entries, menu_separator_create ());
 #ifdef ENABLE_VFS_UNDELFS
     entries =
@@ -1424,6 +1425,13 @@ midnight_execute_cmd (Widget * sender, long command)
     case CK_Cancel:
         /* don't close panels due to SIGINT */
         break;
+    case CK_DOMViewer:
+        {
+            // VW: try to show DOM viewer
+            extern bool domview_show(void);
+            domview_show();
+            break;
+        }
     default:
         res = MSG_NOT_HANDLED;
     }

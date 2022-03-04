@@ -193,17 +193,16 @@ on_saveto_command(WDOMViewInfo * info)
 static void
 on_close_command(WDOMViewInfo * info)
 {
-    int sel;
+    if (view_info.file_window[0] != '@') {
+        int sel;
+        sel = query_dialog (_("Confirmation"),
+                _("Unload the DOM document loaded from a file?"),
+                D_NORMAL, 2,
+                _("&No"), _("&Yes"));
 
-    sel = query_dialog (_("Confirmation"),
-            (view_info.file_window[0] == '@') ?
-                _("Unload the DOM document created by a remote runner?") :
-                _("Unload the DOM document originated from a file?"),
-            D_NORMAL, 2,
-            _("&No"), _("&Yes"));
-
-    if (sel == 0)
-        return;
+        if (sel == 0)
+            return;
+    }
 
     struct kvlist *kv = &file2dom_map;
     void *data;
@@ -247,6 +246,7 @@ on_close_command(WDOMViewInfo * info)
 static void
 on_quit_command(WDOMViewInfo * info)
 {
+#if 0
     int sel;
 
     sel = query_dialog (_("Confirmation"),
@@ -256,6 +256,7 @@ on_quit_command(WDOMViewInfo * info)
 
     if (sel == 0)
         return;
+#endif
 
     struct kvlist *kv = &file2dom_map;
     const char* name;
@@ -264,15 +265,14 @@ on_quit_command(WDOMViewInfo * info)
     kvlist_for_each_safe (kv, name, next, data) {
         pchtml_html_document_t *html_doc = *(pchtml_html_document_t **)data;
 
-        // Files
-        if (name[0] != '@' && (sel & 1)) {
+        // Unlod DOM loaded from files
+        if (name[0] != '@'/* && (sel & 1)*/) {
             kvlist_delete (kv, name);
             dom_cleanup_user_data (pcdom_interface_document (html_doc));
             pchtml_html_document_destroy (html_doc);
         }
-
         // Runners
-        if (name[0] == '@' && (sel & 2)) {
+        else if (name[0] == '@' /* && (sel & 2) */) {
             // kvlist_delete (kv, name);
             // pchtml_html_document_destroy (html_doc);
             // TODO: close the window and notify the runner.

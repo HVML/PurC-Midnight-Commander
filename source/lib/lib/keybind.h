@@ -103,6 +103,7 @@ enum
     CK_Mark,
     CK_HotList,
     CK_ScreenList,
+    CK_DOMViewer,
     CK_ScreenNext,
     CK_ScreenPrev,
     CK_FilePrev,

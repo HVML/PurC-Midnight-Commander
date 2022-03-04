@@ -146,7 +146,8 @@ on_switch_command(WDOMViewInfo * info)
     int i = 0;
 
     if (nr_doms <= 1) {
-        message (D_NORMAL, "DOM Viewer", "There is only one DOM!");
+        GString *buff = g_string_new ("There is only one DOM!");
+        dom_content_load(view_info.srv_info, buff);
         return;
     }
 
@@ -176,13 +177,17 @@ on_switch_command(WDOMViewInfo * info)
 static void
 on_reload_command(WDOMViewInfo * info)
 {
-    message (D_NORMAL, "DOM Viewer", "On reload command");
+    GString *buff = g_string_new ("Not implemented command: ");
+    g_string_append (buff, "Reload");
+    dom_content_load(view_info.srv_info, buff);
 }
 
 static void
 on_saveto_command(WDOMViewInfo * info)
 {
-    message (D_NORMAL, "DOM Viewer", "On saveto command");
+    GString *buff = g_string_new ("Not implemented command: ");
+    g_string_append (buff, "Save To");
+    dom_content_load(view_info.srv_info, buff);
 }
 
 static void
@@ -192,8 +197,8 @@ on_close_command(WDOMViewInfo * info)
 
     sel = query_dialog (_("Confirmation"),
             (view_info.file_window[0] == '@') ?
-                _("Unload the DOM and shutdown the current renderer instance for the remote runner?") :
-                _("Unload the DOM which was originated from a file?"),
+                _("Unload the DOM document created by a remote runner?") :
+                _("Unload the DOM document originated from a file?"),
             D_NORMAL, 2,
             _("&No"), _("&Yes"));
 
@@ -584,7 +589,8 @@ domview_show(void)
     }
 
     if (view_info.file_window == NULL) {
-        message (D_NORMAL, "DOM Viewer", "There is no any active DOM documents!");
+        message (D_NORMAL, "DOM Viewer",
+                "There is no any active DOM documents!");
         return false;
     }
 
@@ -690,8 +696,10 @@ domview_detach_window_dom(const char *endpoint, const char* win_id)
             }
 
             if (view_info.file_window == NULL) {
-                message (D_NORMAL, "DOM Viewer", "There is no any active DOM documents!");
                 dlg_stop (view_info.dlg);
+
+                message (D_NORMAL, "DOM Viewer",
+                        "There is no any active DOM documents!");
             }
             else {
                 show_dom_within_info();
@@ -746,8 +754,10 @@ domview_detach_all_doms(const char *endpoint)
             }
 
             if (view_info.file_window == NULL) {
-                message (D_NORMAL, "DOM Viewer", "There is no any active DOM documents!");
                 dlg_stop (view_info.dlg);
+
+                message (D_NORMAL, "DOM Viewer",
+                        "There is no any active DOM documents!");
             }
             else {
                 show_dom_within_info();

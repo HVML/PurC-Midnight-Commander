@@ -105,7 +105,7 @@ Endpoint* new_endpoint (Server* srv, int type, void* client)
 static void remove_window(Endpoint *endpoint, PlainWindow *win)
 {
     if (win->dom_doc) {
-        char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+        char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
 
         assemble_endpoint_name (endpoint, endpoint_name);
         domview_detach_window_dom(endpoint_name,
@@ -145,7 +145,7 @@ static void remove_session(Endpoint* endpoint)
 
 int del_endpoint (Server* srv, Endpoint* endpoint, int cause)
 {
-    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+    char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
 
     remove_session(endpoint);
     if (assemble_endpoint_name (endpoint, endpoint_name) > 0) {
@@ -204,7 +204,7 @@ bool make_endpoint_ready (Server* srv,
             return false;
         }
 
-        endpoint->t_living = pcrdr_get_monotoic_time ();
+        endpoint->t_living = purc_get_monotoic_time ();
         endpoint->avl.key = endpoint;
         if (avl_insert (&srv->living_avl, &endpoint->avl)) {
             ULOG_ERR ("Failed to insert to the living AVL tree: %s\n", endpoint_name);
@@ -239,13 +239,13 @@ static void cleanup_endpoint_client (Server *srv, Endpoint* endpoint)
 int check_no_responding_endpoints (Server *srv)
 {
     int n = 0;
-    time_t t_curr = pcrdr_get_monotoic_time ();
+    time_t t_curr = purc_get_monotoic_time ();
     Endpoint *endpoint, *tmp;
 
     ULOG_INFO ("Checking no responding endpoints...\n");
 
     avl_for_each_element_safe (&srv->living_avl, endpoint, avl, tmp) {
-        char name [PCRDR_LEN_ENDPOINT_NAME + 1];
+        char name [PURC_LEN_ENDPOINT_NAME + 1];
 
         assert (endpoint->type != ET_BUILTIN);
 
@@ -284,7 +284,7 @@ int check_no_responding_endpoints (Server *srv)
 int check_dangling_endpoints (Server *srv)
 {
     int n = 0;
-    time_t t_curr = pcrdr_get_monotoic_time ();
+    time_t t_curr = purc_get_monotoic_time ();
     gs_list* node = srv->dangling_endpoints;
 
     while (node) {
@@ -370,10 +370,10 @@ static int authenticate_endpoint(Server* srv, Endpoint* endpoint,
     const char* prot_name = NULL;
     const char *host_name = NULL, *app_name = NULL, *runner_name = NULL;
     uint64_t prot_ver = 0;
-    char norm_host_name [PCRDR_LEN_HOST_NAME + 1];
-    char norm_app_name [PCRDR_LEN_APP_NAME + 1];
-    char norm_runner_name [PCRDR_LEN_RUNNER_NAME + 1];
-    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+    char norm_host_name [PURC_LEN_HOST_NAME + 1];
+    char norm_app_name [PURC_LEN_APP_NAME + 1];
+    char norm_runner_name [PURC_LEN_RUNNER_NAME + 1];
+    char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
     purc_variant_t tmp;
 
     if ((tmp = purc_variant_object_get_by_ckey(data,
@@ -409,17 +409,17 @@ static int authenticate_endpoint(Server* srv, Endpoint* endpoint,
     if (prot_ver < PCRDR_PURCMC_MINIMAL_PROTOCOL_VERSION)
         return PCRDR_SC_UPGRADE_REQUIRED;
 
-    if (!pcrdr_is_valid_host_name (host_name) ||
-            !pcrdr_is_valid_app_name (app_name) ||
-            !pcrdr_is_valid_token (runner_name, PCRDR_LEN_RUNNER_NAME)) {
+    if (!purc_is_valid_host_name (host_name) ||
+            !purc_is_valid_app_name (app_name) ||
+            !purc_is_valid_token (runner_name, PURC_LEN_RUNNER_NAME)) {
         ULOG_WARN ("Bad endpoint name: @%s/%s/%s\n",
                 host_name, app_name, runner_name);
         return PCRDR_SC_NOT_ACCEPTABLE;
     }
 
-    pcrdr_name_tolower_copy (host_name, norm_host_name, PCRDR_LEN_HOST_NAME);
-    pcrdr_name_tolower_copy (app_name, norm_app_name, PCRDR_LEN_APP_NAME);
-    pcrdr_name_tolower_copy (runner_name, norm_runner_name, PCRDR_LEN_RUNNER_NAME);
+    purc_name_tolower_copy (host_name, norm_host_name, PURC_LEN_HOST_NAME);
+    purc_name_tolower_copy (app_name, norm_app_name, PURC_LEN_APP_NAME);
+    purc_name_tolower_copy (runner_name, norm_runner_name, PURC_LEN_RUNNER_NAME);
     host_name = norm_host_name;
     app_name = norm_app_name;
     runner_name = norm_runner_name;
@@ -434,7 +434,7 @@ static int authenticate_endpoint(Server* srv, Endpoint* endpoint,
         host_name = PCRDR_LOCALHOST;
     }
 
-    pcrdr_assemble_endpoint_name (host_name,
+    purc_assemble_endpoint_name (host_name,
                     app_name, runner_name, endpoint_name);
 
     ULOG_INFO ("New endpoint: %s (%p)\n", endpoint_name, endpoint);
@@ -528,7 +528,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
     if ((tmp = purc_variant_object_get_by_ckey(msg->data,
                     "id", false))) {
         str = purc_variant_get_string_const(tmp);
-        if (!pcrdr_is_valid_identifier(str)) {
+        if (!purc_is_valid_identifier(str)) {
             retv = PCRDR_SC_BAD_REQUEST;
             goto failed;
         }
@@ -750,7 +750,7 @@ static int on_load(Server* srv, Endpoint* endpoint,
         goto failed;
     }
 
-    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+    char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
     assemble_endpoint_name (endpoint, endpoint_name);
 
     if (win->dom_doc) {
@@ -845,7 +845,7 @@ static int on_write_begin(Server* srv, Endpoint* endpoint,
     }
 
     if (win->dom_doc) {
-        char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+        char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
 
         assemble_endpoint_name (endpoint, endpoint_name);
         domview_detach_window_dom(endpoint_name,
@@ -993,7 +993,7 @@ static int on_write_end(Server* srv, Endpoint* endpoint,
 
     dom_prepare_user_data(win->dom_doc, true);
 
-    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+    char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
     assemble_endpoint_name (endpoint, endpoint_name);
     domview_attach_window_dom(endpoint_name,
             purc_variant_get_string_const(win->id),
@@ -1271,7 +1271,7 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
         subtree = NULL;
     }
 
-    char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+    char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
     assemble_endpoint_name (endpoint, endpoint_name);
     domview_reload_window_dom(endpoint_name,
         purc_variant_get_string_const(win->id), elements[0]);

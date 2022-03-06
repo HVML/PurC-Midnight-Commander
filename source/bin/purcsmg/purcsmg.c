@@ -245,11 +245,11 @@ static int read_option_args (int argc, char **argv)
             fprintf (stdout, "PurCSMG: %s\n", MC_CURRENT_VERSION);
             return -1;
         case 'a':
-            if (strlen (optarg) < PCRDR_LEN_APP_NAME)
+            if (strlen (optarg) < PURC_LEN_APP_NAME)
                 strcpy (the_client.app_name, optarg);
             break;
         case 'r':
-            if (strlen (optarg) < PCRDR_LEN_RUNNER_NAME)
+            if (strlen (optarg) < PURC_LEN_RUNNER_NAME)
                 strcpy (the_client.runner_name, optarg);
             break;
         case 'f':
@@ -1196,7 +1196,7 @@ int main (int argc, char **argv)
             }
         }
 
-        if (pcrdr_get_monotoic_time () > the_client.last_sigint_time + 5) {
+        if (purc_get_monotoic_time () > the_client.last_sigint_time + 5) {
             // cancel quit
             the_client.last_sigint_time = 0;
         }

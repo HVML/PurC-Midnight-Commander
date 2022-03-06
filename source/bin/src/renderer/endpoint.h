@@ -61,7 +61,7 @@ static inline int
 assemble_endpoint_name (Endpoint *endpoint, char *buff)
 {
     if (endpoint->host_name && endpoint->app_name && endpoint->runner_name) {
-        return pcrdr_assemble_endpoint_name (endpoint->host_name,
+        return purc_assemble_endpoint_name (endpoint->host_name,
                 endpoint->app_name, endpoint->runner_name, buff);
     }
 

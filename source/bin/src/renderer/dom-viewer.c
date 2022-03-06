@@ -624,8 +624,8 @@ get_winname(char *winname, const char *endpoint, const char *win_id)
 {
     size_t sz_1 = strlen(endpoint);
 
-    assert(sz_1 <= PCRDR_LEN_ENDPOINT_NAME);
-    assert(strlen(win_id) <= PCRDR_LEN_IDENTIFIER);
+    assert(sz_1 <= PURC_LEN_ENDPOINT_NAME);
+    assert(strlen(win_id) <= PURC_LEN_IDENTIFIER);
 
     strcpy(winname, endpoint);
     strcpy(winname + sz_1, "/");
@@ -640,7 +640,7 @@ domview_attach_window_dom(const char *endpoint, const char* win_id,
 {
     pcdom_document_t **data;
 
-    char winname[PCRDR_LEN_ENDPOINT_NAME + PCRDR_LEN_IDENTIFIER + 2];
+    char winname[PURC_LEN_ENDPOINT_NAME + PURC_LEN_IDENTIFIER + 2];
     get_winname(winname, endpoint, win_id);
 
     data = kvlist_get(&file2dom_map, winname);
@@ -670,7 +670,7 @@ failed:
 bool
 domview_detach_window_dom(const char *endpoint, const char* win_id)
 {
-    char winname[PCRDR_LEN_ENDPOINT_NAME + PCRDR_LEN_IDENTIFIER + 2];
+    char winname[PURC_LEN_ENDPOINT_NAME + PURC_LEN_IDENTIFIER + 2];
 
     get_winname(winname, endpoint, win_id);
     if (!kvlist_delete(&file2dom_map, winname)) {
@@ -772,7 +772,7 @@ domview_reload_window_dom(const char *endpoint, const char* win_id,
         pcdom_element_t *element)
 {
     pcdom_document_t **data;
-    char winname[PCRDR_LEN_ENDPOINT_NAME + PCRDR_LEN_IDENTIFIER + 2];
+    char winname[PURC_LEN_ENDPOINT_NAME + PURC_LEN_IDENTIFIER + 2];
     get_winname(winname, endpoint, win_id);
 
     if ((data = kvlist_get(&file2dom_map, winname)) == NULL) {

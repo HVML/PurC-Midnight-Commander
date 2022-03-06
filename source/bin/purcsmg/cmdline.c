@@ -143,9 +143,9 @@ static void handle_signal_action (int sig_number)
         if (the_client.last_sigint_time == 0) {
             fprintf (stderr, "\n");
             fprintf (stderr, "SIGINT caught, press <CTRL+C> again in 5 seconds to quit.\n");
-            the_client.last_sigint_time = pcrdr_get_monotoic_time ();
+            the_client.last_sigint_time = purc_get_monotoic_time ();
         }
-        else if (pcrdr_get_monotoic_time () < the_client.last_sigint_time + 5) {
+        else if (purc_get_monotoic_time () < the_client.last_sigint_time + 5) {
             fprintf (stderr, "SIGINT caught, quit...\n");
             the_client.running = false;
         }
@@ -153,7 +153,7 @@ static void handle_signal_action (int sig_number)
             fprintf (stderr, "\n");
             fprintf (stderr, "SIGINT caught, press <CTRL+C> again in 5 seconds to quit.\n");
             the_client.running = true;
-            the_client.last_sigint_time = pcrdr_get_monotoic_time ();
+            the_client.last_sigint_time = purc_get_monotoic_time ();
         }
     }
     else if (sig_number == SIGPIPE) {

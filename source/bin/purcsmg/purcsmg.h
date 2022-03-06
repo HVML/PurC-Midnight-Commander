@@ -31,7 +31,7 @@
 #define NR_CMD_ARGS         4
 
 #define LEN_COMMAND         31
-#define LEN_NORMAL_ARG      PCRDR_LEN_ENDPOINT_NAME
+#define LEN_NORMAL_ARG      PURC_LEN_ENDPOINT_NAME
 #define LEN_LAST_ARG        1023
 #define LEN_GAME_NAME       31
 
@@ -75,10 +75,10 @@ struct run_info {
 
     struct termios startup_termios;
 
-    char app_name [PCRDR_LEN_APP_NAME + 1];
-    char runner_name [PCRDR_LEN_RUNNER_NAME + 1];
-    char builtin_endpoint [PCRDR_LEN_ENDPOINT_NAME + 1];
-    char self_endpoint [PCRDR_LEN_ENDPOINT_NAME + 1];
+    char app_name [PURC_LEN_APP_NAME + 1];
+    char runner_name [PURC_LEN_RUNNER_NAME + 1];
+    char builtin_endpoint [PURC_LEN_ENDPOINT_NAME + 1];
+    char self_endpoint [PURC_LEN_ENDPOINT_NAME + 1];
 
     struct kvlist ret_value_list;
 

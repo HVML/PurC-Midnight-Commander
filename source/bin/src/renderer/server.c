@@ -180,7 +180,7 @@ on_close (void* sock_srv, SockClient* client)
 
     if (client->entity) {
         Endpoint *endpoint = container_of (client->entity, Endpoint, entity);
-        char endpoint_name [PCRDR_LEN_ENDPOINT_NAME + 1];
+        char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
 
         if (endpoint->status == ES_AUTHING) {
             remove_dangling_endpoint (&the_server, endpoint);
@@ -240,7 +240,7 @@ static inline void
 update_endpoint_living_time (Server *srv, Endpoint* endpoint)
 {
     if (endpoint && endpoint->avl.key) {
-        time_t t_curr = pcrdr_get_monotoic_time ();
+        time_t t_curr = purc_get_monotoic_time ();
 
         if (endpoint->t_living != t_curr) {
             endpoint->t_living = t_curr;
@@ -292,7 +292,7 @@ prepare_server (void)
     struct epoll_event ev;
 #endif
     the_server.us_listener = the_server.ws_listener = -1;
-    the_server.t_start = pcrdr_get_monotoic_time ();
+    the_server.t_start = purc_get_monotoic_time ();
     the_server.t_elapsed = the_server.t_elapsed_last = 0;
 
     // create unix socket
@@ -393,7 +393,7 @@ again:
         goto error;
     }
     else if (nfds == 0) {
-        the_server.t_elapsed = pcrdr_get_monotoic_time () - the_server.t_start;
+        the_server.t_elapsed = purc_get_monotoic_time () - the_server.t_start;
         if (the_server.t_elapsed != the_server.t_elapsed_last) {
             if (the_server.t_elapsed % 10 == 0) {
                 check_no_responding_endpoints (&the_server);
@@ -542,7 +542,7 @@ again:
         goto error;
     }
     else if (retval == 0) {
-        the_server.t_elapsed = pcrdr_get_monotoic_time () - the_server.t_start;
+        the_server.t_elapsed = purc_get_monotoic_time () - the_server.t_start;
         if (the_server.t_elapsed != the_server.t_elapsed_last) {
             if (the_server.t_elapsed % 10 == 0) {
                 check_no_responding_endpoints (&the_server);

@@ -25,6 +25,7 @@
 
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <purc/purc-variant.h>
 #include <purc/purc-pcrdr.h>

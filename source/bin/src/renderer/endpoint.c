@@ -468,6 +468,7 @@ static int on_start_session(Server* srv, Endpoint* endpoint,
 
     int retv = authenticate_endpoint(srv, endpoint, msg->data);
 
+    endpoint->session_info = NULL;
     if (retv == PCRDR_SC_OK) {
         info = calloc(1, sizeof(SessionInfo));
         if (info == NULL) {

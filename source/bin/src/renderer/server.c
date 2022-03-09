@@ -92,6 +92,7 @@ on_packet (void* sock_srv, SockClient* client,
         }
 
         ret = on_got_message (&the_server, endpoint, msg);
+        pcrdr_release_message (msg);
         return ret;
     }
     else {
@@ -184,7 +185,6 @@ on_close (void* sock_srv, SockClient* client)
 
         if (assemble_endpoint_name (endpoint, endpoint_name) > 0) {
             if (kvlist_delete (&the_server.endpoint_list, endpoint_name)) {
-                del_endpoint (&the_server, endpoint, CDE_LOST_CONNECTION);
                 the_server.nr_endpoints--;
                 ULOG_INFO ("An authenticated endpoint removed: %s (%p), %d endpoints left.\n",
                         endpoint_name, endpoint, the_server.nr_endpoints);
@@ -681,12 +681,15 @@ init_server (void)
 {
     int ret;
 
-    ret = purc_init_ex (PURC_MODULE_EJSON, NULL, NULL, NULL);
+    ret = purc_init_ex (PURC_MODULE_EJSON,
+            "cn.fmsoft.hvml.purcmc", "renderer", NULL);
     if (ret != PURC_ERROR_OK) {
         ULOG_ERR ("Failed to initialize the PurC modules: %s\n",
                 purc_get_error_message (ret));
         return -1;
     }
+
+    purc_enable_log(true, true);
 
 #if !HAVE(SYS_EPOLL_H) && HAVE(SYS_SELECT_H)
     the_server.maxfd = -1;

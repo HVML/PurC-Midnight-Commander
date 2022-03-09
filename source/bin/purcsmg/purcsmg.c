@@ -1095,7 +1095,6 @@ int main (int argc, char **argv)
     purc_instance_extra_info extra_info = {
         .renderer_prot = PURC_RDRPROT_PURCMC,
         .renderer_uri = "unix://" PCRDR_PURCMC_US_PATH,
-        .enable_remote_fetcher = false,
     };
 
     print_copying ();
@@ -1105,7 +1104,7 @@ int main (int argc, char **argv)
     }
 
     if (!the_client.app_name[0])
-        strcpy (the_client.app_name, "cn.fmsoft.app.purcsmg");
+        strcpy (the_client.app_name, "cn.fmsoft.hvml.purcsmg");
     if (!the_client.runner_name[0])
         strcpy (the_client.runner_name, "cmdline");
 

@@ -78,91 +78,6 @@ static void format_current_time (char* buff, size_t sz, bool has_second)
         strftime (buff, sz, "%H:%M", &tm);
 }
 
-static char buffer_a[4096];
-static char buffer_b[4096];
-
-struct buff_info {
-    char *  buf;
-    size_t  size;
-    off_t   pos;
-};
-
-static ssize_t write_to_buf (void *ctxt, const void *buf, size_t count)
-{
-    struct buff_info *info = (struct buff_info *)ctxt;
-
-    if (info->pos + count <= info->size) {
-        memcpy (info->buf + info->pos, buf, count);
-        info->pos += count;
-        return count;
-    }
-    else {
-        ssize_t n = info->size - info->pos;
-
-        if (n > 0) {
-            memcpy (info->buf + info->pos, buf, n);
-            info->pos += n;
-            return n;
-        }
-
-        return 0;
-    }
-
-    return -1;
-}
-
-static int serialize_and_parse_again(const pcrdr_msg *msg)
-{
-    int ret;
-    pcrdr_msg *msg_parsed;
-    struct buff_info info_a = { buffer_a, sizeof (buffer_a), 0 };
-    struct buff_info info_b = { buffer_b, sizeof (buffer_b), 0 };
-
-    pcrdr_serialize_message (msg, write_to_buf, &info_a);
-    buffer_a[info_a.pos] = '\0';
-    puts ("Serialized original message: \n");
-    puts (buffer_a);
-    puts ("<<<<<<<<\n");
-
-    if ((ret = pcrdr_parse_packet (buffer_a, info_a.pos, &msg_parsed))) {
-        printf ("Failed pcrdr_parse_packet: %s\n",
-                purc_get_error_message (ret));
-        return ret;
-    }
-
-    pcrdr_serialize_message (msg_parsed, write_to_buf, &info_b);
-    buffer_b[info_b.pos] = '\0';
-    puts ("Serialized parsed message: \n");
-    puts (buffer_b);
-    puts ("<<<<<<<<\n");
-
-    ret = pcrdr_compare_messages(msg, msg_parsed);
-    pcrdr_release_message(msg_parsed);
-
-    return ret;
-}
-
-static int test_basic_functions (void)
-{
-    int ret;
-    pcrdr_msg *msg;
-
-    msg = pcrdr_make_request_message (PCRDR_MSG_TARGET_SESSION,
-            random(), "to_do_something", NULL,
-            PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
-            PCRDR_MSG_DATA_TYPE_TEXT, "The data", 0);
-
-    ret = serialize_and_parse_again(msg);
-    pcrdr_release_message(msg);
-
-    if (ret) {
-        puts ("Failed serialize_and_parse_again\n");
-        return ret;
-    }
-
-    return 0;
-}
-
 /* Command line help. */
 static void print_usage (void)
 {
@@ -1113,10 +1028,6 @@ int main (int argc, char **argv)
     if (ret != PURC_ERROR_OK) {
         fprintf (stderr, "Failed to initialize the PurC instance: %s\n",
                 purc_get_error_message (ret));
-        return EXIT_FAILURE;
-    }
-
-    if (test_basic_functions ()) {
         return EXIT_FAILURE;
     }
 

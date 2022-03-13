@@ -118,7 +118,8 @@ static void remove_window(Endpoint *endpoint, PlainWindow *win)
         pchtml_html_parser_destroy(win->parser);
     }
 
-    purc_variant_unref(win->id);
+    if (win->id)
+        purc_variant_unref(win->id);
     if (win->title)
         purc_variant_unref(win->title);
     free(win);

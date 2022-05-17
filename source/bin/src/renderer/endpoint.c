@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include <purc/purc-dom.h>
 #include <purc/purc-html.h>
@@ -377,25 +378,23 @@ static int authenticate_endpoint(Server* srv, Endpoint* endpoint,
     char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
     purc_variant_t tmp;
 
-    if ((tmp = purc_variant_object_get_by_ckey(data,
-                    "protocolName", false))) {
+    if ((tmp = purc_variant_object_get_by_ckey(data, "protocolName"))) {
         prot_name = purc_variant_get_string_const(tmp);
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(data,
-                    "protocolVersion", false))) {
+    if ((tmp = purc_variant_object_get_by_ckey(data, "protocolVersion"))) {
         purc_variant_cast_to_ulongint(tmp, &prot_ver, true);
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(data, "hostName", false))) {
+    if ((tmp = purc_variant_object_get_by_ckey(data, "hostName"))) {
         host_name = purc_variant_get_string_const(tmp);
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(data, "appName", false))) {
+    if ((tmp = purc_variant_object_get_by_ckey(data, "appName"))) {
         app_name = purc_variant_get_string_const(tmp);
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(data, "runnerName", false))) {
+    if ((tmp = purc_variant_object_get_by_ckey(data, "runnerName"))) {
         runner_name = purc_variant_get_string_const(tmp);
     }
 
@@ -527,8 +526,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
         goto failed;
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(msg->data,
-                    "id", false))) {
+    if ((tmp = purc_variant_object_get_by_ckey(msg->data, "id"))) {
         str = purc_variant_get_string_const(tmp);
         if (!purc_is_valid_identifier(str)) {
             retv = PCRDR_SC_BAD_REQUEST;
@@ -549,8 +547,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
         win->id = purc_variant_ref(tmp);
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(msg->data,
-                    "title", false))) {
+    if ((tmp = purc_variant_object_get_by_ckey(msg->data, "title"))) {
         win->title = purc_variant_ref(tmp);
     }
 
@@ -1423,15 +1420,15 @@ static struct request_handler {
     const char *operation;
     request_handler handler;
 } handlers[] = {
+    { PCRDR_OPERATION_ADDPAGEGROUPS, NULL },
     { PCRDR_OPERATION_APPEND, on_append },
+    { PCRDR_OPERATION_CALLMETHOD, NULL },
     { PCRDR_OPERATION_CLEAR, on_clear },
     { PCRDR_OPERATION_CREATEPLAINWINDOW, on_create_plain_window },
-    { PCRDR_OPERATION_CREATETABBEDWINDOW, NULL },
-    { PCRDR_OPERATION_CREATETABPAGE, NULL },
+    { PCRDR_OPERATION_CREATEPAGE, NULL },
     { PCRDR_OPERATION_CREATEWORKSPACE, NULL },
     { PCRDR_OPERATION_DESTROYPLAINWINDOW, on_destroy_plain_window },
-    { PCRDR_OPERATION_DESTROYTABBEDWINDOW, NULL },
-    { PCRDR_OPERATION_DESTROYTABPAGE, NULL },
+    { PCRDR_OPERATION_DESTROYPAGE, NULL },
     { PCRDR_OPERATION_DESTROYWORKSPACE, NULL },
     { PCRDR_OPERATION_DISPLACE, on_displace },
     { PCRDR_OPERATION_ENDSESSION, on_end_session },
@@ -1439,12 +1436,13 @@ static struct request_handler {
     { PCRDR_OPERATION_INSERTAFTER, on_insert_after },
     { PCRDR_OPERATION_INSERTBEFORE, on_insert_before },
     { PCRDR_OPERATION_LOAD, on_load },
+    { PCRDR_OPERATION_REMOVEPAGEGROUP, NULL },
+    { PCRDR_OPERATION_RESETPAGEGROUPS, NULL },
     { PCRDR_OPERATION_PREPEND, on_prepend },
     { PCRDR_OPERATION_STARTSESSION, on_start_session },
     { PCRDR_OPERATION_UPDATE, on_update },
     { PCRDR_OPERATION_UPDATEPLAINWINDOW, on_update_plain_window },
-    { PCRDR_OPERATION_UPDATETABBEDWINDOW, NULL },
-    { PCRDR_OPERATION_UPDATETABPAGE, NULL },
+    { PCRDR_OPERATION_UPDATEPAGE, NULL },
     { PCRDR_OPERATION_UPDATEWORKSPACE, NULL },
     { PCRDR_OPERATION_WRITEBEGIN, on_write_begin },
     { PCRDR_OPERATION_WRITEEND, on_write_end },

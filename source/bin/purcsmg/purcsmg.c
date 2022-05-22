@@ -322,14 +322,14 @@ static int create_plain_win(pcrdr_conn* conn, int win)
         goto failed;
     }
 
-    char id_buff[64];
+    char name_buff[64];
     char title_buff[64];
-    sprintf(id_buff, "the-plain-window-%d", win);
+    sprintf(name_buff, "the-plain-window-%d", win);
     sprintf(title_buff, "The Plain Window No. %d", win);
 
     purc_variant_t data = purc_variant_make_object(2,
-            purc_variant_make_string_static("id", false),
-            purc_variant_make_string_static(id_buff, false),
+            purc_variant_make_string_static("name", false),
+            purc_variant_make_string_static(name_buff, false),
             purc_variant_make_string_static("title", false),
             purc_variant_make_string_static(title_buff, false));
     if (data == PURC_VARIANT_INVALID) {

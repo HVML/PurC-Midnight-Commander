@@ -42,7 +42,7 @@
 #define DEF_NR_HANDLES  4
 
 typedef struct PlainWindow {
-    purc_variant_t      id;
+    purc_variant_t      name;
     purc_variant_t      title;
     pcdom_document_t    *dom_doc;
 
@@ -110,7 +110,7 @@ static void remove_window(Endpoint *endpoint, PlainWindow *win)
 
         assemble_endpoint_name (endpoint, endpoint_name);
         domview_detach_window_dom(endpoint_name,
-            purc_variant_get_string_const(win->id));
+            purc_variant_get_string_const(win->name));
         dom_cleanup_user_data(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
     }
@@ -119,8 +119,8 @@ static void remove_window(Endpoint *endpoint, PlainWindow *win)
         pchtml_html_parser_destroy(win->parser);
     }
 
-    if (win->id)
-        purc_variant_unref(win->id);
+    if (win->name)
+        purc_variant_unref(win->name);
     if (win->title)
         purc_variant_unref(win->title);
     free(win);
@@ -526,7 +526,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
         goto failed;
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(msg->data, "id"))) {
+    if ((tmp = purc_variant_object_get_by_ckey(msg->data, "name"))) {
         str = purc_variant_get_string_const(tmp);
         if (!purc_is_valid_identifier(str)) {
             retv = PCRDR_SC_BAD_REQUEST;
@@ -544,7 +544,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
             goto failed;
         }
 
-        win->id = purc_variant_ref(tmp);
+        win->name = purc_variant_ref(tmp);
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(msg->data, "title"))) {
@@ -674,7 +674,7 @@ static int on_destroy_plain_window(Server* srv, Endpoint* endpoint,
     }
 
     kvlist_delete(&endpoint->session_info->wins,
-            purc_variant_get_string_const(win->id));
+            purc_variant_get_string_const(win->name));
     remove_window(endpoint, win);
 
 failed:
@@ -754,14 +754,14 @@ static int on_load(Server* srv, Endpoint* endpoint,
 
     if (win->dom_doc) {
         domview_detach_window_dom(endpoint_name,
-            purc_variant_get_string_const(win->id));
+            purc_variant_get_string_const(win->name));
         dom_cleanup_user_data(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
     }
     win->dom_doc = pcdom_interface_document(html_doc);
     dom_prepare_user_data(win->dom_doc, true);
     domview_attach_window_dom(endpoint_name,
-            purc_variant_get_string_const(win->id),
+            purc_variant_get_string_const(win->name),
             purc_variant_get_string_const(win->title),
             win->dom_doc);
 
@@ -848,7 +848,7 @@ static int on_write_begin(Server* srv, Endpoint* endpoint,
 
         assemble_endpoint_name (endpoint, endpoint_name);
         domview_detach_window_dom(endpoint_name,
-            purc_variant_get_string_const(win->id));
+            purc_variant_get_string_const(win->name));
         dom_cleanup_user_data(win->dom_doc);
         pcdom_document_destroy(win->dom_doc);
     }
@@ -995,7 +995,7 @@ static int on_write_end(Server* srv, Endpoint* endpoint,
     char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
     assemble_endpoint_name (endpoint, endpoint_name);
     domview_attach_window_dom(endpoint_name,
-            purc_variant_get_string_const(win->id),
+            purc_variant_get_string_const(win->name),
             purc_variant_get_string_const(win->title),
             win->dom_doc);
 
@@ -1035,7 +1035,7 @@ static PlainWindow *check_dom_request_msg(Endpoint *endpoint,
         // any operation except `erase` and `clear` should have a text data.
         const char *op = purc_variant_get_string_const(msg->operation);
         if (strcmp(PCRDR_OPERATION_ERASE, op) &&
-                strcmp(PCRDR_OPERATION_ERASE, op)) {
+                strcmp(PCRDR_OPERATION_CLEAR, op)) {
             if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
                     msg->data == PURC_VARIANT_INVALID) {
                 *retv = PCRDR_SC_BAD_REQUEST;
@@ -1273,7 +1273,7 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
     char endpoint_name [PURC_LEN_ENDPOINT_NAME + 1];
     assemble_endpoint_name (endpoint, endpoint_name);
     domview_reload_window_dom(endpoint_name,
-        purc_variant_get_string_const(win->id), elements[0]);
+        purc_variant_get_string_const(win->name), elements[0]);
 
 failed:
     if (elements)

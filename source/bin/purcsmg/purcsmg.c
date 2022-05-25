@@ -589,7 +589,7 @@ static pcrdr_msg *make_change_message_3(struct run_info *info, int win)
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
             PCRDR_OPERATION_UPDATE, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
-            "textContent",
+            "attr.value",
             PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
 }
 

@@ -6,9 +6,21 @@
 <body>
     <h1>Hello, world!</h1>
 
-    <p>Current Time: <span hvml:handle="1"></span></p>
-    <p>Current UTC Time: <span hvml:handle="2"></span></p>
+    <p>Current Time One: <span hvml:handle="1"></span></p>
+    <p>Current Time Two: <span hvml:handle="2"></span></p>
 
-    <ul hvml:handle="3"></ul>
+    <ul hvml:handle="3">
+        <li>The first list item.</li>
+        <li>The second list item.</li>
+    </ul>
+
+    <form>
+        <label for="fname">Time one:</label>
+        <input hvml:handle="4" type="text" id="fname" name="fname" value="Orignal Value"><br><br>
+        <label for="lname">Time two:</label>
+        <input hvml:handle="5" type="text" id="lname" name="lname" value="Orignal Value"><br><br>
+        <input type="submit" value="Submit">
+    </form>
+
 </body>
 </html>

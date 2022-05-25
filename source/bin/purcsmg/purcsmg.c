@@ -1057,6 +1057,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
 
         if (win >= 0) {
             info->state[win] = STATE_WINDOW_DESTROYED;
+            info->nr_destroyed_wins++;
         }
         else {
             printf("Window not found: (%p)\n",

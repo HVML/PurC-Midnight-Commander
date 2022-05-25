@@ -101,6 +101,7 @@ struct run_info {
     size_t nr_chars;
     int    nr_windows;
     int    test_method;
+    bool   noautochange;
 
     int nr_destroyed_wins;
     int state[MAX_NR_WINDOWS];

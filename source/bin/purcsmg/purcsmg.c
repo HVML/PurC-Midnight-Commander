@@ -95,6 +95,7 @@ static void print_usage (void)
             "  -r --runner=<runner_name>    - Connect to PurcMC renderer with the specified runner name.\n"
             "  -f --file=<html_file>        - The initial HTML file to load.\n"
             "  -m --testmethod=<methodid>   - Run the specified test method; an integer between 0 ~ 13.\n"
+            "  -n --noautochange            - Do not change the document automatically.\n"
             "  -c --cmdline                 - Use command line (NOT IMPLEMENTED).\n"
             "  -v --version                 - Display version information and exit.\n"
             "  -h --help                    - This help.\n"
@@ -139,6 +140,7 @@ static struct option long_opts[] = {
     {"runner"         , required_argument , NULL , 'r' } ,
     {"file"           , required_argument , NULL , 'f' } ,
     {"testmethod"     , required_argument , NULL , 'm' } ,
+    {"noautochange"   , no_argument       , NULL , 'n' } ,
     {"cmdline"        , no_argument       , NULL , 'c' } ,
     {"version"        , no_argument       , NULL , 'v' } ,
     {"help"           , no_argument       , NULL , 'h' } ,
@@ -176,6 +178,9 @@ static int read_option_args (int argc, char **argv)
         case 'm':
             the_client.test_method = atoi(optarg);
             the_client.nr_windows = 1;
+            break;
+        case 'n':
+            the_client.noautochange = true;
             break;
         case 'c':
             the_client.use_cmdline = true;
@@ -381,7 +386,7 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
     pcrdr_msg *msg = NULL;
     purc_variant_t data = PURC_VARIANT_INVALID;
 
-    if (info->len_content > PCRDR_MAX_INMEM_PAYLOAD_SIZE || (run_times % 2)) {
+    if (info->len_content > PCRDR_MAX_INMEM_PAYLOAD_SIZE && (run_times % 2)) {
         // use writeBegin
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
@@ -1010,6 +1015,8 @@ static int run_autotest(pcrdr_conn* conn)
         return change_document(conn, win);
     case STATE_DOCUMENT_TESTING:
         if (info->wait[win])
+            return 0;
+        if (info->noautochange)
             return 0;
         if (info->changes[win] == info->max_changes[win]) {
             return reset_window(conn, win);

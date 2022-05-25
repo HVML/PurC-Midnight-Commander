@@ -236,7 +236,6 @@ static void init_autotest(pcrdr_conn* conn)
     }
 
     info->len_content = end - info->doc_content;
-    fprintf(stderr, "No valid UTF-8 characters in the content\n");
 }
 
 static int my_response_handler(pcrdr_conn* conn,
@@ -248,10 +247,15 @@ static int my_response_handler(pcrdr_conn* conn,
 
     int win = (int)(uintptr_t)context;
 
-    printf("Got a respoinse for request (%s) for window %d: %d\n",
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        return 0;
+    }
+
+    printf("Got a response for request (%s) for window %d: %d\n",
             purc_variant_get_string_const(response_msg->requestId), win,
             response_msg->retCode);
 
+    info->wait[win] = false;
     switch (info->state[win]) {
         case STATE_INITIAL:
             info->state[win] = STATE_WINDOW_CREATED;
@@ -313,6 +317,7 @@ static unsigned int run_times;
 static int create_plain_win(pcrdr_conn* conn, int win)
 {
     pcrdr_msg *msg;
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
 
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
             PCRDR_OPERATION_CREATEPLAINWINDOW, NULL,
@@ -344,6 +349,8 @@ static int create_plain_win(pcrdr_conn* conn, int win)
                 my_response_handler) < 0) {
         goto failed;
     }
+
+    info->wait[win] = true;
 
     printf("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
@@ -421,6 +428,8 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
         goto failed;
     }
 
+    info->wait[win] = true;
+
     printf("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation), win);
@@ -494,6 +503,8 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
                 my_response_handler) < 0) {
         goto failed;
     }
+
+    info->wait[win] = true;
 
     printf("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
@@ -836,6 +847,8 @@ static int change_document(pcrdr_conn* conn, int win)
         goto failed;
     }
 
+    info->wait[win] = true;
+
     info->changes[win]++;
     printf("Request (%s) `%s` (%s) for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
@@ -879,6 +892,8 @@ static int reset_window(pcrdr_conn* conn, int win)
                 my_response_handler) < 0) {
         goto failed;
     }
+
+    info->wait[win] = true;
 
     printf("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
@@ -934,6 +949,8 @@ static int destroy_window(pcrdr_conn* conn, int win)
         goto failed;
     }
 
+    info->wait[win] = true;
+
     printf("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation), win);
@@ -976,27 +993,81 @@ static int run_autotest(pcrdr_conn* conn)
 
     switch (info->state[win]) {
     case STATE_INITIAL:
+        if (info->wait[win])
+            return 0;
         return create_plain_win(conn, win);
     case STATE_WINDOW_CREATED:
+        if (info->wait[win])
+            return 0;
         return load_or_write_doucment(conn, win);
     case STATE_DOCUMENT_WROTTEN:
+        if (info->wait[win])
+            return 0;
         return write_more_doucment(conn, win);
     case STATE_DOCUMENT_LOADED:
+        if (info->wait[win])
+            return 0;
         return change_document(conn, win);
     case STATE_DOCUMENT_TESTING:
+        if (info->wait[win])
+            return 0;
         if (info->changes[win] == info->max_changes[win]) {
             return reset_window(conn, win);
         }
         return change_document(conn, win);
     case STATE_DOCUMENT_RESET:
+        if (info->wait[win])
+            return 0;
         return destroy_window(conn, win);
     case STATE_WINDOW_DESTROYED:
+        if (info->wait[win])
+            return 0;
         return check_quit(conn, win);
     case STATE_FATAL:
         return -1;
     }
 
     return -1;
+}
+
+static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
+{
+    struct run_info *info = pcrdr_conn_get_user_data(conn);
+
+    switch(msg->target) {
+    case PCRDR_MSG_TARGET_PLAINWINDOW:
+        printf("Got an event to plainwindow (%p): %s\n",
+                (void *)(uintptr_t)msg->targetValue,
+                purc_variant_get_string_const(msg->event));
+
+        int win = -1;
+        for (int i = 0; i < info->nr_windows; i++) {
+            if (info->win_handles[i] == msg->targetValue) {
+                win = i;
+                break;
+            }
+        }
+
+        if (win >= 0) {
+            info->state[win] = STATE_WINDOW_DESTROYED;
+        }
+        else {
+            printf("Window not found: (%p)\n",
+                    (void *)(uintptr_t)msg->targetValue);
+        }
+        break;
+
+    case PCRDR_MSG_TARGET_SESSION:
+    case PCRDR_MSG_TARGET_WORKSPACE:
+    case PCRDR_MSG_TARGET_PAGE:
+    case PCRDR_MSG_TARGET_DOM:
+    default:
+        printf("Got an event not intrested in (target: %d/%p): %s\n",
+                msg->target, (void *)(uintptr_t)msg->targetValue,
+                purc_variant_get_string_const(msg->event));
+        break;
+    }
+
 }
 
 int main (int argc, char **argv)
@@ -1046,6 +1117,7 @@ int main (int argc, char **argv)
     the_client.ttyfd = ttyfd;
     the_client.curr_history_idx = -1;
     pcrdr_conn_set_user_data (conn, &the_client);
+    pcrdr_conn_set_event_handler (conn, my_event_handler);
 
     format_current_time (curr_time, sizeof (curr_time) - 1, false);
 

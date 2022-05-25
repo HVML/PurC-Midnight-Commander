@@ -104,6 +104,7 @@ struct run_info {
 
     int nr_destroyed_wins;
     int state[MAX_NR_WINDOWS];
+    bool wait[MAX_NR_WINDOWS];
 
     size_t len_wrotten[MAX_NR_WINDOWS];
     int max_changes[MAX_NR_WINDOWS];

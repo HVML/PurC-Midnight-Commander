@@ -203,11 +203,11 @@ static int read_option_args (int argc, char **argv)
 
 static const char *test_content =
     "<html><body>"
-    "<div hvml:handle='1'></div>"
-    "<div hvml:handle='2'></div>"
-    "<div hvml:handle='3'></div>"
-    "<div hvml:handle='4'></div>"
-    "<div hvml:handle='5'></div>"
+    "<div hvml-handle='1'></div>"
+    "<div hvml-handle='2'></div>"
+    "<div hvml-handle='3'></div>"
+    "<div hvml-handle='4'></div>"
+    "<div hvml-handle='5'></div>"
     "</body></html>";
 
 static void init_autotest(pcrdr_conn* conn)

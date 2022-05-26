@@ -48,7 +48,7 @@ static uint64_t get_hvml_handle(pcdom_node_t *node)
         size_t sz;
 
         str = (const char *)pcdom_attr_local_name(attr, &sz);
-        if (strcasecmp(str, "hvml:handle") == 0) {
+        if (strcasecmp(str, "hvml-handle") == 0) {
             str = (const char *)pcdom_attr_value(attr, &sz);
             return (uint64_t)strtoull(str, NULL, 16);
         }

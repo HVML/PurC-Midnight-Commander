@@ -1037,11 +1037,16 @@ static int run_autotest(pcrdr_conn* conn)
     return -1;
 }
 
+static ssize_t stdio_write(void *ctxt, const void *buf, size_t count)
+{
+    return fwrite(buf, 1, count, (FILE *)ctxt);
+}
+
 static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
 {
     struct run_info *info = pcrdr_conn_get_user_data(conn);
 
-    switch(msg->target) {
+    switch (msg->target) {
     case PCRDR_MSG_TARGET_PLAINWINDOW:
         printf("Got an event to plainwindow (%p): %s\n",
                 (void *)(uintptr_t)msg->targetValue,
@@ -1073,6 +1078,27 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         printf("Got an event not intrested in (target: %d/%p): %s\n",
                 msg->target, (void *)(uintptr_t)msg->targetValue,
                 purc_variant_get_string_const(msg->event));
+
+        if (msg->target == PCRDR_MSG_TARGET_DOM) {
+            printf("    The handle of the source element: %s\n",
+                purc_variant_get_string_const(msg->element));
+        }
+
+        if (msg->dataType == PCRDR_MSG_DATA_TYPE_TEXT) {
+            printf("    The attached data is TEXT:\n%s\n",
+                purc_variant_get_string_const(msg->data));
+        }
+        else if (msg->dataType == PCRDR_MSG_DATA_TYPE_EJSON) {
+            purc_rwstream_t rws = purc_rwstream_new_for_dump(stdout, stdio_write);
+
+            printf("    The attached data is EJSON:\n");
+            purc_variant_serialize(msg->data, rws, 0, 0, NULL);
+            purc_rwstream_destroy(rws);
+            printf("\n");
+        }
+        else {
+            printf("    The attached data is VOID\n");
+        }
         break;
     }
 

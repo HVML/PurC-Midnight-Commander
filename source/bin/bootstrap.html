@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="//localhost/_renderer/_builtin/-/assets/bootstrap-5.1.3-dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" />
+
+    <title hvml-handle="6">Sample Using Bootstrap</title>
+</head>
+<body>
+    <h1>Hello, world!</h1>
+
+    <p>Current Time One: <span hvml-handle="1"></span></p>
+    <p>Current Time Two: <span hvml-handle="2"></span></p>
+
+    <ul hvml-handle="3">
+        <li>The first list item.</li>
+        <li>The second list item.</li>
+    </ul>
+
+    <form>
+        <label for="fname">Time one:</label>
+        <input hvml-handle="4" hvml-events="keydown" type="text" id="fname" name="fname" value="Orignal Value"><br><br>
+        <label for="lname">Time two:</label>
+        <input hvml-handle="5" hvml-events="change" type="text" id="lname" name="lname" value="Orignal Value"><br><br>
+        <input type="submit" hvml-handle="10" hvml-events="click:prevent" value="Submit">
+    </form>
+
+    <div hvml-handle="11" hvml-events="click" id="container">
+        <button hvml-handle="1101" >Click me!</button>
+    </div>
+
+    <table id="t-daddy" hvml-handle="12" hvml-events="click">
+        <tr hvml-handle="1201" hvml-events="click:stop">
+            <td hvml-handle="120101" id="c1">one</td>
+        </tr>
+        <tr hvml-handle="1202">
+            <td hvml-handle="120201" id="c2">two</td>
+        </tr>
+    </table>
+
+    <script src="/_renderer/_builtin/-/bootstrap-5.1.3-dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+
+</body>
+</html>

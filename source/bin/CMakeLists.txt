@@ -4,6 +4,8 @@ include(GlobalCommon)
 include(target/PurcMC)
 include(MyMacros.cmake)
 
+add_subdirectory(purcsex)
+
 configure_file(man2hlp/man2hlp.in ${CMAKE_BINARY_DIR}/man2hlp
 #        FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
         @ONLY)
@@ -177,5 +179,5 @@ PURCMC_FRAMEWORK(purcsmg)
 
 PURCMC_COPY_FILES(purcmc_copy_samples
     DESTINATION ${CMAKE_BINARY_DIR}/
-    FILES clock.html fmsoft-cn.html simplest.html
+    FILES clock.html fmsoft-cn.html simplest.html bootstrap.html
 )

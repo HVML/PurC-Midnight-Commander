@@ -79,6 +79,8 @@ struct client_info {
 
     // handles of DOM.
     uint64_t dom_handles[MAX_NR_WINDOWS];
+
+    char buff[32];
 };
 
 static void print_copying(void)
@@ -261,16 +263,18 @@ static bool load_sample(struct client_info *info)
     }
 
     info->namedOps = purc_variant_object_get_by_ckey(info->sample, "namedOps");
-    if (info->namedOps != PURC_VARIANT_INVALID &&
+    if (info->namedOps == PURC_VARIANT_INVALID ||
             !purc_variant_is_object(info->namedOps)) {
-        fprintf(stderr, "`namedOps` defined but not an object.\n");
-        return false;
+        fprintf(stdout, "WARN: `namedOps` defined but not an object.\n");
+        info->namedOps = PURC_VARIANT_INVALID;
     }
 
     info->events = purc_variant_object_get_by_ckey(info->sample, "events");
     if (info->events == PURC_VARIANT_INVALID ||
-            !purc_variant_is_array(info->events)) {
+            !purc_variant_array_size(info->events, &info->nr_events)) {
         fprintf(stdout, "WARN: No valid `events` defined.\n");
+        info->events = PURC_VARIANT_INVALID;
+        info->nr_events = 0;
     }
 
     return true;
@@ -317,7 +321,61 @@ static int split_target(const char *target, char *target_name)
     return -1;
 }
 
-static int issue_operation(pcrdr_conn* conn, int op_no);
+static int split_target_deep(const char *source, uint64_t *target_value)
+{
+    return -1;
+}
+
+static const char* split_element(const char *element, char *element_type)
+{
+    char *sep = strchr(element, '/');
+    if (sep == NULL)
+        return NULL;
+
+    size_t type_len = sep - element;
+    if (type_len > PURC_LEN_IDENTIFIER) {
+        return NULL;
+    }
+
+    strncpy(element_type, element, type_len);
+    element_type[type_len] = 0;
+
+    sep++;
+    if (sep[0] == 0)
+        return NULL;
+
+    return sep;
+}
+
+static const char *transfer_element_info(struct client_info *info,
+        const char *element, int *element_type)
+{
+    const char *value;
+    char buff[PURC_LEN_IDENTIFIER + 1];
+
+    value = split_element(element, buff);
+    if (value) {
+        if (strcmp(buff, "handle") == 0) {
+            *element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
+        }
+        else if (strcmp(buff, "plainwindow") == 0) {
+            *element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
+
+            int win = atoi(value);
+            if (win < 0 || win >= info->nr_windows) {
+                value = NULL;
+            }
+            else {
+                sprintf(info->buff, "%llx", (long long)info->win_handles[win]);
+                value = info->buff;
+            }
+        }
+    }
+
+    return value;
+}
+
+static int issue_operation(pcrdr_conn* conn, purc_variant_t op);
 
 static inline int issue_first_operation(pcrdr_conn* conn)
 {
@@ -325,7 +383,11 @@ static inline int issue_first_operation(pcrdr_conn* conn)
     assert(info);
 
     info->ops_issued = 0;
-    return issue_operation(conn, info->ops_issued);
+
+    purc_variant_t op;
+    op = purc_variant_array_get(info->initialOps, info->ops_issued);
+    assert(op);
+    return issue_operation(conn, op);
 }
 
 static inline int issue_next_operation(pcrdr_conn* conn)
@@ -335,7 +397,10 @@ static inline int issue_next_operation(pcrdr_conn* conn)
 
     if (info->ops_issued < info->nr_ops) {
         info->ops_issued++;
-        return issue_operation(conn, info->ops_issued);
+        purc_variant_t op;
+        op = purc_variant_array_get(info->initialOps, info->ops_issued);
+        assert(op);
+        return issue_operation(conn, op);
     }
 
     return 0;
@@ -703,29 +768,8 @@ failed:
     return -1;
 }
 
-static const char* split_element(const char *element, char *element_type)
-{
-    char *sep = strchr(element, '/');
-    if (sep == NULL)
-        return NULL;
-
-    size_t type_len = sep - element;
-    if (type_len > PURC_LEN_IDENTIFIER) {
-        return NULL;
-    }
-
-    strncpy(element_type, element, type_len);
-    element_type[type_len] = 0;
-
-    sep++;
-    if (sep[0] == 0)
-        return NULL;
-
-    return sep;
-}
-
 static pcrdr_msg *make_change_message(struct client_info *info,
-        int op_id, const char *op_name, purc_variant_t op, int win)
+        int op_id, const char *operation, purc_variant_t op, int win)
 {
     purc_variant_t tmp;
     const char *element = NULL;
@@ -790,7 +834,7 @@ static pcrdr_msg *make_change_message(struct client_info *info,
     pcrdr_msg *msg;
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            op_name, NULL,
+            operation, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, element_value,
             property,
             content ? PCRDR_MSG_DATA_TYPE_TEXT : PCRDR_MSG_DATA_TYPE_VOID,
@@ -836,7 +880,7 @@ static int changed_handler(pcrdr_conn* conn,
 }
 
 static int change_document(pcrdr_conn* conn,
-        int op_id, const char *op_name, purc_variant_t op)
+        int op_id, const char *operation, purc_variant_t op)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
@@ -861,7 +905,7 @@ static int change_document(pcrdr_conn* conn,
         goto failed;
     }
 
-    pcrdr_msg *msg = make_change_message(info, op_id, op_name, op, win);
+    pcrdr_msg *msg = make_change_message(info, op_id, operation, op, win);
     if (msg == NULL)
         return -1;
 
@@ -887,27 +931,25 @@ failed:
 }
 
 
-static int issue_operation(pcrdr_conn* conn, int op_no)
+static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
 {
-    struct client_info *info = pcrdr_conn_get_user_data(conn);
-    purc_variant_t op = purc_variant_array_get(info->initialOps, op_no);
+    // struct client_info *info = pcrdr_conn_get_user_data(conn);
 
     purc_variant_t tmp;
-    const char *op_name = NULL;
+    const char *operation = NULL;
     if ((tmp = purc_variant_object_get_by_ckey(op, "operation"))) {
-        op_name = purc_variant_get_string_const(tmp);
+        operation = purc_variant_get_string_const(tmp);
     }
 
-    if (op_name == NULL) {
-        fprintf(stderr, "No valid `operation` defined in the operation No.%d.\n",
-                op_no);
+    if (operation == NULL) {
+        fprintf(stderr, "No valid `operation` defined in the operation.\n");
         return -1;
     }
 
     unsigned int op_id;
-    purc_atom_t op_atom = pcrdr_operation_atom(op_name);
+    purc_atom_t op_atom = pcrdr_try_operation_atom(operation);
     if (op_atom == 0 || pcrdr_operation_from_atom(op_atom, &op_id) == NULL) {
-        fprintf(stderr, "Unknown operation: %s.\n", op_name);
+        fprintf(stderr, "Unknown operation: %s.\n", operation);
     }
 
     int retv;
@@ -921,11 +963,11 @@ static int issue_operation(pcrdr_conn* conn, int op_no)
         break;
 
     case PCRDR_K_OPERATION_DISPLACE:
-        retv = change_document(conn, op_id, op_name, op);
+        retv = change_document(conn, op_id, operation, op);
         break;
 
     default:
-        fprintf(stderr, "Not implemented operation: %s.\n", op_name);
+        fprintf(stderr, "Not implemented operation: %s.\n", operation);
         retv = -1;
         break;
     }
@@ -938,39 +980,77 @@ static ssize_t stdio_write(void *ctxt, const void *buf, size_t count)
     return fwrite(buf, 1, count, (FILE *)ctxt);
 }
 
+static const char *match_event(pcrdr_conn* conn,
+        purc_variant_t evt_vrt, const pcrdr_msg *evt_msg)
+{
+    const char *event = NULL;
+    const char *source = NULL;
+    const char *element = NULL;
+    const char *namedOp = NULL;
+
+    purc_variant_t tmp;
+    if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "event"))) {
+        event = purc_variant_get_string_const(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "source"))) {
+        source = purc_variant_get_string_const(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "element"))) {
+        element = purc_variant_get_string_const(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "namedOp"))) {
+        namedOp = purc_variant_get_string_const(tmp);
+    }
+
+    if (event == NULL || source == NULL || namedOp == NULL) {
+        goto failed;
+    }
+
+    if (strcmp(event, purc_variant_get_string_const(evt_msg->event)))
+        goto failed;
+
+    int target_type;
+    uint64_t target_value;
+    target_type = split_target_deep(source, &target_value);
+    if (target_type != evt_msg->target ||
+            target_value != evt_msg->targetValue) {
+        goto failed;
+    }
+
+    if (element) {
+        int element_type;
+        const char* element_value;
+        element_value = transfer_element_info(pcrdr_conn_get_user_data(conn),
+                element, &element_type);
+        if (element_type != evt_msg->elementType || element_value == NULL ||
+                strcmp(element_value,
+                    purc_variant_get_string_const(evt_msg->element))) {
+            goto failed;
+        }
+    }
+
+    return namedOp;
+
+failed:
+    return NULL;
+}
+
 static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    switch (msg->target) {
-    case PCRDR_MSG_TARGET_PLAINWINDOW:
-        printf("Got an event to plainwindow (%p): %s\n",
-                (void *)(uintptr_t)msg->targetValue,
-                purc_variant_get_string_const(msg->event));
+    const char *op_name = NULL;
+    for (size_t i = 0; i < info->nr_events; i++) {
+        purc_variant_t event = purc_variant_array_get(info->events, i);
+        op_name = match_event(conn, event, msg);
+        if (op_name)
+            break;
+    }
 
-        int win = -1;
-        for (int i = 0; i < info->nr_windows; i++) {
-            if (info->win_handles[i] == msg->targetValue) {
-                win = i;
-                break;
-            }
-        }
-
-        if (win >= 0) {
-            info->win_handles[win] = 0;
-            info->nr_windows_created--;
-        }
-        else {
-            printf("Window not found: (%p)\n",
-                    (void *)(uintptr_t)msg->targetValue);
-        }
-        break;
-
-    case PCRDR_MSG_TARGET_SESSION:
-    case PCRDR_MSG_TARGET_WORKSPACE:
-    case PCRDR_MSG_TARGET_PAGE:
-    case PCRDR_MSG_TARGET_DOM:
-    default:
+    if (op_name == NULL) {
         printf("Got an event not intrested in (target: %d/%p): %s\n",
                 msg->target, (void *)(uintptr_t)msg->targetValue,
                 purc_variant_get_string_const(msg->event));
@@ -995,7 +1075,20 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         else {
             printf("    The attached data is VOID\n");
         }
-        break;
+
+        return;
+    }
+
+    // reserved built-in operation.
+    if (strcmp(op_name, "QUIT") == 0) {
+        info->running = false;
+    }
+    else {
+        purc_variant_t op;
+        op = purc_variant_object_get_by_ckey(info->namedOps, op_name);
+        if (op == PURC_VARIANT_INVALID || !purc_variant_is_object(op)) {
+            fprintf(stderr, "Bad named operation: %s\n", op_name);
+        }
     }
 
 }
@@ -1037,7 +1130,16 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    conn = purc_get_conn_to_renderer();
+    if (conn == NULL) {
+        fprintf(stderr, "Failed to connect PURCMC renderer: %s\n",
+                extra_info.renderer_uri);
+        purc_cleanup();
+        return EXIT_FAILURE;
+    }
+
     if (!load_sample(&client)) {
+        purc_cleanup();
         return EXIT_FAILURE;
     }
 
@@ -1232,5 +1334,62 @@ static int check_quit(pcrdr_conn* conn)
 
     return -1;
 }
+
+    switch (msg->target) {
+    case PCRDR_MSG_TARGET_PLAINWINDOW:
+        printf("Got an event to plainwindow (%p): %s\n",
+                (void *)(uintptr_t)msg->targetValue,
+                purc_variant_get_string_const(msg->event));
+
+        int win = -1;
+        for (int i = 0; i < info->nr_windows; i++) {
+            if (info->win_handles[i] == msg->targetValue) {
+                win = i;
+                break;
+            }
+        }
+
+        if (win >= 0) {
+            info->win_handles[win] = 0;
+            info->nr_windows_created--;
+        }
+        else {
+            printf("Window not found: (%p)\n",
+                    (void *)(uintptr_t)msg->targetValue);
+        }
+        break;
+
+    case PCRDR_MSG_TARGET_SESSION:
+    case PCRDR_MSG_TARGET_WORKSPACE:
+    case PCRDR_MSG_TARGET_PAGE:
+    case PCRDR_MSG_TARGET_DOM:
+    default:
+        printf("Got an event not intrested in (target: %d/%p): %s\n",
+                msg->target, (void *)(uintptr_t)msg->targetValue,
+                purc_variant_get_string_const(msg->event));
+
+        if (msg->target == PCRDR_MSG_TARGET_DOM) {
+            printf("    The handle of the source element: %s\n",
+                purc_variant_get_string_const(msg->element));
+        }
+
+        if (msg->dataType == PCRDR_MSG_DATA_TYPE_TEXT) {
+            printf("    The attached data is TEXT:\n%s\n",
+                purc_variant_get_string_const(msg->data));
+        }
+        else if (msg->dataType == PCRDR_MSG_DATA_TYPE_EJSON) {
+            purc_rwstream_t rws = purc_rwstream_new_for_dump(stdout, stdio_write);
+
+            printf("    The attached data is EJSON:\n");
+            purc_variant_serialize(msg->data, rws, 0, 0, NULL);
+            purc_rwstream_destroy(rws);
+            printf("\n");
+        }
+        else {
+            printf("    The attached data is VOID\n");
+        }
+        break;
+    }
+
 #endif
 

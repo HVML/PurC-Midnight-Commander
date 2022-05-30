@@ -12,36 +12,59 @@
 </head>
 
 <body>
-  <header class="container-fluid">
-      <h1 class="lead">
-          在模态框中展示新闻
-          <small class="text-muted">使用 Bootstrap 框架</small>
-      </h1>
-  </header>
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-4">
 
-  <section class="container" id="main">
-      <div hvml-handle="A0" class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <h5 class="placeholder-glow">
-          <span class="placeholder col-6"></span>
-        </h5>
-        <p class="placeholder-glow">
-          <span class="placeholder col-7"></span>
-          <span class="placeholder col-4"></span>
-          <span class="placeholder col-4"></span>
-          <span class="placeholder col-6"></span>
-          <span class="placeholder col-8"></span>
-        </p>
+          <header>
+              <h1 class="lead">
+                  在模态框中展示新闻内容
+              </h1>
+              <p>使用 Bootstrap 框架</p>
+          </header>
+
+          <article>
+            <div class="card">
+                <svg class="bd-placeholder-img card-img-top" width="100%" height="80" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placeholder: Image cap" preserveAspectRatio="xMidYMid slice" focusable="false">
+                    <title>Placeholder</title>
+                    <rect width="100%" height="100%" fill="#868e96"></rect>
+                </svg>
+
+                <div class="card-body">
+                    <h5 class="placeholder-glow">
+                      <span class="placeholder col-6"></span>
+                    </h5>
+                    <p class="placeholder-glow">
+                      <span class="placeholder col-7"></span>
+                      <span class="placeholder col-4"></span>
+                      <span class="placeholder col-4"></span>
+                      <span class="placeholder col-6"></span>
+                      <span class="placeholder col-8"></span>
+                    </p>
+                </div>
+              </div>
+
+              <div hvml-handle="A0" class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+              </div>
+
+              <div class="d-grid gap-2">
+                  <!-- Button trigger modal -->
+                  <button hvml-handle="A1" id="btnShowModal" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal" disabled>
+                      显示新闻
+                  </button>
+              </div>
+          </article>
+
       </div>
+    </div>
 
-      <div class="d-grid gap-2">
-          <!-- Button trigger modal -->
-          <button hvml-handle="A1" id="btnShowModal" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#staticBackdrop" disabled>
-              显示新闻
-          </button>
-      </div>
-  </section>
+    <hr />
 
-  <footer class="container-fluid">
+  </div>
+
+<footer class="container">
+  <div class="row justify-content-center">
+    <div class="col-6">
       <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
         <symbol id="check-circle-fill" fill="currentColor" viewBox="0 0 16 16">
           <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
@@ -76,9 +99,12 @@
       </div>
 
       <div class="d-grid gap-2 col-6 mx-auto">
-        <button class="btn btn-warning" type="button">关闭此示例</button>
+        <button hvml-handle="A2" hvml-events="click" class="btn btn-warning" type="button">关闭此示例</button>
       </div>
-  </footer>
+
+    </div>
+  </div>
+</footer>
 
   <script src="/_renderer/_builtin/-/assets/bootstrap-5.1.3-dist/js/bootstrap.bundle.min.js"></script>
 </body>

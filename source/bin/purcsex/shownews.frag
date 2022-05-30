@@ -9,7 +9,6 @@
       </div>
       <div hvml-handle="XXXXXX" class="modal-footer">
         <button hvml-handle="XXXXXX" type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-        <button hvml-handle="XXXXXX" id="btnReadDetails" hvml-events="click" type="button" class="btn btn-primary">阅读详情…</button>
       </div>
     </div>
 </div>

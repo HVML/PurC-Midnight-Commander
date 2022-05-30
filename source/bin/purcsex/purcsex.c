@@ -321,8 +321,39 @@ static int split_target(const char *target, char *target_name)
     return -1;
 }
 
-static int split_target_deep(const char *source, uint64_t *target_value)
+static int transfer_target_info(struct client_info *info,
+        const char *source, uint64_t *target_value)
 {
+    int type = -1;
+    char target_name[PURC_LEN_IDENTIFIER + 1];
+
+    int value = split_target(source, target_name);
+    if (strcmp(target_name, "session") == 0) {
+        type = PCRDR_MSG_TARGET_SESSION;
+        *target_value = (uint64_t)value;
+    }
+    else if (strcmp(target_name, "workspace") == 0) {
+        type = PCRDR_MSG_TARGET_WORKSPACE;
+        *target_value = (uint64_t)value;
+    }
+    else if (strcmp(target_name, "plainwindow") == 0) {
+        type = PCRDR_MSG_TARGET_PLAINWINDOW;
+        if (value < 0 || value > info->nr_windows)
+            goto failed;
+
+        *target_value = info->win_handles[value];
+    }
+    else if (strcmp(target_name, "dom") == 0) {
+        type = PCRDR_MSG_TARGET_DOM;
+        if (value < 0 || value > info->nr_windows)
+            goto failed;
+
+        *target_value = info->dom_handles[value];
+    }
+
+    return type;
+
+failed:
     return -1;
 }
 
@@ -1012,9 +1043,11 @@ static const char *match_event(pcrdr_conn* conn,
     if (strcmp(event, purc_variant_get_string_const(evt_msg->event)))
         goto failed;
 
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
     int target_type;
     uint64_t target_value;
-    target_type = split_target_deep(source, &target_value);
+    target_type = transfer_target_info(info, source, &target_value);
     if (target_type != evt_msg->target ||
             target_value != evt_msg->targetValue) {
         goto failed;
@@ -1023,8 +1056,7 @@ static const char *match_event(pcrdr_conn* conn,
     if (element) {
         int element_type;
         const char* element_value;
-        element_value = transfer_element_info(pcrdr_conn_get_user_data(conn),
-                element, &element_type);
+        element_value = transfer_element_info(info, element, &element_type);
         if (element_type != evt_msg->elementType || element_value == NULL ||
                 strcmp(element_value,
                     purc_variant_get_string_const(evt_msg->element))) {

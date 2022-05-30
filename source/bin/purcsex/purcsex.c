@@ -340,14 +340,14 @@ static int transfer_target_info(struct client_info *info,
     }
     else if (strcmp(target_name, "plainwindow") == 0) {
         type = PCRDR_MSG_TARGET_PLAINWINDOW;
-        if (value < 0 || value > info->nr_windows)
+        if (value < 0 || value >= info->nr_windows)
             goto failed;
 
         *target_value = info->win_handles[value];
     }
     else if (strcmp(target_name, "dom") == 0) {
         type = PCRDR_MSG_TARGET_DOM;
-        if (value < 0 || value > info->nr_windows)
+        if (value < 0 || value >= info->nr_windows)
             goto failed;
 
         *target_value = info->dom_handles[value];
@@ -530,6 +530,97 @@ failed:
     }
     else if (data) {
         purc_variant_unref(data);
+    }
+
+    return -1;
+}
+
+static int plainwin_destroyed_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    int win = (int)(uintptr_t)context;
+    assert(win < info->nr_windows);
+
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        return 0;
+    }
+
+    printf("Got a response for request (%s) to destroy plainwin (%d): %d\n",
+            purc_variant_get_string_const(response_msg->requestId), win,
+            response_msg->retCode);
+
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        info->nr_windows_created--;
+        info->win_handles[win] = 0;
+        if (info->nr_windows_created == 0) {
+            info->running = false;
+        }
+    }
+    else {
+        fprintf(stderr, "failed to create a plain window\n");
+        // info->running = false;
+    }
+
+    return 0;
+}
+
+static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    const char *element = NULL;
+    purc_variant_t tmp;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(tmp);
+    }
+
+    if (element == NULL) {
+        goto failed;
+    }
+
+    int win = -1;
+    char element_name[PURC_LEN_IDENTIFIER + 1];
+    win = split_target(element, element_name);
+    if (win < 0 || win > info->nr_windows_created || !info->win_handles[win]) {
+        goto failed;
+    }
+
+    if (strcmp(element_name, "plainwindow")) {
+        goto failed;
+    }
+
+    char handle[32];
+    sprintf(handle, "%llx", (long long)info->win_handles[win]);
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_DESTROYPLAINWINDOW, "-",
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        goto failed;
+    }
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                plainwin_destroyed_handler) < 0) {
+        goto failed;
+    }
+
+    printf("Request (%s) `%s` for window %d sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), win);
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    printf("Failed call to (%s) for window %d\n", __func__, win);
+
+    if (msg) {
+        pcrdr_release_message(msg);
     }
 
     return -1;
@@ -989,6 +1080,10 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
         retv = create_plain_win(conn, op);
         break;
 
+    case PCRDR_K_OPERATION_DESTROYPLAINWINDOW:
+        retv = destroy_plain_win(conn, op);
+        break;
+
     case PCRDR_K_OPERATION_LOAD:
         retv = load_or_write_doucment(conn, op);
         break;
@@ -1064,9 +1159,14 @@ static const char *match_event(pcrdr_conn* conn,
         int element_type;
         const char* element_value;
         element_value = transfer_element_info(info, element, &element_type);
+
         if (element_type != evt_msg->elementType || element_value == NULL ||
                 strcmp(element_value,
                     purc_variant_get_string_const(evt_msg->element))) {
+
+            printf("%s: element (%d vs %d; %s vs %s) not matched\n", __func__,
+                    element_type, evt_msg->elementType,
+                    element, purc_variant_get_string_const(evt_msg->element));
             goto failed;
         }
     }
@@ -1127,6 +1227,10 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         op = purc_variant_object_get_by_ckey(info->namedOps, op_name);
         if (op == PURC_VARIANT_INVALID || !purc_variant_is_object(op)) {
             fprintf(stderr, "Bad named operation: %s\n", op_name);
+        }
+        else {
+            printf("Issue the named operation: %s\n", op_name);
+            issue_operation(conn, op);
         }
     }
 

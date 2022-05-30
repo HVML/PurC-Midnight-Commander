@@ -2,14 +2,14 @@
     "nrWindows": 1,
     "initialOps":
         [
-            { "operation": "createPlainWindow", "target": "session/0", "title": "新闻" },
+            { "operation": "createPlainWindow", "target": "workspace/0", "title": "新闻" },
             { "operation": "load", "target": "plainwindow/0", "content": "shownews.html" },
             { "operation": "displace", "target": "dom/0", "element": "handle/A0", "content": "shownews.frag" },
             { "operation": "erase", "target": "dom/0", "element": "handle/A1", "property": "attr.disabled" }
         ],
     "namedOps":
         {
-            "closeWindow": { "operation": "destroyPlainWindow", "target": "session/0", "element": "plainwindow/0" }
+            "closeWindow": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/0" }
         },
    "events":
        [

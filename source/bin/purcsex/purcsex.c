@@ -20,6 +20,8 @@
 ** along with this program.  If not, see http://www.gnu.org/licenses/.
 */
 
+#undef NDEBUG
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -430,8 +432,8 @@ static inline int issue_next_operation(pcrdr_conn* conn)
         info->ops_issued++;
         purc_variant_t op;
         op = purc_variant_array_get(info->initialOps, info->ops_issued);
-        assert(op);
-        return issue_operation(conn, op);
+        if (op)
+            return issue_operation(conn, op);
     }
 
     return 0;
@@ -462,7 +464,7 @@ static int plainwin_created_handler(pcrdr_conn* conn,
     }
     else {
         fprintf(stderr, "failed to create a plain window\n");
-        info->running = false;
+        // info->running = false;
     }
 
     return 0;
@@ -561,7 +563,7 @@ static int loaded_handler(pcrdr_conn* conn,
     }
     else {
         fprintf(stderr, "failed to load document\n");
-        info->running = false;
+        // info->running = false;
     }
 
     return 0;
@@ -602,7 +604,7 @@ static int wrotten_handler(pcrdr_conn* conn,
     }
     else {
         fprintf(stderr, "failed to write content\n");
-        info->running = false;
+        // info->running = false;
     }
 
     return 0;
@@ -825,7 +827,7 @@ static pcrdr_msg *make_change_message(struct client_info *info,
     }
 
     const char *property = NULL;
-    const char *content;
+    const char *content = NULL;
     char *content_loaded = NULL;
     size_t content_length;
     if (op_id == PCRDR_K_OPERATION_UPDATE) {
@@ -885,11 +887,7 @@ static int changed_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
 {
-    struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(info);
-
     int win = (int)(uintptr_t)context;
-    assert(win < info->nr_windows);
 
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
         return 0;
@@ -903,8 +901,9 @@ static int changed_handler(pcrdr_conn* conn,
         issue_next_operation(conn);
     }
     else {
-        fprintf(stderr, "failed to load document\n");
-        info->running = false;
+        fprintf(stderr, "failed to change document\n");
+        // struct client_info *info = pcrdr_conn_get_user_data(conn);
+        // info->running = false;
     }
 
     return 0;
@@ -974,6 +973,7 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
 
     if (operation == NULL) {
         fprintf(stderr, "No valid `operation` defined in the operation.\n");
+        assert(0);
         return -1;
     }
 
@@ -993,7 +993,14 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
         retv = load_or_write_doucment(conn, op);
         break;
 
+    case PCRDR_K_OPERATION_APPEND:
+    case PCRDR_K_OPERATION_PREPEND:
+    case PCRDR_K_OPERATION_INSERTBEFORE:
+    case PCRDR_K_OPERATION_INSERTAFTER:
     case PCRDR_K_OPERATION_DISPLACE:
+    case PCRDR_K_OPERATION_UPDATE:
+    case PCRDR_K_OPERATION_ERASE:
+    case PCRDR_K_OPERATION_CLEAR:
         retv = change_document(conn, op_id, operation, op);
         break;
 
@@ -1229,7 +1236,6 @@ int main(int argc, char **argv)
             time_t new_time = time(NULL);
             if (old_time != new_time) {
                 old_time = new_time;
-                    break;
             }
         }
 
@@ -1248,180 +1254,4 @@ int main(int argc, char **argv)
 
     return EXIT_SUCCESS;
 }
-
-#if 0
-static inline char *load_doc_content(struct client_info *info, size_t *length)
-{
-    char file[strlen(info->sample_name) + 8];
-    strcpy(file, info->sample_name);
-    strcat(file, ".html");
-
-
-    return load_file_content(file, length);
-}
-
-static inline char *load_doc_fragment(struct client_info *info, size_t *length)
-{
-    char file[strlen(info->sample_name) + 8];
-    strcpy(file, info->sample_name);
-    strcat(file, ".frag");
-
-    return load_file_content(file, length);
-}
-
-static int my_response_handler(pcrdr_conn* conn,
-        const char *request_id, int state,
-        void *context, const pcrdr_msg *response_msg)
-{
-    struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(info);
-
-    int win = (int)(uintptr_t)context;
-
-    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
-        return 0;
-    }
-
-    printf("Got a response for request (%s) for window %d: %d\n",
-            purc_variant_get_string_const(response_msg->requestId), win,
-            response_msg->retCode);
-
-    info->wait[win] = false;
-    switch (info->state[win]) {
-        case STATE_INITIAL:
-            info->state[win] = STATE_WINDOW_CREATED;
-            info->win_handles[win] = response_msg->resultValue;
-            break;
-
-        case STATE_WINDOW_CREATED:
-            if (info->len_wrotten[win] < info->len_content) {
-                info->state[win] = STATE_DOCUMENT_WROTTEN;
-            }
-            else {
-                info->state[win] = STATE_DOCUMENT_LOADED;
-                info->dom_handles[win] = response_msg->resultValue;
-            }
-            break;
-
-        case STATE_DOCUMENT_WROTTEN:
-            break;
-
-        case STATE_DOCUMENT_LOADED:
-            info->state[win] = STATE_EVENT_LOOP;
-            break;
-    }
-
-    // we only allow failed request when we are running testing.
-    if (info->state[win] != STATE_EVENT_LOOP &&
-            response_msg->retCode != PCRDR_SC_OK) {
-        info->state[win] = STATE_FATAL;
-
-        printf("Window %d encountered a fatal error\n", win);
-    }
-
-    return 0;
-}
-
-static int check_quit(pcrdr_conn* conn)
-{
-    struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(info);
-
-    if (info->nr_windows_created == 0) {
-        printf("no window alive; quitting...\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-{
-    int win = info->run_times % info->nr_windows;
-    info->run_times++;
-
-    switch (info->state[win]) {
-    case STATE_INITIAL:
-        if (info->wait[win])
-            return 0;
-        return create_plain_win(conn, win);
-    case STATE_WINDOW_CREATED:
-        if (info->wait[win])
-            return 0;
-        return load_or_write_doucment(conn, win);
-    case STATE_DOCUMENT_WROTTEN:
-        if (info->wait[win])
-            return 0;
-        return write_more_doucment(conn, win);
-    case STATE_DOCUMENT_LOADED:
-        if (info->wait[win])
-            return 0;
-        return change_document(conn, win);
-    case STATE_EVENT_LOOP:
-        if (info->wait[win])
-            return 0;
-        return check_quit(conn, win);
-    case STATE_FATAL:
-        return -1;
-    }
-
-    return -1;
-}
-
-    switch (msg->target) {
-    case PCRDR_MSG_TARGET_PLAINWINDOW:
-        printf("Got an event to plainwindow (%p): %s\n",
-                (void *)(uintptr_t)msg->targetValue,
-                purc_variant_get_string_const(msg->event));
-
-        int win = -1;
-        for (int i = 0; i < info->nr_windows; i++) {
-            if (info->win_handles[i] == msg->targetValue) {
-                win = i;
-                break;
-            }
-        }
-
-        if (win >= 0) {
-            info->win_handles[win] = 0;
-            info->nr_windows_created--;
-        }
-        else {
-            printf("Window not found: (%p)\n",
-                    (void *)(uintptr_t)msg->targetValue);
-        }
-        break;
-
-    case PCRDR_MSG_TARGET_SESSION:
-    case PCRDR_MSG_TARGET_WORKSPACE:
-    case PCRDR_MSG_TARGET_PAGE:
-    case PCRDR_MSG_TARGET_DOM:
-    default:
-        printf("Got an event not intrested in (target: %d/%p): %s\n",
-                msg->target, (void *)(uintptr_t)msg->targetValue,
-                purc_variant_get_string_const(msg->event));
-
-        if (msg->target == PCRDR_MSG_TARGET_DOM) {
-            printf("    The handle of the source element: %s\n",
-                purc_variant_get_string_const(msg->element));
-        }
-
-        if (msg->dataType == PCRDR_MSG_DATA_TYPE_TEXT) {
-            printf("    The attached data is TEXT:\n%s\n",
-                purc_variant_get_string_const(msg->data));
-        }
-        else if (msg->dataType == PCRDR_MSG_DATA_TYPE_EJSON) {
-            purc_rwstream_t rws = purc_rwstream_new_for_dump(stdout, stdio_write);
-
-            printf("    The attached data is EJSON:\n");
-            purc_variant_serialize(msg->data, rws, 0, 0, NULL);
-            purc_rwstream_destroy(rws);
-            printf("\n");
-        }
-        else {
-            printf("    The attached data is VOID\n");
-        }
-        break;
-    }
-
-#endif
 

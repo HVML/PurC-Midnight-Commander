@@ -29,6 +29,6 @@ set(purcsex_LIBRARIES
 PURCMC_COMPUTE_SOURCES(purcsex)
 PURCMC_FRAMEWORK(purcsex)
 
-file(COPY shownews.html shownews.frag
+file(COPY shownews.json shownews.html shownews.frag
     DESTINATION ${CMAKE_BINARY_DIR}/
 )

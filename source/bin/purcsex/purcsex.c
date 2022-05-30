@@ -32,7 +32,8 @@
 
 #include "purcmc_version.h"
 
-#define NR_WINDOWS  1
+#define MAX_NR_WINDOWS      8
+#define DEF_LEN_ONE_WRITE   1024
 
 enum {
     STATE_INITIAL = 0,
@@ -48,37 +49,43 @@ struct client_info {
     bool running;
     bool use_cmdline;
 
-    time_t last_sigint_time;
+    uint32_t nr_windows;
+    uint32_t nr_destroyed_wins;
 
+    time_t last_sigint_time;
     size_t run_times;
-    size_t nr_destroyed_wins;
 
     char app_name[PURC_LEN_APP_NAME + 1];
     char runner_name[PURC_LEN_RUNNER_NAME + 1];
+    char sample_name[PURC_LEN_IDENTIFIER + 1];
 
-    char *doc_content;
-    size_t len_content;
+    purc_variant_t sample;
+    purc_variant_t initialOps;
+    purc_variant_t namedOps;
+    purc_variant_t events;
 
-    char *doc_fragment;
-    size_t len_fragment;
+    size_t nr_ops;
+    size_t nr_events;
 
-    int state[NR_WINDOWS];
-    bool wait[NR_WINDOWS];
+    size_t ops_issued;
+    size_t nr_windows_created;
 
-    size_t len_wrotten[NR_WINDOWS];
+    char *doc_content[MAX_NR_WINDOWS];
+    size_t len_content[MAX_NR_WINDOWS];
+    size_t len_wrotten[MAX_NR_WINDOWS];
 
     // handles of windows.
-    uint64_t win_handles[NR_WINDOWS];
+    uint64_t win_handles[MAX_NR_WINDOWS];
 
     // handles of DOM.
-    uint64_t dom_handles[NR_WINDOWS];
+    uint64_t dom_handles[MAX_NR_WINDOWS];
 };
 
-static void print_copying (void)
+static void print_copying(void)
 {
-    fprintf (stdout,
+    fprintf(stdout,
         "\n"
-        "purcsex - a sample showing news in the PurCMC renderer.\n"
+        "purcsex - a simple examples interacting with the PurCMC renderer.\n"
         "\n"
         "Copyright (C) 2021, 2022 FMSoft <https://www.fmsoft.cn>\n"
         "\n"
@@ -94,17 +101,17 @@ static void print_copying (void)
         "You should have received a copy of the GNU General Public License\n"
         "along with this program.  If not, see http://www.gnu.org/licenses/.\n"
         );
-    fprintf (stdout, "\n");
+    fprintf(stdout, "\n");
 }
 
 /* Command line help. */
-static void print_usage (void)
+static void print_usage(void)
 {
-    printf ("purcsex (%s) - "
-            "a sample showing news in the PurCMC renderer\n\n",
+    printf("purcsex (%s) - "
+            "a simple example interacting with the PurCMC renderer\n\n",
             MC_CURRENT_VERSION);
 
-    printf (
+    printf(
             "Usage: "
             "purcsex [ options ... ]\n\n"
             ""
@@ -112,23 +119,79 @@ static void print_usage (void)
             ""
             "  -a --app=<app_name>          - Connect to PurcMC renderer with the specified app name.\n"
             "  -r --runner=<runner_name>    - Connect to PurcMC renderer with the specified runner name.\n"
-            "  -n --name=<sample_name>      - The sample name like `purcsex`.\n"
+            "  -n --name=<sample_name>      - The sample name like `shownews`.\n"
             "  -v --version                 - Display version information and exit.\n"
             "  -h --help                    - This help.\n"
             "\n"
             );
 }
 
-static void format_current_time (char* buff, size_t sz, bool has_second)
+static char short_options[] = "a:r:n:vh";
+static struct option long_opts[] = {
+    {"app"            , required_argument , NULL , 'a' } ,
+    {"runner"         , required_argument , NULL , 'r' } ,
+    {"name"           , required_argument , NULL , 'n' } ,
+    {"version"        , no_argument       , NULL , 'v' } ,
+    {"help"           , no_argument       , NULL , 'h' } ,
+    {0, 0, 0, 0}
+};
+
+static int read_option_args(struct client_info *client, int argc, char **argv)
+{
+    int o, idx = 0;
+
+    while ((o = getopt_long(argc, argv, short_options, long_opts, &idx)) >= 0) {
+        if (-1 == o || EOF == o)
+            break;
+        switch (o) {
+        case 'h':
+            print_usage();
+            return -1;
+        case 'v':
+            fprintf(stdout, "purcsex: %s\n", MC_CURRENT_VERSION);
+            return -1;
+        case 'a':
+            if (purc_is_valid_app_name(optarg))
+                strcpy(client->app_name, optarg);
+            break;
+        case 'r':
+            if (purc_is_valid_runner_name(optarg))
+                strcpy(client->runner_name, optarg);
+            break;
+        case 'n':
+            if (purc_is_valid_token(optarg, PURC_LEN_IDENTIFIER))
+                strcpy(client->sample_name, optarg);
+            else {
+                print_usage();
+                return -1;
+            }
+            break;
+        case '?':
+            print_usage ();
+            return -1;
+        default:
+            return -1;
+        }
+    }
+
+    if (optind < argc) {
+        print_usage ();
+        return -1;
+    }
+
+    return 0;
+}
+
+static void format_current_time(char* buff, size_t sz, bool has_second)
 {
     struct tm tm;
-    time_t curr_time = time (NULL);
+    time_t curr_time = time(NULL);
 
-    localtime_r (&curr_time, &tm);
+    localtime_r(&curr_time, &tm);
     if (has_second)
-        strftime (buff, sz, "%H:%M:%S", &tm);
+        strftime(buff, sz, "%H:%M:%S", &tm);
     else
-        strftime (buff, sz, "%H:%M", &tm);
+        strftime(buff, sz, "%H:%M", &tm);
 }
 
 static char *load_file_content(const char *file, size_t *length)
@@ -164,82 +227,121 @@ failed:
     return buf;
 }
 
-static bool load_doc_content_and_fragment(struct client_info *info,
-        const char* name)
+static bool load_sample(struct client_info *info)
 {
-    char file[strlen(name) + 8];
-    strcpy(file, name);
-    strcat(file, ".html");
+    char file[strlen(info->sample_name) + 8];
+    strcpy(file, info->sample_name);
+    strcat(file, ".json");
 
-    info->doc_content = load_file_content(file, &info->len_content);
-    if (info->doc_content == NULL)
+    info->sample = purc_variant_load_from_json_file(file);
+    if (info->sample == PURC_VARIANT_INVALID) {
+        fprintf(stderr, "Failed to load the sample from JSON file (%s)\n",
+                info->sample_name);
         return false;
+    }
 
-    strcpy(file, name);
-    strcat(file, ".frag");
-    info->doc_fragment = load_file_content(file, &info->len_fragment);
-    if (info->doc_fragment == NULL) {
-        free(info->doc_content);
+    info->nr_windows = 0;
+    purc_variant_t tmp;
+    if ((tmp = purc_variant_object_get_by_ckey(info->sample, "nrWindows"))) {
+        uint32_t nr_windows;
+        if (purc_variant_cast_to_uint32(tmp, &nr_windows, false))
+            info->nr_windows = nr_windows;
+    }
+
+    if (info->nr_windows == 0 || info->nr_windows > MAX_NR_WINDOWS) {
+        fprintf(stdout, "WARN: Wrong number of windows (%u)\n", info->nr_windows);
+        info->nr_windows = 1;
+    }
+
+    info->initialOps = purc_variant_object_get_by_ckey(info->sample, "initialOps");
+    if (info->initialOps == PURC_VARIANT_INVALID ||
+            !purc_variant_array_size(info->initialOps, &info->nr_ops)) {
+        fprintf(stderr, "No valid `initialOps` defined.\n");
         return false;
+    }
+
+    info->namedOps = purc_variant_object_get_by_ckey(info->sample, "namedOps");
+    if (info->namedOps != PURC_VARIANT_INVALID &&
+            !purc_variant_is_object(info->namedOps)) {
+        fprintf(stderr, "`namedOps` defined but not an object.\n");
+        return false;
+    }
+
+    info->events = purc_variant_object_get_by_ckey(info->sample, "events");
+    if (info->events == PURC_VARIANT_INVALID ||
+            !purc_variant_is_array(info->events)) {
+        fprintf(stdout, "WARN: No valid `events` defined.\n");
     }
 
     return true;
 }
 
-static char short_options[] = "a:r:f:m:cvh";
-static struct option long_opts[] = {
-    {"app"            , required_argument , NULL , 'a' } ,
-    {"runner"         , required_argument , NULL , 'r' } ,
-    {"name"           , required_argument , NULL , 'n' } ,
-    {"version"        , no_argument       , NULL , 'v' } ,
-    {"help"           , no_argument       , NULL , 'h' } ,
-    {0, 0, 0, 0}
-};
-
-static int read_option_args(struct client_info *client, int argc, char **argv)
+static void unload_sample(struct client_info *info)
 {
-    int o, idx = 0;
-
-    while ((o = getopt_long(argc, argv, short_options, long_opts, &idx)) >= 0) {
-        if (-1 == o || EOF == o)
-            break;
-        switch (o) {
-        case 'h':
-            print_usage ();
-            return -1;
-        case 'v':
-            fprintf (stdout, "purcsex: %s\n", MC_CURRENT_VERSION);
-            return -1;
-        case 'a':
-            if (strlen(optarg) < PURC_LEN_APP_NAME)
-                strcpy(client->app_name, optarg);
-            break;
-        case 'r':
-            if (strlen (optarg) < PURC_LEN_RUNNER_NAME)
-                strcpy (client->runner_name, optarg);
-            break;
-        case 'n':
-            if (!load_doc_content_and_fragment(client, optarg)) {
-                return -1;
-            }
-            break;
-        case '?':
-            print_usage ();
-            return -1;
-        default:
-            return -1;
+    for (int i = 0; i < info->nr_windows; i++) {
+        if (info->doc_content[i]) {
+            free(info->doc_content[i]);
         }
     }
 
-    if (optind < argc) {
-        print_usage ();
+    if (info->sample) {
+        purc_variant_unref(info->sample);
+    }
+
+    memset(info, 0, sizeof(*info));
+}
+
+static int split_target(const char *target, char *target_name)
+{
+    char *sep = strchr(target, '/');
+    if (sep == NULL)
         return -1;
+
+    size_t name_len = sep - target;
+    if (name_len > PURC_LEN_IDENTIFIER) {
+        return -1;
+    }
+
+    strncpy(target_name, target, name_len);
+    target_name[name_len] = 0;
+
+    sep++;
+    if (sep[0] == 0)
+        return -1;
+
+    char *end;
+    long l = strtol(sep, &end, 10);
+    if (*end == 0)
+        return (int)l;
+
+    return -1;
+}
+
+static int issue_operation(pcrdr_conn* conn, int op_no);
+
+static inline int issue_first_operation(pcrdr_conn* conn)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    info->ops_issued = 0;
+    return issue_operation(conn, info->ops_issued);
+}
+
+static inline int issue_next_operation(pcrdr_conn* conn)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    if (info->ops_issued < info->nr_ops) {
+        info->ops_issued++;
+        return issue_operation(conn, info->ops_issued);
     }
 
     return 0;
 }
 
-static int my_response_handler(pcrdr_conn* conn,
+static int plainwin_created_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
 {
@@ -247,59 +349,37 @@ static int my_response_handler(pcrdr_conn* conn,
     assert(info);
 
     int win = (int)(uintptr_t)context;
+    assert(win < info->nr_windows);
 
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
         return 0;
     }
 
-    printf("Got a response for request (%s) for window %d: %d\n",
+    printf("Got a response for request (%s) to create plainwin (%d): %d\n",
             purc_variant_get_string_const(response_msg->requestId), win,
             response_msg->retCode);
 
-    info->wait[win] = false;
-    switch (info->state[win]) {
-        case STATE_INITIAL:
-            info->state[win] = STATE_WINDOW_CREATED;
-            info->win_handles[win] = response_msg->resultValue;
-            break;
-
-        case STATE_WINDOW_CREATED:
-            if (info->len_wrotten[win] < info->len_content) {
-                info->state[win] = STATE_DOCUMENT_WROTTEN;
-            }
-            else {
-                info->state[win] = STATE_DOCUMENT_LOADED;
-                info->dom_handles[win] = response_msg->resultValue;
-            }
-            break;
-
-        case STATE_DOCUMENT_WROTTEN:
-            if (info->len_wrotten[win] == info->len_content) {
-                info->state[win] = STATE_DOCUMENT_LOADED;
-                info->dom_handles[win] = response_msg->resultValue;
-            }
-            break;
-
-        case STATE_DOCUMENT_LOADED:
-            info->state[win] = STATE_EVENT_LOOP;
-            break;
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        info->nr_windows_created++;
+        info->win_handles[win] = response_msg->resultValue;
+        issue_next_operation(conn);
     }
-
-    // we only allow failed request when we are running testing.
-    if (info->state[win] != STATE_EVENT_LOOP &&
-            response_msg->retCode != PCRDR_SC_OK) {
-        info->state[win] = STATE_FATAL;
-
-        printf("Window %d encountered a fatal error\n", win);
+    else {
+        fprintf(stderr, "failed to create a plain window\n");
+        info->running = false;
     }
 
     return 0;
 }
 
-static int create_plain_win(pcrdr_conn* conn, int win)
+static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
 {
     pcrdr_msg *msg;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    if (info->nr_windows == info->nr_windows_created)
+        goto failed;
+    int win = info->nr_windows_created;
 
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
             PCRDR_OPERATION_CREATEPLAINWINDOW, NULL,
@@ -310,15 +390,21 @@ static int create_plain_win(pcrdr_conn* conn, int win)
     }
 
     char name_buff[64];
-    char title_buff[64];
     sprintf(name_buff, "the-plain-window-%d", win);
-    sprintf(title_buff, "The Plain Window No. %d", win);
+
+    purc_variant_t tmp;
+    const char *title = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "title"))) {
+        title = purc_variant_get_string_const(tmp);
+    }
+    if (title == NULL)
+        title = "No Title";
 
     purc_variant_t data = purc_variant_make_object(2,
             purc_variant_make_string_static("name", false),
             purc_variant_make_string_static(name_buff, false),
             purc_variant_make_string_static("title", false),
-            purc_variant_make_string_static(title_buff, false));
+            purc_variant_make_string_static(title, false));
     if (data == PURC_VARIANT_INVALID) {
         goto failed;
     }
@@ -328,11 +414,9 @@ static int create_plain_win(pcrdr_conn* conn, int win)
 
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
-                my_response_handler) < 0) {
+                plainwin_created_handler) < 0) {
         goto failed;
     }
-
-    info->wait[win] = true;
 
     printf("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
@@ -353,93 +437,91 @@ failed:
     return -1;
 }
 
-#define DEF_LEN_ONE_WRITE   1024
-
-static int load_or_write_doucment(pcrdr_conn* conn, int win)
+static int loaded_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(win < NR_WINDOWS && info);
+    assert(info);
 
-    pcrdr_msg *msg = NULL;
-    purc_variant_t data = PURC_VARIANT_INVALID;
+    int win = (int)(uintptr_t)context;
+    assert(win < info->nr_windows);
 
-    if (info->len_content > PCRDR_MAX_INMEM_PAYLOAD_SIZE) {
-        // use writeBegin
-        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
-                info->win_handles[win],
-                PCRDR_OPERATION_WRITEBEGIN, NULL,
-                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
-                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        return 0;
+    }
 
-        const char *start = info->doc_content;
-        const char *end;
-        pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
-        if (end > start) {
-            size_t len_to_write = end - start;
+    printf("Got a response for request (%s) to load document content (%d): %d\n",
+            purc_variant_get_string_const(response_msg->requestId), win,
+            response_msg->retCode);
 
-            data = purc_variant_make_string_ex(start, len_to_write, false);
-            info->len_wrotten[win] = len_to_write;
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        info->dom_handles[win] = response_msg->resultValue;
+
+        free(info->doc_content[win]);
+        info->doc_content[win] = NULL;
+
+        issue_next_operation(conn);
+    }
+    else {
+        fprintf(stderr, "failed to load document\n");
+        info->running = false;
+    }
+
+    return 0;
+}
+
+static int write_more_doucment(pcrdr_conn* conn, int win);
+
+static int wrotten_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    int win = (int)(uintptr_t)context;
+    assert(win < info->nr_windows);
+
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        return 0;
+    }
+
+    printf("Got a response for request (%s) to write content (%d): %d\n",
+            purc_variant_get_string_const(response_msg->requestId), win,
+            response_msg->retCode);
+
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        if (info->len_wrotten[win] == info->len_content[win]) {
+            info->dom_handles[win] = response_msg->resultValue;
+
+            free(info->doc_content[win]);
+            info->doc_content[win] = NULL;
+
+            issue_next_operation(conn);
         }
         else {
-            printf("In %s for window %d: no valid character\n", __func__, win);
-            goto failed;
+            write_more_doucment(conn, win);
         }
     }
     else {
-        // use load
-        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
-                info->win_handles[win],
-                PCRDR_OPERATION_LOAD, NULL,
-                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
-                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
-
-        data = purc_variant_make_string_static(info->doc_content, false);
-        info->len_wrotten[win] = info->len_content;
+        fprintf(stderr, "failed to write content\n");
+        info->running = false;
     }
 
-    if (msg == NULL || data == PURC_VARIANT_INVALID) {
-        goto failed;
-    }
-
-    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
-    msg->data = data;
-
-    if (pcrdr_send_request(conn, msg,
-                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
-                my_response_handler) < 0) {
-        goto failed;
-    }
-
-    info->wait[win] = true;
-
-    printf("Request (%s) `%s` for window %d sent\n",
-            purc_variant_get_string_const(msg->requestId),
-            purc_variant_get_string_const(msg->operation), win);
-    pcrdr_release_message(msg);
     return 0;
-
-failed:
-    printf("Failed call to (%s) for window %d\n", __func__, win);
-
-    if (msg) {
-        pcrdr_release_message(msg);
-    }
-    else if (data) {
-        purc_variant_unref(data);
-    }
-
-    return -1;
 }
 
 static int write_more_doucment(pcrdr_conn* conn, int win)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(win < NR_WINDOWS && info);
+    assert(win < info->nr_windows && info);
 
     pcrdr_msg *msg = NULL;
     purc_variant_t data = PURC_VARIANT_INVALID;
 
-    if (info->len_wrotten[win] + DEF_LEN_ONE_WRITE > info->len_content) {
+    pcrdr_response_handler handler;
+    if (info->len_wrotten[win] + DEF_LEN_ONE_WRITE > info->len_content[win]) {
         // writeEnd
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
@@ -448,8 +530,9 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
         data = purc_variant_make_string(
-                info->doc_content + info->len_wrotten[win], false);
-        info->len_wrotten[win] = info->len_content;
+                info->doc_content[win] + info->len_wrotten[win], false);
+        info->len_wrotten[win] = info->len_content[win];
+        handler = loaded_handler;
     }
     else {
         // writeMore
@@ -459,7 +542,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        const char *start = info->doc_content + info->len_wrotten[win];
+        const char *start = info->doc_content[win] + info->len_wrotten[win];
         const char *end;
         pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
         if (end > start) {
@@ -472,6 +555,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
             printf("In %s for window %d: no valid character\n", __func__, win);
             goto failed;
         }
+        handler = wrotten_handler;
     }
 
     if (msg == NULL || data == PURC_VARIANT_INVALID) {
@@ -482,11 +566,9 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
     msg->data = data;
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
-                my_response_handler) < 0) {
+                handler) < 0) {
         goto failed;
     }
-
-    info->wait[win] = true;
 
     printf("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
@@ -507,109 +589,287 @@ failed:
     return -1;
 }
 
-static int check_quit(pcrdr_conn* conn, int win)
+static int load_or_write_doucment(pcrdr_conn* conn, purc_variant_t op)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(info);
 
-    if (info->nr_destroyed_wins == NR_WINDOWS) {
-        printf("all windows destroyed; quitting...\n");
-        return -1;
+    purc_variant_t tmp;
+    const char *target = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "target"))) {
+        target = purc_variant_get_string_const(tmp);
     }
 
+    if (target == NULL) {
+        goto failed;
+    }
+
+    char target_name[PURC_LEN_IDENTIFIER + 1];
+    int win = 0;
+    win = split_target(target, target_name);
+    if (win < 0 || win > info->nr_windows_created || !info->win_handles[win]) {
+        goto failed;
+    }
+
+    if (strcmp(target_name, "plainwindow")) {
+        goto failed;
+    }
+
+    if (info->doc_content[win] == NULL) {
+        const char *content;
+        if ((tmp = purc_variant_object_get_by_ckey(op, "content"))) {
+            content = purc_variant_get_string_const(tmp);
+        }
+
+        if (content) {
+            info->doc_content[win] = load_file_content(content,
+                    &info->len_content[win]);
+        }
+    }
+
+    if (info->doc_content[win] == NULL) {
+        goto failed;
+    }
+
+    pcrdr_msg *msg = NULL;
+    purc_variant_t data = PURC_VARIANT_INVALID;
+
+    pcrdr_response_handler handler;
+    if (info->len_content[win] > DEF_LEN_ONE_WRITE) {
+        // use writeBegin
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+                info->win_handles[win],
+                PCRDR_OPERATION_WRITEBEGIN, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+
+        const char *start = info->doc_content[win];
+        const char *end;
+        pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
+        if (end > start) {
+            size_t len_to_write = end - start;
+
+            data = purc_variant_make_string_ex(start, len_to_write, false);
+            info->len_wrotten[win] = len_to_write;
+        }
+        else {
+            printf("In %s for window %d: no valid character\n", __func__, win);
+            goto failed;
+        }
+
+        handler = wrotten_handler;
+    }
+    else {
+        // use load
+        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+                info->win_handles[win],
+                PCRDR_OPERATION_LOAD, NULL,
+                PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+                PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+
+        data = purc_variant_make_string_static(info->doc_content[win], false);
+        info->len_wrotten[win] = info->len_content[win];
+        handler = loaded_handler;
+    }
+
+    if (msg == NULL || data == PURC_VARIANT_INVALID) {
+        goto failed;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->data = data;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                handler) < 0) {
+        goto failed;
+    }
+
+    printf("Request (%s) `%s` for window %d sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), win);
+    pcrdr_release_message(msg);
     return 0;
-}
 
-/* TODO: change document here */
-static int change_document(pcrdr_conn* conn, int win);
+failed:
+    printf("Failed call to (%s) for window %d\n", __func__, win);
 
-/*
- * this function will be called every second.
- * returns -1 on failure.
- */
-static int run_autotest(pcrdr_conn* conn)
-{
-    struct client_info *info = pcrdr_conn_get_user_data(conn);
-
-    assert(info);
-
-    int win = info->run_times % NR_WINDOWS;
-    info->run_times++;
-
-    switch (info->state[win]) {
-    case STATE_INITIAL:
-        if (info->wait[win])
-            return 0;
-        return create_plain_win(conn, win);
-    case STATE_WINDOW_CREATED:
-        if (info->wait[win])
-            return 0;
-        return load_or_write_doucment(conn, win);
-    case STATE_DOCUMENT_WROTTEN:
-        if (info->wait[win])
-            return 0;
-        return write_more_doucment(conn, win);
-    case STATE_DOCUMENT_LOADED:
-        if (info->wait[win])
-            return 0;
-        return change_document(conn, win);
-    case STATE_EVENT_LOOP:
-        if (info->wait[win])
-            return 0;
-        return check_quit(conn, win);
-    case STATE_FATAL:
-        return -1;
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+    else if (data) {
+        purc_variant_unref(data);
     }
 
     return -1;
 }
 
-static ssize_t stdio_write(void *ctxt, const void *buf, size_t count)
+static const char* split_element(const char *element, char *element_type)
 {
-    return fwrite(buf, 1, count, (FILE *)ctxt);
-}
+    char *sep = strchr(element, '/');
+    if (sep == NULL)
+        return NULL;
 
-#define HANDLE_MODAL  "789046"
-
-static pcrdr_msg *make_change_message(struct client_info *info, int win)
-{
-    pcrdr_msg *msg;
-
-    msg = pcrdr_make_request_message(
-            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_DISPLACE, NULL,
-            PCRDR_MSG_ELEMENT_TYPE_HANDLE, HANDLE_MODAL,
-            NULL,
-            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
-    msg->data = purc_variant_make_string_static(info->doc_fragment, false);
-    if (msg->data) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
-    }
-    else {
-        pcrdr_release_message(msg);
+    size_t type_len = sep - element;
+    if (type_len > PURC_LEN_IDENTIFIER) {
         return NULL;
     }
 
-    return msg;
+    strncpy(element_type, element, type_len);
+    element_type[type_len] = 0;
+
+    sep++;
+    if (sep[0] == 0)
+        return NULL;
+
+    return sep;
 }
 
-/* TODO: change document here */
-static int change_document(pcrdr_conn* conn, int win)
+static pcrdr_msg *make_change_message(struct client_info *info,
+        int op_id, const char *op_name, purc_variant_t op, int win)
+{
+    purc_variant_t tmp;
+    const char *element = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(tmp);
+    }
+
+    if (element == NULL) {
+        goto failed;
+    }
+
+    char element_type[PURC_LEN_IDENTIFIER + 1];
+    const char *element_value;
+
+    element_value = split_element(element, element_type);
+    if (element_value == NULL) {
+        goto failed;
+    }
+
+    if (strcmp(element_type, "handle")) {
+        goto failed;
+    }
+
+    const char *property = NULL;
+    const char *content;
+    char *content_loaded = NULL;
+    size_t content_length;
+    if (op_id == PCRDR_K_OPERATION_UPDATE) {
+        if ((tmp = purc_variant_object_get_by_ckey(op, "property"))) {
+            property = purc_variant_get_string_const(tmp);
+        }
+
+        if ((tmp = purc_variant_object_get_by_ckey(op, "content"))) {
+            content = purc_variant_get_string_const(tmp);
+        }
+
+        if (content == NULL) {
+            goto failed;
+        }
+    }
+    else if (op_id == PCRDR_K_OPERATION_ERASE ||
+            op_id == PCRDR_K_OPERATION_CLEAR) {
+        if ((tmp = purc_variant_object_get_by_ckey(op, "property"))) {
+            property = purc_variant_get_string_const(tmp);
+        }
+    }
+    else {
+        if ((tmp = purc_variant_object_get_by_ckey(op, "content"))) {
+            content = purc_variant_get_string_const(tmp);
+        }
+
+        if (content) {
+            content_loaded = load_file_content(content, &content_length);
+            content = content_loaded;
+        }
+
+        if (content == NULL) {
+            goto failed;
+        }
+    }
+
+    pcrdr_msg *msg;
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            op_name, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, element_value,
+            property,
+            content ? PCRDR_MSG_DATA_TYPE_TEXT : PCRDR_MSG_DATA_TYPE_VOID,
+            content, content_length);
+
+    if (content_loaded) {
+        free(content_loaded);
+    }
+
+    return msg;
+
+failed:
+    return NULL;
+}
+
+static int changed_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(win < NR_WINDOWS && info);
+    assert(info);
 
-    pcrdr_msg *msg = make_change_message(info, win);
+    int win = (int)(uintptr_t)context;
+    assert(win < info->nr_windows);
+
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        return 0;
+    }
+
+    printf("Got a response for request (%s) to change document (%d): %d\n",
+            purc_variant_get_string_const(response_msg->requestId), win,
+            response_msg->retCode);
+
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        issue_next_operation(conn);
+    }
+    else {
+        fprintf(stderr, "failed to load document\n");
+        info->running = false;
+    }
+
+    return 0;
+}
+
+static int change_document(pcrdr_conn* conn,
+        int op_id, const char *op_name, purc_variant_t op)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    purc_variant_t tmp;
+    const char *target = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "target"))) {
+        target = purc_variant_get_string_const(tmp);
+    }
+
+    if (target == NULL) {
+        goto failed;
+    }
+
+    char target_name[PURC_LEN_IDENTIFIER + 1];
+    int win = 0;
+    win = split_target(target, target_name);
+    if (win < 0 || win > info->nr_windows_created || !info->win_handles[win]) {
+        goto failed;
+    }
+
+    if (strcmp(target_name, "dom")) {
+        goto failed;
+    }
+
+    pcrdr_msg *msg = make_change_message(info, op_id, op_name, op, win);
     if (msg == NULL)
         return -1;
 
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
-                my_response_handler) < 0) {
+                changed_handler) < 0) {
         goto failed;
     }
-
-    info->wait[win] = true;
 
     printf("Request (%s) `%s` (%s) for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
@@ -626,7 +886,58 @@ failed:
     return -1;
 }
 
-/* TODO: handle event here */
+
+static int issue_operation(pcrdr_conn* conn, int op_no)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    purc_variant_t op = purc_variant_array_get(info->initialOps, op_no);
+
+    purc_variant_t tmp;
+    const char *op_name = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "operation"))) {
+        op_name = purc_variant_get_string_const(tmp);
+    }
+
+    if (op_name == NULL) {
+        fprintf(stderr, "No valid `operation` defined in the operation No.%d.\n",
+                op_no);
+        return -1;
+    }
+
+    unsigned int op_id;
+    purc_atom_t op_atom = pcrdr_operation_atom(op_name);
+    if (op_atom == 0 || pcrdr_operation_from_atom(op_atom, &op_id) == NULL) {
+        fprintf(stderr, "Unknown operation: %s.\n", op_name);
+    }
+
+    int retv;
+    switch (op_id) {
+    case PCRDR_K_OPERATION_CREATEPLAINWINDOW:
+        retv = create_plain_win(conn, op);
+        break;
+
+    case PCRDR_K_OPERATION_LOAD:
+        retv = load_or_write_doucment(conn, op);
+        break;
+
+    case PCRDR_K_OPERATION_DISPLACE:
+        retv = change_document(conn, op_id, op_name, op);
+        break;
+
+    default:
+        fprintf(stderr, "Not implemented operation: %s.\n", op_name);
+        retv = -1;
+        break;
+    }
+
+    return retv;
+}
+
+static ssize_t stdio_write(void *ctxt, const void *buf, size_t count)
+{
+    return fwrite(buf, 1, count, (FILE *)ctxt);
+}
+
 static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
@@ -638,7 +949,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
                 purc_variant_get_string_const(msg->event));
 
         int win = -1;
-        for (int i = 0; i < NR_WINDOWS; i++) {
+        for (int i = 0; i < info->nr_windows; i++) {
             if (info->win_handles[i] == msg->targetValue) {
                 win = i;
                 break;
@@ -646,8 +957,8 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         }
 
         if (win >= 0) {
-            info->state[win] = STATE_WINDOW_DESTROYED;
-            info->nr_destroyed_wins++;
+            info->win_handles[win] = 0;
+            info->nr_windows_created--;
         }
         else {
             printf("Window not found: (%p)\n",
@@ -715,12 +1026,18 @@ int main(int argc, char **argv)
         strcpy(client.app_name, "cn.fmsoft.hvml.purcmc");
     if (!client.runner_name[0])
         strcpy(client.runner_name, "sample");
+    if (!client.sample_name[0])
+        strcpy(client.sample_name, client.runner_name);
 
     ret = purc_init_ex(PURC_MODULE_PCRDR, client.app_name,
             client.runner_name, &extra_info);
     if (ret != PURC_ERROR_OK) {
-        fprintf (stderr, "Failed to initialize the PurC instance: %s\n",
+        fprintf(stderr, "Failed to initialize the PurC instance: %s\n",
                 purc_get_error_message(ret));
+        return EXIT_FAILURE;
+    }
+
+    if (!load_sample(&client)) {
         return EXIT_FAILURE;
     }
 
@@ -737,18 +1054,20 @@ int main(int argc, char **argv)
 
     format_current_time(curr_time, sizeof (curr_time) - 1, false);
 
+    issue_first_operation(conn);
+
     maxfd = cnnfd;
     do {
         int retval;
-        char new_clock [16];
+        char new_clock[16];
         time_t old_time;
 
-        FD_ZERO (&rfds);
-        FD_SET (cnnfd, &rfds);
+        FD_ZERO(&rfds);
+        FD_SET(cnnfd, &rfds);
 
         tv.tv_sec = 0;
         tv.tv_usec = 200 * 1000;
-        retval = select (maxfd + 1, &rfds, NULL, NULL, &tv);
+        retval = select(maxfd + 1, &rfds, NULL, NULL, &tv);
 
         if (retval == -1) {
             if (errno == EINTR)
@@ -757,8 +1076,8 @@ int main(int argc, char **argv)
                 break;
         }
         else if (retval) {
-            if (FD_ISSET (cnnfd, &rfds)) {
-                int err_code = pcrdr_read_and_dispatch_message (conn);
+            if (FD_ISSET(cnnfd, &rfds)) {
+                int err_code = pcrdr_read_and_dispatch_message(conn);
                 if (err_code < 0) {
                     fprintf (stderr, "Failed to read and dispatch message: %s\n",
                             purc_get_error_message(purc_get_last_error()));
@@ -776,7 +1095,6 @@ int main(int argc, char **argv)
             time_t new_time = time(NULL);
             if (old_time != new_time) {
                 old_time = new_time;
-                if (run_autotest(conn) < 0)
                     break;
             }
         }
@@ -790,11 +1108,129 @@ int main(int argc, char **argv)
 
     fputs ("\n", stderr);
 
-    if (client.doc_content)
-        free(client.doc_content);
+    unload_sample(&client);
 
     purc_cleanup();
 
     return EXIT_SUCCESS;
 }
+
+#if 0
+static inline char *load_doc_content(struct client_info *info, size_t *length)
+{
+    char file[strlen(info->sample_name) + 8];
+    strcpy(file, info->sample_name);
+    strcat(file, ".html");
+
+
+    return load_file_content(file, length);
+}
+
+static inline char *load_doc_fragment(struct client_info *info, size_t *length)
+{
+    char file[strlen(info->sample_name) + 8];
+    strcpy(file, info->sample_name);
+    strcat(file, ".frag");
+
+    return load_file_content(file, length);
+}
+
+static int my_response_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    int win = (int)(uintptr_t)context;
+
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        return 0;
+    }
+
+    printf("Got a response for request (%s) for window %d: %d\n",
+            purc_variant_get_string_const(response_msg->requestId), win,
+            response_msg->retCode);
+
+    info->wait[win] = false;
+    switch (info->state[win]) {
+        case STATE_INITIAL:
+            info->state[win] = STATE_WINDOW_CREATED;
+            info->win_handles[win] = response_msg->resultValue;
+            break;
+
+        case STATE_WINDOW_CREATED:
+            if (info->len_wrotten[win] < info->len_content) {
+                info->state[win] = STATE_DOCUMENT_WROTTEN;
+            }
+            else {
+                info->state[win] = STATE_DOCUMENT_LOADED;
+                info->dom_handles[win] = response_msg->resultValue;
+            }
+            break;
+
+        case STATE_DOCUMENT_WROTTEN:
+            break;
+
+        case STATE_DOCUMENT_LOADED:
+            info->state[win] = STATE_EVENT_LOOP;
+            break;
+    }
+
+    // we only allow failed request when we are running testing.
+    if (info->state[win] != STATE_EVENT_LOOP &&
+            response_msg->retCode != PCRDR_SC_OK) {
+        info->state[win] = STATE_FATAL;
+
+        printf("Window %d encountered a fatal error\n", win);
+    }
+
+    return 0;
+}
+
+static int check_quit(pcrdr_conn* conn)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    if (info->nr_windows_created == 0) {
+        printf("no window alive; quitting...\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+{
+    int win = info->run_times % info->nr_windows;
+    info->run_times++;
+
+    switch (info->state[win]) {
+    case STATE_INITIAL:
+        if (info->wait[win])
+            return 0;
+        return create_plain_win(conn, win);
+    case STATE_WINDOW_CREATED:
+        if (info->wait[win])
+            return 0;
+        return load_or_write_doucment(conn, win);
+    case STATE_DOCUMENT_WROTTEN:
+        if (info->wait[win])
+            return 0;
+        return write_more_doucment(conn, win);
+    case STATE_DOCUMENT_LOADED:
+        if (info->wait[win])
+            return 0;
+        return change_document(conn, win);
+    case STATE_EVENT_LOOP:
+        if (info->wait[win])
+            return 0;
+        return check_quit(conn, win);
+    case STATE_FATAL:
+        return -1;
+    }
+
+    return -1;
+}
+#endif
 

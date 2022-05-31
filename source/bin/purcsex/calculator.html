@@ -42,66 +42,38 @@
 
   <div class="container">
     <div class="mb-3">
-      <label for="resultFraction" class="form-label">结果精度（小数点位数）</label>
-      <input type="range" class="form-range" min="0" max="50" id="resultFraction">
+      <label for="resultFraction" class="form-label">结果精度（<strong id="theFraction">10</strong>位小数点）</label>
+      <input type="range" class="form-range" min="0" max="50" value="10" hvml-events="change" id="theFractionRange">
     </div>
 
-    <div class="mb-3">
-        <input type="text" class="form-control" id="exampleFormControlInput1" readonly />
-    </div>
-
-    <div class="row mb-3">
-      <div class="col">
-        <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">7</button>
-        </div>
-      </div>
-      <div class="col">
-        <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">8</button>
-        </div>
-      </div>
-      <div class="col">
-        <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">9</button>
-        </div>
-      </div>
-      <div class="col">
-        <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">C</button>
-        </div>
-      </div>
-      <div class="col">
-        <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">CE</button>
-        </div>
-      </div>
+    <div class="shadow-none p-3 mb-5 bg-light rounded">
+        <p id="theResult" class="fs-1 text-nowrap fw-bold overflow-scroll text-end">0</p>
     </div>
 
     <div class="row mb-3">
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">4</button>
+          <button class="btn btn-outline-primary" id="theDigit7" hvml-events="click" type="button">7</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">5</button>
+          <button class="btn btn-outline-primary" id="theDigit8" hvml-events="click" type="button">8</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">6</button>
+          <button class="btn btn-outline-primary" id="theDigit9" hvml-events="click" type="button">9</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">×</button>
+          <button class="btn btn-outline-info" id="theSignPlusMinus" hvml-events="click" type="button">±</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">÷</button>
+          <button class="btn btn-outline-danger" id="theBtnClear" hvml-events="click" type="button">C</button>
         </div>
       </div>
     </div>
@@ -109,27 +81,27 @@
     <div class="row mb-3">
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">1</button>
+          <button class="btn btn-outline-primary" id="theDigit4" hvml-events="click" type="button">4</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">2</button>
+          <button class="btn btn-outline-primary" id="theDigit5" hvml-events="click" type="button">5</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">3</button>
+          <button class="btn btn-outline-primary" id="theDigit6" hvml-events="click" type="button">6</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">+</button>
+          <button class="btn btn-outline-success" id="theSignTimes" hvml-events="click" type="button">×</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">-</button>
+          <button class="btn btn-outline-success" id="theSignDivision" hvml-events="click" type="button">÷</button>
         </div>
       </div>
     </div>
@@ -137,27 +109,55 @@
     <div class="row mb-3">
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">0</button>
+          <button class="btn btn-outline-primary" id="theDigit1" hvml-events="click" type="button">1</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">00</button>
+          <button class="btn btn-outline-primary" id="theDigit2" hvml-events="click" type="button">2</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">.</button>
+          <button class="btn btn-outline-primary" id="theDigit3" hvml-events="click" type="button">3</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" type="button">%</button>
+          <button class="btn btn-outline-success" id="theSignPlus" hvml-events="click" type="button">+</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-success" type="button">=</button>
+          <button class="btn btn-outline-success" id="theSignMinus" hvml-events="click" type="button">-</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" id="theDigit0" hvml-events="click" type="button">0</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" id="theDigit00" hvml-events="click" type="button">00</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" id="theSignDot" hvml-events="click" type="button">.</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-info" id="theSignPercent" hvml-events="click" type="button">%</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-success" id="theSignEqual" hvml-events="click" type="button">=</button>
         </div>
       </div>
     </div>

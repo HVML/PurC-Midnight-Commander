@@ -1239,7 +1239,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
             LOG_INFO("    The attached data is EJSON:\n");
             purc_variant_serialize(msg->data, rws, 0, 0, NULL);
             purc_rwstream_destroy(rws);
-            LOG_INFO("\n");
+            fprintf(stdout, "\n");
         }
         else {
             LOG_INFO("    The attached data is VOID\n");

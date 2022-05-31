@@ -19,6 +19,7 @@ PURCMC_EXECUTABLE(purcsex)
 
 list(APPEND purcsex_SOURCES
     purcsex.c
+    log.c
 )
 
 set(purcsex_LIBRARIES

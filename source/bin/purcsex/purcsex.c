@@ -33,6 +33,7 @@
 #include <purc/purc.h>
 
 #include "purcmc_version.h"
+#include "log.h"
 
 #define MAX_NR_WINDOWS      8
 #define DEF_LEN_ONE_WRITE   1024
@@ -87,7 +88,7 @@ struct client_info {
 
 static void print_copying(void)
 {
-    fprintf(stdout,
+    printf(
         "\n"
         "purcsex - a simple examples interacting with the PurCMC renderer.\n"
         "\n"
@@ -105,7 +106,7 @@ static void print_copying(void)
         "You should have received a copy of the GNU General Public License\n"
         "along with this program.  If not, see http://www.gnu.org/licenses/.\n"
         );
-    fprintf(stdout, "\n");
+    printf("\n");
 }
 
 /* Command line help. */
@@ -154,7 +155,7 @@ static int read_option_args(struct client_info *client, int argc, char **argv)
             print_usage();
             return -1;
         case 'v':
-            fprintf(stdout, "purcsex: %s\n", MC_CURRENT_VERSION);
+            printf("purcsex: %s\n", MC_CURRENT_VERSION);
             return -1;
         case 'i':
             client->interact = true;
@@ -244,7 +245,7 @@ static bool load_sample(struct client_info *info)
 
     info->sample = purc_variant_load_from_json_file(file);
     if (info->sample == PURC_VARIANT_INVALID) {
-        fprintf(stderr, "Failed to load the sample from JSON file (%s)\n",
+        LOG_ERROR("Failed to load the sample from JSON file (%s)\n",
                 info->sample_name);
         return false;
     }
@@ -258,28 +259,28 @@ static bool load_sample(struct client_info *info)
     }
 
     if (info->nr_windows == 0 || info->nr_windows > MAX_NR_WINDOWS) {
-        fprintf(stdout, "WARN: Wrong number of windows (%u)\n", info->nr_windows);
+        LOG_WARN("Wrong number of windows (%u)\n", info->nr_windows);
         info->nr_windows = 1;
     }
 
     info->initialOps = purc_variant_object_get_by_ckey(info->sample, "initialOps");
     if (info->initialOps == PURC_VARIANT_INVALID ||
             !purc_variant_array_size(info->initialOps, &info->nr_ops)) {
-        fprintf(stderr, "No valid `initialOps` defined.\n");
+        LOG_ERROR("No valid `initialOps` defined.\n");
         return false;
     }
 
     info->namedOps = purc_variant_object_get_by_ckey(info->sample, "namedOps");
     if (info->namedOps == PURC_VARIANT_INVALID ||
             !purc_variant_is_object(info->namedOps)) {
-        fprintf(stdout, "WARN: `namedOps` defined but not an object.\n");
+        LOG_WARN("`namedOps` defined but not an object.\n");
         info->namedOps = PURC_VARIANT_INVALID;
     }
 
     info->events = purc_variant_object_get_by_ckey(info->sample, "events");
     if (info->events == PURC_VARIANT_INVALID ||
             !purc_variant_array_size(info->events, &info->nr_events)) {
-        fprintf(stdout, "WARN: No valid `events` defined.\n");
+        LOG_WARN("No valid `events` defined.\n");
         info->events = PURC_VARIANT_INVALID;
         info->nr_events = 0;
     }
@@ -441,10 +442,17 @@ static inline int issue_next_operation(pcrdr_conn* conn)
         purc_variant_t op;
         op = purc_variant_array_get(info->initialOps, info->ops_issued);
         if (op) {
+
             if (info->interact) {
                 printf("Please press ENTER to issue next operation:\n");
-                getchar();
+                do {
+                    int ch;
+                    do {
+                        ch = getchar();
+                    } while (ch != '\n');
+                } while (0);
             }
+
             return issue_operation(conn, op);
         }
     }
@@ -466,7 +474,7 @@ static int plainwin_created_handler(pcrdr_conn* conn,
         return 0;
     }
 
-    printf("Got a response for request (%s) to create plainwin (%d): %d\n",
+    LOG_INFO("Got a response for request (%s) to create plainwin (%d): %d\n",
             purc_variant_get_string_const(response_msg->requestId), win,
             response_msg->retCode);
 
@@ -476,7 +484,7 @@ static int plainwin_created_handler(pcrdr_conn* conn,
         issue_next_operation(conn);
     }
     else {
-        fprintf(stderr, "failed to create a plain window\n");
+        LOG_ERROR("failed to create a plain window\n");
         // info->running = false;
     }
 
@@ -529,14 +537,14 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
         goto failed;
     }
 
-    printf("Request (%s) `%s` for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    printf("Failed call to (%s) for window %d\n", __func__, win);
+    LOG_ERROR("Failed call for window %d\n", win);
 
     if (msg) {
         pcrdr_release_message(msg);
@@ -562,7 +570,7 @@ static int plainwin_destroyed_handler(pcrdr_conn* conn,
         return 0;
     }
 
-    printf("Got a response for request (%s) to destroy plainwin (%d): %d\n",
+    LOG_INFO("Got a response for request (%s) to destroy plainwin (%d): %d\n",
             purc_variant_get_string_const(response_msg->requestId), win,
             response_msg->retCode);
 
@@ -574,7 +582,7 @@ static int plainwin_destroyed_handler(pcrdr_conn* conn,
         }
     }
     else {
-        fprintf(stderr, "failed to create a plain window\n");
+        LOG_ERROR("failed to create a plain window\n");
         // info->running = false;
     }
 
@@ -623,14 +631,14 @@ static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
         goto failed;
     }
 
-    printf("Request (%s) `%s` for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    printf("Failed call to (%s) for window %d\n", __func__, win);
+    LOG_ERROR("Failed call for window %d\n", win);
 
     if (msg) {
         pcrdr_release_message(msg);
@@ -653,7 +661,7 @@ static int loaded_handler(pcrdr_conn* conn,
         return 0;
     }
 
-    printf("Got a response for request (%s) to load document content (%d): %d\n",
+    LOG_INFO("Got a response for request (%s) to load document content (%d): %d\n",
             purc_variant_get_string_const(response_msg->requestId), win,
             response_msg->retCode);
 
@@ -666,7 +674,7 @@ static int loaded_handler(pcrdr_conn* conn,
         issue_next_operation(conn);
     }
     else {
-        fprintf(stderr, "failed to load document\n");
+        LOG_ERROR("failed to load document\n");
         // info->running = false;
     }
 
@@ -689,7 +697,7 @@ static int wrotten_handler(pcrdr_conn* conn,
         return 0;
     }
 
-    printf("Got a response for request (%s) to write content (%d): %d\n",
+    LOG_INFO("Got a response for request (%s) to write content (%d): %d\n",
             purc_variant_get_string_const(response_msg->requestId), win,
             response_msg->retCode);
 
@@ -707,7 +715,7 @@ static int wrotten_handler(pcrdr_conn* conn,
         }
     }
     else {
-        fprintf(stderr, "failed to write content\n");
+        LOG_ERROR("failed to write content\n");
         // info->running = false;
     }
 
@@ -754,7 +762,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
             info->len_wrotten[win] += len_to_write;
         }
         else {
-            printf("In %s for window %d: no valid character\n", __func__, win);
+            LOG_WARN("no valid character for window %d\n", win);
             goto failed;
         }
         handler = wrotten_handler;
@@ -772,14 +780,14 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
         goto failed;
     }
 
-    printf("Request (%s) `%s` for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    printf("Failed call to (%s) for window %d\n", __func__, win);
+    LOG_ERROR("Failed call for window %d\n", win);
 
     if (msg) {
         pcrdr_release_message(msg);
@@ -854,7 +862,7 @@ static int load_or_write_doucment(pcrdr_conn* conn, purc_variant_t op)
             info->len_wrotten[win] = len_to_write;
         }
         else {
-            printf("In %s for window %d: no valid character\n", __func__, win);
+            LOG_WARN("no valid character for window: %d\n", win);
             goto failed;
         }
 
@@ -886,14 +894,14 @@ static int load_or_write_doucment(pcrdr_conn* conn, purc_variant_t op)
         goto failed;
     }
 
-    printf("Request (%s) `%s` for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation), win);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    printf("Failed call to (%s) for window %d\n", __func__, win);
+    LOG_ERROR("Failed call for window %d\n", win);
 
     if (msg) {
         pcrdr_release_message(msg);
@@ -934,7 +942,7 @@ static pcrdr_msg *make_change_message(struct client_info *info,
         element_type = PCRDR_MSG_ELEMENT_TYPE_ID;
     }
     else {
-        fprintf(stderr, "Not supported element type: %s\n", element_type_str);
+        LOG_ERROR("Not supported element type: %s\n", element_type_str);
         goto failed;
     }
 
@@ -1005,7 +1013,7 @@ static int changed_handler(pcrdr_conn* conn,
         return 0;
     }
 
-    printf("Got a response for request (%s) to change document (%d): %d\n",
+    LOG_INFO("Got a response for request (%s) to change document (%d): %d\n",
             purc_variant_get_string_const(response_msg->requestId), win,
             response_msg->retCode);
 
@@ -1013,7 +1021,7 @@ static int changed_handler(pcrdr_conn* conn,
         issue_next_operation(conn);
     }
     else {
-        fprintf(stderr, "failed to change document\n");
+        LOG_ERROR("failed to change document\n");
         // struct client_info *info = pcrdr_conn_get_user_data(conn);
         // info->running = false;
     }
@@ -1057,7 +1065,7 @@ static int change_document(pcrdr_conn* conn,
         goto failed;
     }
 
-    printf("Request (%s) `%s` (%s) for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` (%s) for window %d sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation),
             msg->property?purc_variant_get_string_const(msg->property):"N/A",
@@ -1066,7 +1074,7 @@ static int change_document(pcrdr_conn* conn,
     return 0;
 
 failed:
-    printf("Failed call to (%s) for window %d\n", __func__, win);
+    LOG_ERROR("Failed call for window %d\n", win);
 
     pcrdr_release_message(msg);
     return -1;
@@ -1084,7 +1092,7 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
     }
 
     if (operation == NULL) {
-        fprintf(stderr, "No valid `operation` defined in the operation.\n");
+        LOG_ERROR("No valid `operation` defined in the operation.\n");
         assert(0);
         return -1;
     }
@@ -1092,7 +1100,7 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
     unsigned int op_id;
     purc_atom_t op_atom = pcrdr_try_operation_atom(operation);
     if (op_atom == 0 || pcrdr_operation_from_atom(op_atom, &op_id) == NULL) {
-        fprintf(stderr, "Unknown operation: %s.\n", operation);
+        LOG_ERROR("Unknown operation: %s.\n", operation);
     }
 
     int retv;
@@ -1121,7 +1129,7 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
         break;
 
     default:
-        fprintf(stderr, "Not implemented operation: %s.\n", operation);
+        LOG_ERROR("Not implemented operation: %s.\n", operation);
         retv = -1;
         break;
     }
@@ -1185,7 +1193,7 @@ static const char *match_event(pcrdr_conn* conn,
                 strcmp(element_value,
                     purc_variant_get_string_const(evt_msg->element))) {
 
-            printf("%s: element (%d vs %d; %s vs %s) not matched\n", __func__,
+            LOG_WARN("element (%d vs %d; %s vs %s) not matched\n",
                     element_type, evt_msg->elementType,
                     element, purc_variant_get_string_const(evt_msg->element));
             goto failed;
@@ -1211,29 +1219,29 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
     }
 
     if (op_name == NULL) {
-        printf("Got an event not intrested in (target: %d/%p): %s\n",
+        LOG_INFO("Got an event not intrested in (target: %d/%p): %s\n",
                 msg->target, (void *)(uintptr_t)msg->targetValue,
                 purc_variant_get_string_const(msg->event));
 
         if (msg->target == PCRDR_MSG_TARGET_DOM) {
-            printf("    The handle of the source element: %s\n",
+            LOG_INFO("    The handle of the source element: %s\n",
                 purc_variant_get_string_const(msg->element));
         }
 
         if (msg->dataType == PCRDR_MSG_DATA_TYPE_TEXT) {
-            printf("    The attached data is TEXT:\n%s\n",
+            LOG_INFO("    The attached data is TEXT:\n%s\n",
                 purc_variant_get_string_const(msg->data));
         }
         else if (msg->dataType == PCRDR_MSG_DATA_TYPE_EJSON) {
             purc_rwstream_t rws = purc_rwstream_new_for_dump(stdout, stdio_write);
 
-            printf("    The attached data is EJSON:\n");
+            LOG_INFO("    The attached data is EJSON:\n");
             purc_variant_serialize(msg->data, rws, 0, 0, NULL);
             purc_rwstream_destroy(rws);
-            printf("\n");
+            LOG_INFO("\n");
         }
         else {
-            printf("    The attached data is VOID\n");
+            LOG_INFO("    The attached data is VOID\n");
         }
 
         return;
@@ -1247,10 +1255,10 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         purc_variant_t op;
         op = purc_variant_object_get_by_ckey(info->namedOps, op_name);
         if (op == PURC_VARIANT_INVALID || !purc_variant_is_object(op)) {
-            fprintf(stderr, "Bad named operation: %s\n", op_name);
+            LOG_ERROR("Bad named operation: %s\n", op_name);
         }
         else {
-            printf("Issue the named operation: %s\n", op_name);
+            LOG_INFO("Issue the named operation: %s\n", op_name);
             issue_operation(conn, op);
         }
     }
@@ -1289,14 +1297,16 @@ int main(int argc, char **argv)
     ret = purc_init_ex(PURC_MODULE_PCRDR, client.app_name,
             client.runner_name, &extra_info);
     if (ret != PURC_ERROR_OK) {
-        fprintf(stderr, "Failed to initialize the PurC instance: %s\n",
+        LOG_ERROR("Failed to initialize the PurC instance: %s\n",
                 purc_get_error_message(ret));
         return EXIT_FAILURE;
     }
 
+    my_log_enable(true, NULL);
+
     conn = purc_get_conn_to_renderer();
     if (conn == NULL) {
-        fprintf(stderr, "Failed to connect PURCMC renderer: %s\n",
+        LOG_ERROR("Failed to connect PURCMC renderer: %s\n",
                 extra_info.renderer_uri);
         purc_cleanup();
         return EXIT_FAILURE;

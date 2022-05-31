@@ -391,6 +391,9 @@ static const char *transfer_element_info(struct client_info *info,
         if (strcmp(buff, "handle") == 0) {
             *element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
         }
+        else if (strcmp(buff, "id") == 0) {
+            *element_type = PCRDR_MSG_ELEMENT_TYPE_ID;
+        }
         else if (strcmp(buff, "plainwindow") == 0) {
             *element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
 
@@ -905,15 +908,23 @@ static pcrdr_msg *make_change_message(struct client_info *info,
         goto failed;
     }
 
-    char element_type[PURC_LEN_IDENTIFIER + 1];
+    char element_type_str[PURC_LEN_IDENTIFIER + 1];
     const char *element_value;
 
-    element_value = split_element(element, element_type);
+    element_value = split_element(element, element_type_str);
     if (element_value == NULL) {
         goto failed;
     }
 
-    if (strcmp(element_type, "handle")) {
+    pcrdr_msg_element_type element_type;
+    if (strcmp(element_type_str, "handle") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
+    }
+    else if (strcmp(element_type_str, "id") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_ID;
+    }
+    else {
+        fprintf(stderr, "Not supported element type: %s\n", element_type_str);
         goto failed;
     }
 
@@ -959,7 +970,7 @@ static pcrdr_msg *make_change_message(struct client_info *info,
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
             operation, NULL,
-            PCRDR_MSG_ELEMENT_TYPE_HANDLE, element_value,
+            element_type, element_value,
             property,
             content ? PCRDR_MSG_DATA_TYPE_TEXT : PCRDR_MSG_DATA_TYPE_VOID,
             content, content_length);

@@ -97,5 +97,9 @@ void my_log_with_tag(const char *tag, const char *msg, va_list ap)
         fprintf(fp_log, "%s >> ", tag);
         vfprintf(fp_log, msg, ap);
     }
+    else {
+        printf("%s >> ", tag);
+        vprintf(msg, ap);
+    }
 }
 

@@ -20,71 +20,21 @@
 ** along with this program.  If not, see http://www.gnu.org/licenses/.
 */
 
-#undef NDEBUG
+#define _GNU_SOURCE
+#include "purcmc_version.h"
+#include "purcsex.h"
+#include "log.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
 
-#include <purc/purc.h>
+#include <dlfcn.h>
 
-#include "purcmc_version.h"
-#include "log.h"
-
-#define MAX_NR_WINDOWS      8
 #define DEF_LEN_ONE_WRITE   1024
-
-enum {
-    STATE_INITIAL = 0,
-    STATE_WINDOW_CREATED,
-    STATE_DOCUMENT_WROTTEN,
-    STATE_DOCUMENT_LOADED,
-    STATE_EVENT_LOOP,
-    STATE_WINDOW_DESTROYED,
-    STATE_FATAL,
-};
-
-struct client_info {
-    bool running;
-    bool interact;
-
-    uint32_t nr_windows;
-    uint32_t nr_destroyed_wins;
-
-    time_t last_sigint_time;
-    size_t run_times;
-
-    char app_name[PURC_LEN_APP_NAME + 1];
-    char runner_name[PURC_LEN_RUNNER_NAME + 1];
-    char sample_name[PURC_LEN_IDENTIFIER + 1];
-
-    purc_variant_t sample;
-    purc_variant_t initialOps;
-    purc_variant_t namedOps;
-    purc_variant_t events;
-
-    size_t nr_ops;
-    size_t nr_events;
-
-    size_t ops_issued;
-    size_t nr_windows_created;
-
-    char *doc_content[MAX_NR_WINDOWS];
-    size_t len_content[MAX_NR_WINDOWS];
-    size_t len_wrotten[MAX_NR_WINDOWS];
-
-    // handles of windows.
-    uint64_t win_handles[MAX_NR_WINDOWS];
-
-    // handles of DOM.
-    uint64_t dom_handles[MAX_NR_WINDOWS];
-
-    char buff[32];
-};
 
 static void print_copying(void)
 {
@@ -285,6 +235,15 @@ static bool load_sample(struct client_info *info)
         info->nr_events = 0;
     }
 
+    char buff[strlen(info->sample_name) + 12];
+
+    sprintf(buff, "./lib%s.so", info->sample_name);
+    LOG_INFO("Try to load module: %s\n", buff);
+    info->module_handle = dlopen(buff, RTLD_NOW | RTLD_GLOBAL);
+    if (info->module_handle) {
+        LOG_INFO("Module for sample loaded: %s\n", buff);
+    }
+
     return true;
 }
 
@@ -299,6 +258,9 @@ static void unload_sample(struct client_info *info)
     if (info->sample) {
         purc_variant_unref(info->sample);
     }
+
+    if (info->module_handle)
+        dlclose(info->module_handle);
 
     memset(info, 0, sizeof(*info));
 }
@@ -1193,8 +1155,7 @@ static const char *match_event(pcrdr_conn* conn,
         if (element_type != evt_msg->elementType || element_value == NULL ||
                 strcmp(element_value,
                     purc_variant_get_string_const(evt_msg->element))) {
-
-            LOG_WARN("element (%d vs %d; %s vs %s) not matched\n",
+            LOG_DEBUG("element (%d vs %d; %s vs %s) not matched\n",
                     element_type, evt_msg->elementType,
                     element, purc_variant_get_string_const(evt_msg->element));
             goto failed;
@@ -1212,14 +1173,45 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
     const char *op_name = NULL;
+    purc_variant_t event;
     for (size_t i = 0; i < info->nr_events; i++) {
-        purc_variant_t event = purc_variant_array_get(info->events, i);
+        event = purc_variant_array_get(info->events, i);
         op_name = match_event(conn, event, msg);
         if (op_name)
             break;
     }
 
-    if (op_name == NULL) {
+    if (op_name) {
+        // reserved built-in operation.
+        if (strcmp(op_name, "func:quit") == 0) {
+            info->running = false;
+        }
+        else if (strncmp(op_name, "func:", 5) == 0 && info->module_handle) {
+
+            ext_event_handler event_handler;
+            event_handler = dlsym(info->module_handle, op_name + 5);
+
+            if (event_handler) {
+                event_handler(conn, event, msg);
+            }
+            else {
+                LOG_ERROR("cannot find function in module: `%s` (%s)\n",
+                        op_name + 5, dlerror());
+            }
+        }
+        else {
+            purc_variant_t op;
+            op = purc_variant_object_get_by_ckey(info->namedOps, op_name);
+            if (op == PURC_VARIANT_INVALID || !purc_variant_is_object(op)) {
+                LOG_ERROR("Bad named operation: %s\n", op_name);
+            }
+            else {
+                LOG_INFO("Issue the named operation: %s\n", op_name);
+                issue_operation(conn, op);
+            }
+        }
+    }
+    else {
         LOG_INFO("Got an event not intrested in (target: %d/%p): %s\n",
                 msg->target, (void *)(uintptr_t)msg->targetValue,
                 purc_variant_get_string_const(msg->event));
@@ -1244,26 +1236,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         else {
             LOG_INFO("    The attached data is VOID\n");
         }
-
-        return;
     }
-
-    // reserved built-in operation.
-    if (strcmp(op_name, "QUIT") == 0) {
-        info->running = false;
-    }
-    else {
-        purc_variant_t op;
-        op = purc_variant_object_get_by_ckey(info->namedOps, op_name);
-        if (op == PURC_VARIANT_INVALID || !purc_variant_is_object(op)) {
-            LOG_ERROR("Bad named operation: %s\n", op_name);
-        }
-        else {
-            LOG_INFO("Issue the named operation: %s\n", op_name);
-            issue_operation(conn, op);
-        }
-    }
-
 }
 
 int main(int argc, char **argv)

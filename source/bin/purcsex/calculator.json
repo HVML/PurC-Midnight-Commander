@@ -16,7 +16,29 @@
         },
    "events":
        [
-            { "event": "close", "source": "plainwindow/0", "namedOp": "QUIT" },
+            { "event": "change", "source": "dom/0", "element": "id/theFractionRange", "namedOp": "func:calc_change_fraction" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit0", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit1", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit2", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit3", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit4", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit5", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit6", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit7", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit8", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit8", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit9", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theDigit00", "namedOp": "func:calc_click_digit" },
+            { "event": "click", "source": "dom/0", "element": "id/theSignDot", "namedOp": "func:calc_click_sign" },
+            { "event": "click", "source": "dom/0", "element": "id/theSignPercent", "namedOp": "func:calc_click_sign" },
+            { "event": "click", "source": "dom/0", "element": "id/theSignPlusMinus", "namedOp": "func:calc_click_sign" },
+            { "event": "click", "source": "dom/0", "element": "id/theSignPlus", "namedOp": "func:calc_click_sign" },
+            { "event": "click", "source": "dom/0", "element": "id/theSignMinus", "namedOp": "func:calc_click_sign" },
+            { "event": "click", "source": "dom/0", "element": "id/theSignTimes", "namedOp": "func:calc_click_sign" },
+            { "event": "click", "source": "dom/0", "element": "id/theSignDivision", "namedOp": "func:calc_click_sign" },
+            { "event": "click", "source": "dom/0", "element": "id/theSignEqual", "namedOp": "func:calc_click_equal" },
+            { "event": "click", "source": "dom/0", "element": "id/theBtnClear", "namedOp": "func:calc_click_clear" },
+            { "event": "close", "source": "plainwindow/0", "namedOp": "func:quit" },
             { "event": "click", "source": "dom/0", "element": "handle/A2", "namedOp": "closeWindow" }
        ]
 }

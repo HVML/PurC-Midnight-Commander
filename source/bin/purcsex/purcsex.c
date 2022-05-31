@@ -834,10 +834,11 @@ static int load_or_write_doucment(pcrdr_conn* conn, purc_variant_t op)
             info->doc_content[win] = load_file_content(content,
                     &info->len_content[win]);
         }
-    }
 
-    if (info->doc_content[win] == NULL) {
-        goto failed;
+        if (info->doc_content[win] == NULL) {
+            LOG_ERROR("Failed to load document content from %s\n", content);
+            goto failed;
+        }
     }
 
     pcrdr_msg *msg = NULL;

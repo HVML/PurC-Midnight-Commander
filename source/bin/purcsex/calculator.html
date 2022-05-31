@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="//localhost/_renderer/_builtin/-/assets/bootstrap-5.1.3-dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="//localhost/_renderer/_builtin/-/assets/bootstrap-icons-1.8.3/bootstrap-icons.css" />
+
+    <title>任意精度计算器</title>
+</head>
+
+<body>
+
+  <div class="modal fade" id="hvmlModal" tabindex="-1" aria-labelledby="hvmlModalLabel" aria-hidden="true">
+  </div>
+
+  <div class="modal fade" id="introModal" tabindex="-1" aria-labelledby="introModalLabel" aria-hidden="true">
+  </div>
+
+  <div class="px-4 my-5 border-bottom">
+    <div class="text-center">
+      <img class="d-block mx-auto mb-4" src="//localhost/_renderer/_builtin/-/assets/hvml.png" alt="" width="100" height="100">
+    </div>
+
+    <div id="theIntro">
+      <div class="text-center">
+        <h5 class="placeholder-glow">
+          <span class="placeholder col-6"></span>
+        </h5>
+        <p class="placeholder-glow">
+          <span class="placeholder col-7"></span>
+          <span class="placeholder col-4"></span>
+          <span class="placeholder col-4"></span>
+          <span class="placeholder col-6"></span>
+          <span class="placeholder col-8"></span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="mb-3">
+      <label for="resultFraction" class="form-label">结果精度（小数点位数）</label>
+      <input type="range" class="form-range" min="0" max="50" id="resultFraction">
+    </div>
+
+    <div class="mb-3">
+        <input type="text" class="form-control" id="exampleFormControlInput1" readonly />
+    </div>
+
+    <div class="row mb-3">
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">7</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">8</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">9</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">C</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">CE</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">4</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">5</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">6</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">×</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">÷</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">1</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">2</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">3</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">+</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">-</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">0</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">00</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">.</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-primary" type="button">%</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-success" type="button">=</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <footer class="py-3 my-4">
+      <div class="row justify-content-center">
+        <div class="col-lg-9">
+          <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+            <symbol id="check-circle-fill" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+            </symbol>
+            <symbol id="info-fill" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+            </symbol>
+            <symbol id="exclamation-triangle-fill" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+            </symbol>
+          </svg>
+
+          <div class="alert alert-primary align-items-center" role="alert">
+              <h4 class="alert-heading">xGUI Pro</h4>
+              <p>xGUI Pro is a modern, cross-platform, and advanced HVML renderer which is based on tailored WebKit.</p>
+              <p>Copyright &copy; FMSoft Technologies</p>
+              <hr>
+              <p>
+                <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
+                  This program is free software; you can redistribute it and/or modify
+                  it under the terms of the GNU General Public License as published by
+                  the Free Software Foundation, either version 3 of the License, or
+                  (at your option) any later version.
+              </p>
+
+              <p>
+                <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#exclamation-triangle-fill"/></svg>
+                  This program is distributed in the hope that it will be useful,
+                  but WITHOUT ANY WARRANTY; without even the implied warranty of
+                  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+                  GNU General Public License for more details.
+              </p>
+          </div>
+
+          <div class="d-grid gap-2 col-6 mx-auto">
+            <button hvml-handle="A2" hvml-events="click" class="btn btn-warning" type="button">关闭本示例</button>
+          </div>
+
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/_renderer/_builtin/-/assets/bootstrap-5.1.3-dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+

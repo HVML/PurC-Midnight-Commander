@@ -33,5 +33,5 @@ PURCMC_FRAMEWORK(purcsex)
 
 PURCMC_COPY_FILES(purcsex_copy_samples
     DESTINATION ${CMAKE_BINARY_DIR}/
-    FILES shownews.json shownews.html shownews-intro.frag shownews-news.frag
+    FILES shownews.json shownews.html shownews-intro.frag shownews-news.frag calculator.json calculator.html calculator-header.frag calculator-intro.frag
 )

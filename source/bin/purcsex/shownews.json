@@ -14,7 +14,7 @@
         },
    "events":
        [
-            { "event": "close", "source": "plainwindow/0", "namedOp": "QUIT" },
+            { "event": "close", "source": "plainwindow/0", "namedOp": "func:quit" },
             { "event": "click", "source": "dom/0", "element": "handle/A2", "namedOp": "closeWindow" }
        ]
 }

@@ -49,7 +49,7 @@ enum {
 
 struct client_info {
     bool running;
-    bool use_cmdline;
+    bool interact;
 
     uint32_t nr_windows;
     uint32_t nr_destroyed_wins;
@@ -124,6 +124,7 @@ static void print_usage(void)
             "  -a --app=<app_name>          - Connect to PurcMC renderer with the specified app name.\n"
             "  -r --runner=<runner_name>    - Connect to PurcMC renderer with the specified runner name.\n"
             "  -n --name=<sample_name>      - The sample name like `shownews`.\n"
+            "  -i --interact                - Wait for confirmation before issuing another operation.\n"
             "  -v --version                 - Display version information and exit.\n"
             "  -h --help                    - This help.\n"
             "\n"
@@ -135,6 +136,7 @@ static struct option long_opts[] = {
     {"app"            , required_argument , NULL , 'a' } ,
     {"runner"         , required_argument , NULL , 'r' } ,
     {"name"           , required_argument , NULL , 'n' } ,
+    {"interact"       , no_argument       , NULL , 'i' } ,
     {"version"        , no_argument       , NULL , 'v' } ,
     {"help"           , no_argument       , NULL , 'h' } ,
     {0, 0, 0, 0}
@@ -154,6 +156,9 @@ static int read_option_args(struct client_info *client, int argc, char **argv)
         case 'v':
             fprintf(stdout, "purcsex: %s\n", MC_CURRENT_VERSION);
             return -1;
+        case 'i':
+            client->interact = true;
+            break;
         case 'a':
             if (purc_is_valid_app_name(optarg))
                 strcpy(client->app_name, optarg);
@@ -435,8 +440,13 @@ static inline int issue_next_operation(pcrdr_conn* conn)
         info->ops_issued++;
         purc_variant_t op;
         op = purc_variant_array_get(info->initialOps, info->ops_issued);
-        if (op)
+        if (op) {
+            if (info->interact) {
+                printf("Please press ENTER to issue next operation:\n");
+                getchar();
+            }
             return issue_operation(conn, op);
+        }
     }
 
     return 0;

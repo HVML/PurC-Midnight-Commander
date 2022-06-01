@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 
 #define LEN_EXPRESSION  1024
@@ -35,7 +36,7 @@
 struct sample_data {
     unsigned fraction;
     unsigned length;
-    char expression[LEN_EXPRESSION];
+    char expression[LEN_EXPRESSION + 4];
 };
 
 struct sample_data *sample_initializer(const char *name)
@@ -240,6 +241,10 @@ static void set_expression(pcrdr_conn* conn,
                 purc_variant_get_string_const(msg->operation));
     }
 
+    if (strcmp(text, "ERROR") == 0) {
+        info->sample_data->length = 0;
+    }
+
     pcrdr_release_message(msg);
 }
 
@@ -319,21 +324,131 @@ void calc_click_clear(pcrdr_conn* conn,
     set_expression(conn, info, win);
 }
 
-void calc_click_equal(pcrdr_conn* conn,
-        purc_variant_t event_desired, const pcrdr_msg *event_msg)
-{
-    LOG_INFO("called\n");
-}
+#define OP_PERCENT "()/100"
 
 void calc_click_op_percent(pcrdr_conn* conn,
         purc_variant_t event_desired, const pcrdr_msg *event_msg)
 {
-    LOG_INFO("called\n");
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    int win = get_win(info, event_desired);
+    if (win < 0)
+        return;
+
+    if (info->sample_data->length > 0 &&
+            info->sample_data->length <= LEN_EXPRESSION - sizeof(OP_PERCENT)) {
+        memmove(info->sample_data->expression + 1,
+                info->sample_data->expression,
+                info->sample_data->length);
+
+        info->sample_data->expression[0] = '(';
+        info->sample_data->expression[info->sample_data->length + 1] = ')';
+        info->sample_data->expression[info->sample_data->length + 2] = '/';
+        info->sample_data->expression[info->sample_data->length + 3] = '1';
+        info->sample_data->expression[info->sample_data->length + 4] = '0';
+        info->sample_data->expression[info->sample_data->length + 5] = '0';
+
+        info->sample_data->length += sizeof(OP_PERCENT) - 1;
+
+    }
+    else
+        return;
+
+    set_expression(conn, info, win);
 }
+
+#undef OP_PERCENT
+
+#define OP_TOGGLE_SIGN "-()"
 
 void calc_click_op_toggle_sign(pcrdr_conn* conn,
         purc_variant_t event_desired, const pcrdr_msg *event_msg)
 {
-    LOG_INFO("called\n");
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    int win = get_win(info, event_desired);
+    if (win < 0)
+        return;
+
+    if (info->sample_data->length > 0 &&
+            info->sample_data->length <= LEN_EXPRESSION - sizeof(OP_TOGGLE_SIGN)) {
+        memmove(info->sample_data->expression + 2,
+                info->sample_data->expression,
+                info->sample_data->length);
+
+        info->sample_data->expression[0] = '-';
+        info->sample_data->expression[1] = '(';
+        info->sample_data->length += sizeof(OP_TOGGLE_SIGN) - 1;
+
+        info->sample_data->expression[info->sample_data->length - 1] = ')';
+    }
+    else
+        return;
+
+    set_expression(conn, info, win);
+}
+#undef OP_TOGGLE_SIGN
+
+static void
+trim_tail_spaces(char *dest, size_t n)
+{
+    while (n>1) {
+        if (!isspace(dest[n-1]))
+            break;
+        dest[--n] = '\0';
+    }
+}
+
+static size_t
+fetch_cmd_output(const char *cmd, char *dest, size_t sz)
+{
+    FILE *fin = NULL;
+    size_t n = 0;
+
+    fin = popen(cmd, "r");
+    if (!fin)
+        return 0;
+
+    n = fread(dest, 1, sz - 1, fin);
+    if (n == 0)
+        return 0;
+
+    n--;
+    dest[n] = '\0';
+
+    if (pclose(fin)) {
+        return 0;
+    }
+
+    trim_tail_spaces(dest, n);
+    return n;
+}
+
+void calc_click_equal(pcrdr_conn* conn,
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
+{
+    char cmd[2048];
+
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    int win = get_win(info, event_desired);
+    if (win < 0)
+        return;
+
+    info->sample_data->expression[info->sample_data->length] = 0;
+    snprintf(cmd, sizeof(cmd), "(echo 'scale=%d; %s') | bc",
+            info->sample_data->fraction,
+            info->sample_data->expression);
+
+    info->sample_data->length = fetch_cmd_output(cmd,
+            info->sample_data->expression, LEN_EXPRESSION);
+    if (info->sample_data->length == 0) {
+        strcpy(info->sample_data->expression, "ERROR");
+        info->sample_data->length = 5;
+    }
+
+    LOG_DEBUG("result: %s (%u)\n",
+            info->sample_data->expression, info->sample_data->length);
+    set_expression(conn, info, win);
 }
 

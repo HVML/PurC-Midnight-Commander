@@ -239,9 +239,15 @@ static bool load_sample(struct client_info *info)
 
     sprintf(buff, "./lib%s.so", info->sample_name);
     LOG_INFO("Try to load module: %s\n", buff);
-    info->module_handle = dlopen(buff, RTLD_NOW | RTLD_GLOBAL);
-    if (info->module_handle) {
-        LOG_INFO("Module for sample loaded: %s\n", buff);
+    info->sample_handle = dlopen(buff, RTLD_NOW | RTLD_GLOBAL);
+    if (info->sample_handle) {
+        sample_initializer_t init_func;
+        init_func = dlsym(info->sample_handle, "sample_initializer");
+        if (init_func)
+            info->sample_data = init_func(info->sample_name);
+
+        LOG_INFO("Module for sample loaded from %s; sample data: %p\n",
+                buff, info->sample_data);
     }
 
     return true;
@@ -259,8 +265,18 @@ static void unload_sample(struct client_info *info)
         purc_variant_unref(info->sample);
     }
 
-    if (info->module_handle)
-        dlclose(info->module_handle);
+    if (info->sample_handle) {
+
+        sample_terminator_t term_func;
+        term_func = dlsym(info->sample_handle, "sample_terminator");
+        if (term_func)
+            term_func(info->sample_name, info->sample_data);
+
+        dlclose(info->sample_handle);
+
+        LOG_INFO("Module for sample `%s` unloaded; sample data: %p\n",
+                info->sample_name, info->sample_data);
+    }
 
     memset(info, 0, sizeof(*info));
 }
@@ -490,7 +506,7 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
         goto failed;
     }
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_EJSON;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
     msg->data = data;
 
     if (pcrdr_send_request(conn, msg,
@@ -1186,10 +1202,10 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         if (strcmp(op_name, "func:quit") == 0) {
             info->running = false;
         }
-        else if (strncmp(op_name, "func:", 5) == 0 && info->module_handle) {
+        else if (strncmp(op_name, "func:", 5) == 0 && info->sample_handle) {
 
-            ext_event_handler event_handler;
-            event_handler = dlsym(info->module_handle, op_name + 5);
+            sample_event_handler_t event_handler;
+            event_handler = dlsym(info->sample_handle, op_name + 5);
 
             if (event_handler) {
                 event_handler(conn, event, msg);
@@ -1225,7 +1241,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
             LOG_INFO("    The attached data is TEXT:\n%s\n",
                 purc_variant_get_string_const(msg->data));
         }
-        else if (msg->dataType == PCRDR_MSG_DATA_TYPE_EJSON) {
+        else if (msg->dataType == PCRDR_MSG_DATA_TYPE_JSON) {
             purc_rwstream_t rws = purc_rwstream_new_for_dump(stdout, stdio_write);
 
             LOG_INFO("    The attached data is EJSON:\n");

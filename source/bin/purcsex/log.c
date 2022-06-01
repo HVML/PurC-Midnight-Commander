@@ -98,8 +98,10 @@ void my_log_with_tag(const char *tag, const char *msg, va_list ap)
         vfprintf(fp_log, msg, ap);
     }
     else {
+#ifdef USE_STDOUT_WHEN_LOG_DISABLED
         printf("%s >> ", tag);
         vprintf(msg, ap);
+#endif
     }
 }
 

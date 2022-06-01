@@ -346,7 +346,7 @@ static int create_plain_win(pcrdr_conn* conn, int win)
         goto failed;
     }
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_EJSON;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
     msg->data = data;
 
     if (pcrdr_send_request(conn, msg,
@@ -1088,7 +1088,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
             printf("    The attached data is TEXT:\n%s\n",
                 purc_variant_get_string_const(msg->data));
         }
-        else if (msg->dataType == PCRDR_MSG_DATA_TYPE_EJSON) {
+        else if (msg->dataType == PCRDR_MSG_DATA_TYPE_JSON) {
             purc_rwstream_t rws = purc_rwstream_new_for_dump(stdout, stdio_write);
 
             printf("    The attached data is EJSON:\n");

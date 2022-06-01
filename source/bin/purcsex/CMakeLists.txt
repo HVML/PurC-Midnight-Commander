@@ -45,6 +45,7 @@ set(PurCSexExtension_SYSTEM_INCLUDE_DIRECTORIES
 )
 
 set(PurCSexExtension_DEFINITIONS
+    USE_STDOUT_WHEN_LOG_DISABLED
 )
 
 set(PurCSexExtension_LIBRARIES

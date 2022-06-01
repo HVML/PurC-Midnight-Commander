@@ -1,5 +1,5 @@
 /*
-** calculator.c - event handlers for calcualtor
+** calculator.c - event handlers for calculator
 **
 ** Copyright (C) 2022 FMSoft (http://www.fmsoft.cn)
 **
@@ -29,6 +29,31 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+
+#define LEN_EXPRESSION  1024
+
+struct sample_data {
+    unsigned fraction;
+    char expression[LEN_EXPRESSION];
+};
+
+struct sample_data *sample_initializer(const char *name)
+{
+    struct sample_data *data;
+
+    LOG_DEBUG("%s is allocating buffer for expression\n", name);
+    data = calloc(1, sizeof(struct sample_data));
+    data->fraction = 10;
+
+    return data;
+}
+
+void sample_terminator(const char *name, struct sample_data *data)
+{
+    LOG_DEBUG("%s is freeing buffer for expression\n", name);
+    if (data)
+        free(data);
+}
 
 void calc_change_fraction(pcrdr_conn* conn,
         purc_variant_t evt_vrt, const pcrdr_msg *evt_msg)

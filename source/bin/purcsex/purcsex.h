@@ -28,6 +28,8 @@
 #include <purc/purc.h>
 
 #define MAX_NR_WINDOWS      8
+
+struct sample_data;
 struct client_info {
     bool running;
     bool interact;
@@ -63,13 +65,18 @@ struct client_info {
     // handles of DOM.
     uint64_t dom_handles[MAX_NR_WINDOWS];
 
-    void *module_handle;
+    void *sample_handle;
+    struct sample_data *sample_data;
 
     char buff[32];
 };
 
-typedef void (*ext_event_handler)(pcrdr_conn* conn,
+typedef void (*sample_event_handler_t)(pcrdr_conn* conn,
         purc_variant_t evt_vrt, const pcrdr_msg *evt_msg);
+
+typedef struct sample_data *(*sample_initializer_t)(const char *sample_name);
+typedef void (*sample_terminator_t)(const char *sample_name,
+        struct sample_data *data);
 
 #ifdef __cplusplus
 extern "C" {

@@ -520,7 +520,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
         goto failed;
     }
 
-    if (msg->dataType != PCRDR_MSG_DATA_TYPE_EJSON ||
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_JSON ||
             !purc_variant_is_object(msg->data)) {
         retv = PCRDR_SC_BAD_REQUEST;
         goto failed;

@@ -62,23 +62,69 @@ static int noreturn_handler(pcrdr_conn* conn,
     return 0;
 }
 
+static int split_target(const char *target, char *target_name)
+{
+    char *sep = strchr(target, '/');
+    if (sep == NULL)
+        return -1;
+
+    size_t name_len = sep - target;
+    if (name_len > PURC_LEN_IDENTIFIER) {
+        return -1;
+    }
+
+    strncpy(target_name, target, name_len);
+    target_name[name_len] = 0;
+
+    sep++;
+    if (sep[0] == 0)
+        return -1;
+
+    char *end;
+    long l = strtol(sep, &end, 10);
+    if (*end == 0)
+        return (int)l;
+
+    return -1;
+}
+
 void calc_change_fraction(pcrdr_conn* conn,
         purc_variant_t event_desired, const pcrdr_msg *event_msg)
 {
-    LOG_DEBUG("called\n");
-
-    int win = 0; /* TODO */
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    purc_variant_t details;
-    details = purc_variant_object_get_by_ckey(event_msg->data, "details");
+    int win = 0;
+
+    purc_variant_t tmp;
+    if ((tmp = purc_variant_object_get_by_ckey(event_desired, "target"))) {
+        const char *target = purc_variant_get_string_const(tmp);
+        if (target == NULL) {
+            LOG_ERROR("No valid target in catched event\n");
+            return;
+        }
+
+        char target_name[PURC_LEN_IDENTIFIER + 1];
+        win = split_target(target, target_name);
+        if (strcasecmp(target_name, "dom") ||
+                win < 0 || win >= info->nr_windows) {
+            LOG_ERROR("No valid target value in catched event\n");
+            return;
+        }
+    }
 
     purc_variant_t value;
-    value = purc_variant_object_get_by_ckey(details, "targetValue");
+    value = purc_variant_object_get_by_ckey(event_msg->data, "targetValue");
 
     size_t value_length;
     const char *value_text;
     value_text = purc_variant_get_string_const_ex(value, &value_length);
+    if (value_text == NULL) {
+        LOG_ERROR("Failed to get value: %s\n",
+                purc_get_error_message(purc_get_last_error()));
+        return;
+    }
+
+    info->sample_data->fraction = (unsigned)atoi(value_text);
 
     pcrdr_msg *msg;
     msg = pcrdr_make_request_message(
@@ -88,14 +134,20 @@ void calc_change_fraction(pcrdr_conn* conn,
             "textContent",
             PCRDR_MSG_DATA_TYPE_TEXT, value_text, value_length);
 
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message: %s\n",
+                purc_get_error_message(purc_get_last_error()));
+        return;
+    }
+
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, 0,
                 noreturn_handler) < 0) {
-        LOG_ERROR("Failed to send request (%s)\n",
-                purc_variant_get_string_const(msg->operation));
+        LOG_ERROR("Failed to send request: %s\n",
+                purc_get_error_message(purc_get_last_error()));
     }
     else {
-        LOG_INFO("Request (%s) sent\n",
+        LOG_DEBUG("Request (%s) sent\n",
                 purc_variant_get_string_const(msg->operation));
     }
 

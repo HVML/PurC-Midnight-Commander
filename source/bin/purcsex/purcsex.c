@@ -20,7 +20,6 @@
 ** along with this program.  If not, see http://www.gnu.org/licenses/.
 */
 
-#define _GNU_SOURCE
 #include "purcmc_version.h"
 #include "purcsex.h"
 #include "log.h"

@@ -1050,7 +1050,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
     case PCRDR_MSG_TARGET_PLAINWINDOW:
         printf("Got an event to plainwindow (%p): %s\n",
                 (void *)(uintptr_t)msg->targetValue,
-                purc_variant_get_string_const(msg->event));
+                purc_variant_get_string_const(msg->eventName));
 
         int win = -1;
         for (int i = 0; i < info->nr_windows; i++) {
@@ -1077,11 +1077,11 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
     default:
         printf("Got an event not intrested in (target: %d/%p): %s\n",
                 msg->target, (void *)(uintptr_t)msg->targetValue,
-                purc_variant_get_string_const(msg->event));
+                purc_variant_get_string_const(msg->eventName));
 
         if (msg->target == PCRDR_MSG_TARGET_DOM) {
-            printf("    The handle of the source element: %s\n",
-                purc_variant_get_string_const(msg->element));
+            printf("    The handle of the target element: %s\n",
+                purc_variant_get_string_const(msg->elementValue));
         }
 
         if (msg->dataType == PCRDR_MSG_DATA_TYPE_TEXT) {

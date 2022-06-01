@@ -1150,7 +1150,7 @@ static const char *match_event(pcrdr_conn* conn,
         goto failed;
     }
 
-    if (strcmp(event, purc_variant_get_string_const(evt_msg->event)))
+    if (strcmp(event, purc_variant_get_string_const(evt_msg->eventName)))
         goto failed;
 
     struct client_info *info = pcrdr_conn_get_user_data(conn);
@@ -1170,7 +1170,7 @@ static const char *match_event(pcrdr_conn* conn,
 
         if (element_type != evt_msg->elementType || element_value == NULL ||
                 strcmp(element_value,
-                    purc_variant_get_string_const(evt_msg->element))) {
+                    purc_variant_get_string_const(evt_msg->elementValue))) {
             LOG_DEBUG("element (%d vs %d; %s vs %s) not matched\n",
                     element_type, evt_msg->elementType,
                     element, purc_variant_get_string_const(evt_msg->element));
@@ -1228,13 +1228,14 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         }
     }
     else {
-        LOG_INFO("Got an event not intrested in (target: %d/%p): %s\n",
+        LOG_INFO("Got an event not intrested in (target: %d/%p): %s (%s)\n",
                 msg->target, (void *)(uintptr_t)msg->targetValue,
-                purc_variant_get_string_const(msg->event));
+                purc_variant_get_string_const(msg->eventName),
+                purc_variant_get_string_const(msg->eventSource));
 
         if (msg->target == PCRDR_MSG_TARGET_DOM) {
             LOG_INFO("    The handle of the source element: %s\n",
-                purc_variant_get_string_const(msg->element));
+                purc_variant_get_string_const(msg->elementValue));
         }
 
         if (msg->dataType == PCRDR_MSG_DATA_TYPE_TEXT) {

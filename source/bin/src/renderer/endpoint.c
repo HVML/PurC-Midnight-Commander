@@ -576,7 +576,7 @@ static int on_update_plain_window(Server* srv, Endpoint* endpoint,
     PlainWindow *win;
     pcrdr_msg response;
 
-    element = purc_variant_get_string_const(msg->element);
+    element = purc_variant_get_string_const(msg->elementValue);
     if (element == NULL) {
         retv = PCRDR_SC_BAD_REQUEST;
         goto failed;
@@ -641,7 +641,7 @@ static int on_destroy_plain_window(Server* srv, Endpoint* endpoint,
     PlainWindow *win;
     pcrdr_msg response;
 
-    element = purc_variant_get_string_const(msg->element);
+    element = purc_variant_get_string_const(msg->elementValue);
     if (element == NULL) {
         retv = PCRDR_SC_BAD_REQUEST;
         goto failed;
@@ -1161,11 +1161,11 @@ static int operate_dom_element(Server* srv, Endpoint* endpoint,
 
     if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
         elements = get_dom_element_by_handle(win->dom_doc,
-                purc_variant_get_string_const(msg->element), &nr_elements);
+                purc_variant_get_string_const(msg->elementValue), &nr_elements);
     }
     else if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLES) {
         elements = get_dom_elements_by_handles(win->dom_doc,
-                purc_variant_get_string_const(msg->element), &nr_elements);
+                purc_variant_get_string_const(msg->elementValue), &nr_elements);
     }
 
     if (elements == NULL) {
@@ -1525,7 +1525,7 @@ int on_got_message(Server* srv, Endpoint* endpoint, const pcrdr_msg *msg)
     else if (msg->type == PCRDR_MSG_TYPE_EVENT) {
         // TODO
         ULOG_INFO("Got an event message: %s\n",
-                purc_variant_get_string_const(msg->event));
+                purc_variant_get_string_const(msg->eventName));
     }
     else {
         // TODO

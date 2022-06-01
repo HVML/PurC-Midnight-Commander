@@ -1173,7 +1173,7 @@ static const char *match_event(pcrdr_conn* conn,
                     purc_variant_get_string_const(evt_msg->elementValue))) {
             LOG_DEBUG("element (%d vs %d; %s vs %s) not matched\n",
                     element_type, evt_msg->elementType,
-                    element, purc_variant_get_string_const(evt_msg->element));
+                    element, purc_variant_get_string_const(evt_msg->elementValue));
             goto failed;
         }
     }

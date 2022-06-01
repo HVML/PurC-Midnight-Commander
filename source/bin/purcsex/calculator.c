@@ -55,10 +55,51 @@ void sample_terminator(const char *name, struct sample_data *data)
         free(data);
 }
 
-void calc_change_fraction(pcrdr_conn* conn,
-        purc_variant_t evt_vrt, const pcrdr_msg *evt_msg)
+static int noreturn_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
 {
-    LOG_INFO("called\n");
+    return 0;
+}
+
+void calc_change_fraction(pcrdr_conn* conn,
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
+{
+    LOG_DEBUG("called\n");
+
+    int win = 0; /* TODO */
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    purc_variant_t details;
+    details = purc_variant_object_get_by_ckey(event_msg->data, "details");
+
+    purc_variant_t value;
+    value = purc_variant_object_get_by_ckey(details, "targetValue");
+
+    size_t value_length;
+    const char *value_text;
+    value_text = purc_variant_get_string_const_ex(value, &value_length);
+
+    pcrdr_msg *msg;
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            "setProperty", PCRDR_REQUESTID_NORETURN,
+            PCRDR_MSG_ELEMENT_TYPE_ID, "theFraction",
+            "textContent",
+            PCRDR_MSG_DATA_TYPE_TEXT, value_text, value_length);
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, 0,
+                noreturn_handler) < 0) {
+        LOG_ERROR("Failed to send request (%s)\n",
+                purc_variant_get_string_const(msg->operation));
+    }
+    else {
+        LOG_INFO("Request (%s) sent\n",
+                purc_variant_get_string_const(msg->operation));
+    }
+
+    pcrdr_release_message(msg);
 }
 
 void calc_click_digit(pcrdr_conn* conn,

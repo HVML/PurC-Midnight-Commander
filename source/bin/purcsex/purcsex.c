@@ -1124,18 +1124,18 @@ static ssize_t stdio_write(void *ctxt, const void *buf, size_t count)
 static const char *match_event(pcrdr_conn* conn,
         purc_variant_t evt_vrt, const pcrdr_msg *evt_msg)
 {
-    const char *event = NULL;
-    const char *source = NULL;
+    const char *event_name = NULL;
+    const char *target = NULL;
     const char *element = NULL;
-    const char *namedOp = NULL;
+    const char *op_name = NULL;
 
     purc_variant_t tmp;
-    if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "event"))) {
-        event = purc_variant_get_string_const(tmp);
+    if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "eventName"))) {
+        event_name = purc_variant_get_string_const(tmp);
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "source"))) {
-        source = purc_variant_get_string_const(tmp);
+    if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "target"))) {
+        target = purc_variant_get_string_const(tmp);
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "element"))) {
@@ -1143,21 +1143,21 @@ static const char *match_event(pcrdr_conn* conn,
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(evt_vrt, "namedOp"))) {
-        namedOp = purc_variant_get_string_const(tmp);
+        op_name = purc_variant_get_string_const(tmp);
     }
 
-    if (event == NULL || source == NULL || namedOp == NULL) {
+    if (event_name == NULL || target == NULL || op_name == NULL) {
         goto failed;
     }
 
-    if (strcmp(event, purc_variant_get_string_const(evt_msg->eventName)))
+    if (strcmp(event_name, purc_variant_get_string_const(evt_msg->eventName)))
         goto failed;
 
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
     int target_type;
     uint64_t target_value;
-    target_type = transfer_target_info(info, source, &target_value);
+    target_type = transfer_target_info(info, target, &target_value);
     if (target_type != evt_msg->target ||
             target_value != evt_msg->targetValue) {
         goto failed;
@@ -1178,7 +1178,7 @@ static const char *match_event(pcrdr_conn* conn,
         }
     }
 
-    return namedOp;
+    return op_name;
 
 failed:
     return NULL;

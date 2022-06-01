@@ -47,7 +47,7 @@
     </div>
 
     <div class="shadow-none p-3 mb-5 bg-light rounded">
-        <p id="theResult" class="fs-1 text-nowrap fw-bold overflow-scroll text-end">0</p>
+        <p id="theExpression" class="fs-1 text-nowrap fw-bold overflow-scroll text-end">0</p>
     </div>
 
     <div class="row mb-3">
@@ -68,12 +68,12 @@
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-info" id="theSignPlusMinus" hvml-events="click" type="button">±</button>
+          <button class="btn btn-outline-warning" id="theBtnBack" hvml-events="click" type="button">刪</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-danger" id="theBtnClear" hvml-events="click" type="button">C</button>
+          <button class="btn btn-outline-danger" id="theBtnClear" hvml-events="click" type="button">清</button>
         </div>
       </div>
     </div>
@@ -142,22 +142,22 @@
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-primary" id="theDigit00" hvml-events="click" type="button">00</button>
-        </div>
-      </div>
-      <div class="col">
-        <div class="d-grid gap-2 col-10 mx-auto">
           <button class="btn btn-outline-primary" id="theSignDot" hvml-events="click" type="button">.</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-info" id="theSignPercent" hvml-events="click" type="button">%</button>
+          <button class="btn btn-outline-info" id="theOpToggleSign" hvml-events="click" type="button">±</button>
         </div>
       </div>
       <div class="col">
         <div class="d-grid gap-2 col-10 mx-auto">
-          <button class="btn btn-outline-success" id="theSignEqual" hvml-events="click" type="button">=</button>
+          <button class="btn btn-outline-info" id="theOpPercent" hvml-events="click" type="button">%</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-grid gap-2 col-10 mx-auto">
+          <button class="btn btn-outline-success" id="theOpEqual" hvml-events="click" type="button">=</button>
         </div>
       </div>
     </div>

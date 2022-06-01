@@ -34,6 +34,7 @@
 
 struct sample_data {
     unsigned fraction;
+    unsigned length;
     char expression[LEN_EXPRESSION];
 };
 
@@ -88,19 +89,16 @@ static int split_target(const char *target, char *target_name)
     return -1;
 }
 
-void calc_change_fraction(pcrdr_conn* conn,
-        purc_variant_t event_desired, const pcrdr_msg *event_msg)
+static int get_win(struct client_info *info, purc_variant_t event_desired)
 {
-    struct client_info *info = pcrdr_conn_get_user_data(conn);
-
-    int win = 0;
+    int win = -1;
 
     purc_variant_t tmp;
     if ((tmp = purc_variant_object_get_by_ckey(event_desired, "target"))) {
         const char *target = purc_variant_get_string_const(tmp);
         if (target == NULL) {
             LOG_ERROR("No valid target in catched event\n");
-            return;
+            goto done;
         }
 
         char target_name[PURC_LEN_IDENTIFIER + 1];
@@ -108,9 +106,23 @@ void calc_change_fraction(pcrdr_conn* conn,
         if (strcasecmp(target_name, "dom") ||
                 win < 0 || win >= info->nr_windows) {
             LOG_ERROR("No valid target value in catched event\n");
-            return;
+            win = -1;
+            goto done;
         }
     }
+
+done:
+    return win;
+}
+
+void calc_change_fraction(pcrdr_conn* conn,
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    int win = get_win(info, event_desired);
+    if (win < 0)
+        return;
 
     purc_variant_t value;
     value = purc_variant_object_get_by_ckey(event_msg->data, "targetValue");
@@ -154,26 +166,173 @@ void calc_change_fraction(pcrdr_conn* conn,
     pcrdr_release_message(msg);
 }
 
-void calc_click_digit(pcrdr_conn* conn,
-        purc_variant_t evt_vrt, const pcrdr_msg *evt_msg)
+#define IDPREFIX_DIGIT      "theDigit"
+#define IDPREFIX_SIGN       "theSign"
+
+static char get_digit_sign(const char *id)
 {
-    LOG_INFO("called\n");
+    if (strncmp(id, IDPREFIX_DIGIT, sizeof(IDPREFIX_DIGIT) - 1) == 0 &&
+            strlen(id) == sizeof(IDPREFIX_DIGIT)) {
+        return id[sizeof(IDPREFIX_DIGIT) - 1];
+    }
+    else if (strncmp(id, IDPREFIX_SIGN, sizeof(IDPREFIX_SIGN) - 1) == 0 &&
+            strlen(id) >= sizeof(IDPREFIX_SIGN)) {
+        const char *sign = id + sizeof(IDPREFIX_SIGN) - 1;
+        if (strcmp(sign, "Dot") == 0) {
+            return '.';
+        }
+        else if (strcmp(sign, "Plus") == 0) {
+            return '+';
+        }
+        else if (strcmp(sign, "Minus") == 0) {
+            return '-';
+        }
+        else if (strcmp(sign, "Times") == 0) {
+            return '*';
+        }
+        else if (strcmp(sign, "Division") == 0) {
+            return '/';
+        }
+    }
+
+    LOG_ERROR("Invalid identifier for digit button: %s\n", id);
+    return 0;
 }
 
-void calc_click_sign(pcrdr_conn* conn,
-        purc_variant_t evt_vrt, const pcrdr_msg *evt_msg)
+static void set_expression(pcrdr_conn* conn,
+        struct client_info *info, int win)
 {
-    LOG_INFO("called\n");
+    const char *text;
+    size_t length;
+
+    if (info->sample_data->length > 0) {
+        text =info->sample_data->expression;
+        length = info->sample_data->length;
+    }
+    else {
+        text = "0";
+        length = 1;
+    }
+
+    pcrdr_msg *msg;
+    msg = pcrdr_make_request_message(
+            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            "setProperty", PCRDR_REQUESTID_NORETURN,
+            PCRDR_MSG_ELEMENT_TYPE_ID, "theExpression",
+            "textContent",
+            PCRDR_MSG_DATA_TYPE_TEXT,
+            text, length);
+
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message: %s\n",
+                purc_get_error_message(purc_get_last_error()));
+        return;
+    }
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, 0,
+                noreturn_handler) < 0) {
+        LOG_ERROR("Failed to send request: %s\n",
+                purc_get_error_message(purc_get_last_error()));
+    }
+    else {
+        LOG_DEBUG("Request (%s) sent\n",
+                purc_variant_get_string_const(msg->operation));
+    }
+
+    pcrdr_release_message(msg);
+}
+
+void calc_click_digit_sign(pcrdr_conn* conn,
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    int win = get_win(info, event_desired);
+    if (win < 0)
+        return;
+
+    purc_variant_t target_id;
+    target_id = purc_variant_object_get_by_ckey(event_msg->data, "targetId");
+
+    const char *element_id;
+    element_id = purc_variant_get_string_const(target_id);
+    if (element_id == NULL) {
+        LOG_ERROR("Failed to get element Id: %s\n",
+                purc_get_error_message(purc_get_last_error()));
+        return;
+    }
+
+    char digit = get_digit_sign(element_id);
+    if (digit == 0)
+        return;
+
+    if (info->sample_data->length < LEN_EXPRESSION) {
+        info->sample_data->expression[info->sample_data->length] = digit;
+        info->sample_data->length++;
+    }
+    else {
+        LOG_WARN("The buffer for expression is full.\n");
+        return;
+    }
+
+    set_expression(conn, info, win);
+}
+
+void calc_click_back(pcrdr_conn* conn,
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    int win = get_win(info, event_desired);
+    if (win < 0)
+        return;
+
+    if (info->sample_data->length > 0) {
+        info->sample_data->length--;
+    }
+    else {
+        LOG_WARN("The buffer for expression is empty.\n");
+        return;
+    }
+
+    set_expression(conn, info, win);
 }
 
 void calc_click_clear(pcrdr_conn* conn,
-        purc_variant_t evt_vrt, const pcrdr_msg *evt_msg)
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    int win = get_win(info, event_desired);
+    if (win < 0)
+        return;
+
+    if (info->sample_data->length > 0) {
+        info->sample_data->length = 0;
+    }
+    else {
+        LOG_WARN("The buffer for expression is empty.\n");
+        return;
+    }
+
+    set_expression(conn, info, win);
+}
+
+void calc_click_equal(pcrdr_conn* conn,
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
 {
     LOG_INFO("called\n");
 }
 
-void calc_click_equal(pcrdr_conn* conn,
-        purc_variant_t evt_vrt, const pcrdr_msg *evt_msg)
+void calc_click_op_percent(pcrdr_conn* conn,
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
+{
+    LOG_INFO("called\n");
+}
+
+void calc_click_op_toggle_sign(pcrdr_conn* conn,
+        purc_variant_t event_desired, const pcrdr_msg *event_msg)
 {
     LOG_INFO("called\n");
 }

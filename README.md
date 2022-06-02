@@ -19,7 +19,7 @@ __Table of Contents__
 
 ## Introduction
 
-PurC Midnight Commander (abbreviated as `PurcMC`) is a HVML renderer for
+PurC Midnight Commander (abbreviated as `PurcMC`) is an HVML renderer for
 development and debugging. It runs in a terminal or console like its ancestor:
 GNU [Midnight Commander].
 
@@ -29,9 +29,9 @@ It keeps almost all functions of GNU MC with the following enhancements:
 1. We cleaned up the code and removed some features, such as support for
    various charsets (codepages). PurcMC assumes that the encoding is
    always UTF-8 by default.
-1. It can load a HTML file on file systems and show the DOM tree. The user can
+1. It can load an HTML file on file systems and show the DOM tree. The user can
    travel the DOM tree and check the attributes and text content of elements.
-1. It runs as a HVML renderer, accepts the connections from PurC-based HVML
+1. It runs as an HVML renderer, accepts the connections from PurC-based HVML
    interpreter instances via Unix Domain Socket or Web Socket, and shows
    the uDOMs as trees in a screen. Driven by the remove HVML programs,
    it can update the uDOMs dynamically.

@@ -5,7 +5,7 @@
 
     <div class="col-lg-6 mx-auto">
       <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mb-5">
-        <button hvml-handle="A1" id="btnShowHVMLModal" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#hvmlModal" disabled>大爆炸</button>
+        <button hvml-handle="A1" id="btnShowHVMLModal" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#hvmlModal" disabled>大事件</button>
         <button hvml-handle="A2" id="btnShowIntroModal" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#introModal" disabled>技术细节</button>
       </div>
     </div>

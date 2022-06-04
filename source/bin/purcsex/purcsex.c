@@ -478,7 +478,7 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
     int win = info->nr_windows_created;
 
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-            PCRDR_OPERATION_CREATEPLAINWINDOW, NULL,
+            PCRDR_OPERATION_CREATEPLAINWINDOW, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -595,7 +595,7 @@ static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
     char handle[32];
     sprintf(handle, "%llx", (long long)info->win_handles[win]);
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-            PCRDR_OPERATION_DESTROYPLAINWINDOW, "-",
+            PCRDR_OPERATION_DESTROYPLAINWINDOW, "-", NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -712,7 +712,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
         // writeEnd
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
-                PCRDR_OPERATION_WRITEEND, NULL,
+                PCRDR_OPERATION_WRITEEND, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
@@ -725,7 +725,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
         // writeMore
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
-                PCRDR_OPERATION_WRITEMORE, NULL,
+                PCRDR_OPERATION_WRITEMORE, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
@@ -826,7 +826,7 @@ static int load_or_write_doucment(pcrdr_conn* conn, purc_variant_t op)
         // use writeBegin
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
-                PCRDR_OPERATION_WRITEBEGIN, NULL,
+                PCRDR_OPERATION_WRITEBEGIN, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
@@ -850,7 +850,7 @@ static int load_or_write_doucment(pcrdr_conn* conn, purc_variant_t op)
         // use load
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
-                PCRDR_OPERATION_LOAD, NULL,
+                PCRDR_OPERATION_LOAD, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
@@ -965,7 +965,7 @@ static pcrdr_msg *make_change_message(struct client_info *info,
     pcrdr_msg *msg;
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            operation, NULL,
+            operation, NULL, NULL,
             element_type, element_value,
             property,
             content ? PCRDR_MSG_DATA_TYPE_TEXT : PCRDR_MSG_DATA_TYPE_VOID,
@@ -1230,7 +1230,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         LOG_INFO("Got an event not intrested in (target: %d/%p): %s (%s)\n",
                 msg->target, (void *)(uintptr_t)msg->targetValue,
                 purc_variant_get_string_const(msg->eventName),
-                purc_variant_get_string_const(msg->eventSource));
+                purc_variant_get_string_const(msg->sourceURI));
 
         if (msg->target == PCRDR_MSG_TARGET_DOM) {
             LOG_INFO("    The handle of the source element: %s\n",

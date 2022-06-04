@@ -325,7 +325,7 @@ static int create_plain_win(pcrdr_conn* conn, int win)
     struct run_info *info = pcrdr_conn_get_user_data(conn);
 
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-            PCRDR_OPERATION_CREATEPLAINWINDOW, NULL,
+            PCRDR_OPERATION_CREATEPLAINWINDOW, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -390,7 +390,7 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
         // use writeBegin
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
-                PCRDR_OPERATION_WRITEBEGIN, NULL,
+                PCRDR_OPERATION_WRITEBEGIN, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
@@ -412,7 +412,7 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
         // use load
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
-                PCRDR_OPERATION_LOAD, NULL,
+                PCRDR_OPERATION_LOAD, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
@@ -466,7 +466,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
         // writeEnd
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
-                PCRDR_OPERATION_WRITEEND, NULL,
+                PCRDR_OPERATION_WRITEEND, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
@@ -478,7 +478,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
         // writeMore
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
                 info->win_handles[win],
-                PCRDR_OPERATION_WRITEMORE, NULL,
+                PCRDR_OPERATION_WRITEMORE, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
@@ -540,7 +540,7 @@ static pcrdr_msg *make_change_message_0(struct run_info *info, int win)
 
     return pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             "textContent",
             PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
@@ -558,7 +558,7 @@ static pcrdr_msg *make_change_message_1(struct run_info *info, int win)
 
     return pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
             "textContent",
             PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
@@ -574,7 +574,7 @@ static pcrdr_msg *make_change_message_2(struct run_info *info, int win)
 
     return pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             "attr.value",
             PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
@@ -592,7 +592,7 @@ static pcrdr_msg *make_change_message_3(struct run_info *info, int win)
 
     return pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
             "attr.value",
             PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
@@ -613,7 +613,7 @@ static pcrdr_msg *make_change_message_4(struct run_info *info, int win)
 
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_APPEND, NULL,
+            PCRDR_OPERATION_APPEND, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -638,7 +638,7 @@ static pcrdr_msg *make_change_message_5(struct run_info *info, int win)
 
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_PREPEND, NULL,
+            PCRDR_OPERATION_PREPEND, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -663,7 +663,7 @@ static pcrdr_msg *make_change_message_6(struct run_info *info, int win)
 
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_INSERTBEFORE, NULL,
+            PCRDR_OPERATION_INSERTBEFORE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -688,7 +688,7 @@ static pcrdr_msg *make_change_message_7(struct run_info *info, int win)
 
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_INSERTAFTER, NULL,
+            PCRDR_OPERATION_INSERTAFTER, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -713,7 +713,7 @@ static pcrdr_msg *make_change_message_8(struct run_info *info, int win)
 
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_DISPLACE, NULL,
+            PCRDR_OPERATION_DISPLACE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -736,7 +736,7 @@ static pcrdr_msg *make_change_message_9(struct run_info *info, int win)
 
     return pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_ERASE, NULL,
+            PCRDR_OPERATION_ERASE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -749,7 +749,7 @@ static pcrdr_msg *make_change_message_a(struct run_info *info, int win)
 
     return pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_CLEAR, NULL,
+            PCRDR_OPERATION_CLEAR, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -762,7 +762,7 @@ static pcrdr_msg *make_change_message_b(struct run_info *info, int win)
 
     return pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_ERASE, NULL,
+            PCRDR_OPERATION_ERASE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             "attr.value",
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -777,7 +777,7 @@ static pcrdr_msg *make_change_message_c(struct run_info *info, int win)
 
     return pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_ERASE, NULL,
+            PCRDR_OPERATION_ERASE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
             "attr.value",
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -791,7 +791,7 @@ static pcrdr_msg *make_change_message_d(struct run_info *info, int win)
 
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            PCRDR_OPERATION_UPDATE, NULL,
+            PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             "textContent",
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
@@ -880,7 +880,7 @@ static int reset_window(pcrdr_conn* conn, int win)
 
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
             info->win_handles[win],
-            PCRDR_OPERATION_LOAD, NULL,
+            PCRDR_OPERATION_LOAD, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     data = purc_variant_make_string_static(test_content, false);
@@ -931,7 +931,7 @@ static int destroy_window(pcrdr_conn* conn, int win)
         // use identifier
         sprintf(buff, "the-plain-window-%d", win);
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-                PCRDR_OPERATION_DESTROYPLAINWINDOW, NULL,
+                PCRDR_OPERATION_DESTROYPLAINWINDOW, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_ID, buff, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     }
@@ -939,7 +939,7 @@ static int destroy_window(pcrdr_conn* conn, int win)
         // use handle
         sprintf(buff, "%llx", (unsigned long long)info->win_handles[win]);
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-                PCRDR_OPERATION_DESTROYPLAINWINDOW, NULL,
+                PCRDR_OPERATION_DESTROYPLAINWINDOW, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_HANDLE, buff, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     }

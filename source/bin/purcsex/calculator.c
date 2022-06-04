@@ -142,7 +142,7 @@ void calc_change_fraction(pcrdr_conn* conn,
     pcrdr_msg *msg;
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            "setProperty", PCRDR_REQUESTID_NORETURN,
+            "setProperty", PCRDR_REQUESTID_NORETURN, NULL,
             PCRDR_MSG_ELEMENT_TYPE_ID, "theFraction",
             "textContent",
             PCRDR_MSG_DATA_TYPE_TEXT, value_text, value_length);
@@ -218,7 +218,7 @@ static void set_expression(pcrdr_conn* conn,
     pcrdr_msg *msg;
     msg = pcrdr_make_request_message(
             PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
-            "setProperty", PCRDR_REQUESTID_NORETURN,
+            "setProperty", PCRDR_REQUESTID_NORETURN, NULL,
             PCRDR_MSG_ELEMENT_TYPE_ID, "theExpression",
             "textContent",
             PCRDR_MSG_DATA_TYPE_TEXT,

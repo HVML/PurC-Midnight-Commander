@@ -3,10 +3,10 @@
     "initialOps":
         [
             { "operation": "createPlainWindow", "target": "workspace/0", "title": "新闻" },
-            { "operation": "load", "target": "plainwindow/0", "content": "calculator.html" },
-            { "operation": "displace", "target": "dom/0", "element": "id/theIntro", "content": "calculator-header.frag" },
-            { "operation": "displace", "target": "dom/0", "element": "id/hvmlModal", "content": "shownews-news.frag" },
-            { "operation": "displace", "target": "dom/0", "element": "id/introModal", "content": "calculator-intro.frag" },
+            { "operation": "load", "target": "plainwindow/0", "content": "calculator/calculator.html" },
+            { "operation": "displace", "target": "dom/0", "element": "id/theIntro", "content": "calculator/calculator-header.frag" },
+            { "operation": "displace", "target": "dom/0", "element": "id/hvmlModal", "content": "shownews/shownews-news.frag" },
+            { "operation": "displace", "target": "dom/0", "element": "id/introModal", "content": "calculator/calculator-intro.frag" },
             { "operation": "erase", "target": "dom/0", "element": "id/btnShowHVMLModal", "property": "attr.disabled" },
             { "operation": "erase", "target": "dom/0", "element": "id/btnShowIntroModal", "property": "attr.disabled" }
         ],

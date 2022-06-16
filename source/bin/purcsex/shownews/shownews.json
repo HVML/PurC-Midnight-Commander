@@ -3,9 +3,9 @@
     "initialOps":
         [
             { "operation": "createPlainWindow", "target": "workspace/0", "title": "新闻" },
-            { "operation": "load", "target": "plainwindow/0", "content": "shownews.html" },
-            { "operation": "displace", "target": "dom/0", "element": "id/theIntro", "content": "shownews-intro.frag" },
-            { "operation": "displace", "target": "dom/0", "element": "handle/A0", "content": "shownews-news.frag" },
+            { "operation": "load", "target": "plainwindow/0", "content": "shownews/shownews.html" },
+            { "operation": "displace", "target": "dom/0", "element": "id/theIntro", "content": "shownews/shownews-intro.frag" },
+            { "operation": "displace", "target": "dom/0", "element": "handle/A0", "content": "shownews/shownews-news.frag" },
             { "operation": "erase", "target": "dom/0", "element": "handle/A1", "property": "attr.disabled" }
         ],
     "namedOps":

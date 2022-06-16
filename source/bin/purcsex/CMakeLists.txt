@@ -53,8 +53,22 @@ set(PurCSexExtension_LIBRARIES
 )
 
 set(calculator_SOURCES
-    calculator.c
+    "calculator/calculator.c"
     log.c
+)
+
+set(calculator_FILES
+    "calculator/calculator.json"
+    "calculator/calculator.html"
+    "calculator/calculator-header.frag"
+    "calculator/calculator-intro.frag"
+)
+
+set(shownews_FILES
+    "shownews/shownews.json"
+    "shownews/shownews.html"
+    "shownews/shownews-intro.frag"
+    "shownews/shownews-news.frag"
 )
 
 macro(ADD_PURCSEX_EXTENSION extension_name)
@@ -76,8 +90,13 @@ endmacro()
 
 ADD_PURCSEX_EXTENSION(calculator ${calculator_SOURCES})
 
-PURCMC_COPY_FILES(purcsex_copy_samples
-    DESTINATION ${CMAKE_BINARY_DIR}/
-    FILES shownews.json shownews.html shownews-intro.frag shownews-news.frag calculator.json calculator.html calculator-header.frag calculator-intro.frag
+PURCMC_COPY_FILES(purcsex_copy_shownews_files
+    DESTINATION "${CMAKE_BINARY_DIR}"
+    FILES ${shownews_FILES}
+)
+
+PURCMC_COPY_FILES(purcsex_copy_calculator_files
+    DESTINATION "${CMAKE_BINARY_DIR}"
+    FILES ${calculator_FILES}
 )
 

@@ -242,6 +242,7 @@ static bool load_sample(struct client_info *info)
 
 static void unload_sample(struct client_info *info)
 {
+    purc_variant_unref(info->handles);
     purc_variant_unref(info->doc_contents);
     purc_variant_unref(info->doc_wrotten_len);
 
@@ -472,14 +473,31 @@ done:
     return 0;
 }
 
+static purc_variant_t make_result_key(purc_variant_t op, const char *prefix)
+{
+    const char *str;
+    purc_variant_t v;
+    size_t sz;
+    if (!(v = purc_variant_object_get_by_ckey(op, "resultKey")) ||
+            !(str = purc_variant_get_string_const_ex(v, &sz)) ||
+            sz == 0) {
+        return PURC_VARIANT_INVALID;
+    }
+
+    char buff[sz + strlen(prefix) + 1];
+    strcpy(buff, prefix);
+    strcat(buff, str);
+    return purc_variant_make_string(buff, false);
+}
+
 static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
 {
     pcrdr_msg *msg;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    purc_variant_t result_key;
-    if (!(result_key = purc_variant_object_get_by_ckey(op, "resultKey"))) {
-        LOG_ERROR("No `resultKey` defined\n");
+    purc_variant_t result_key = make_result_key(op, "plainwindow/");
+    if (result_key == PURC_VARIANT_INVALID) {
+        LOG_ERROR("No valid `resultKey` defined\n");
         goto failed;
     }
 
@@ -524,8 +542,7 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
         msg->elementValue = purc_variant_make_string(value, false);
     }
 
-    purc_variant_t data = purc_variant_make_object(0,
-            PURC_VARIANT_INVALID, PURC_VARIANT_INVALID);
+    purc_variant_t data = purc_variant_make_object_0();
     if ((tmp = purc_variant_object_get_by_ckey(op, "name"))) {
         purc_variant_object_set_by_static_ckey(data, "name", tmp);
         purc_variant_unref(tmp);
@@ -567,6 +584,9 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
     return 0;
 
 failed:
+
+    if (result_key)
+        purc_variant_unref(result_key);
 
     if (msg) {
         pcrdr_release_message(msg);
@@ -728,7 +748,7 @@ static int wrotten_handler(pcrdr_conn* conn,
 
     purc_variant_t result_key = (purc_variant_t)context;
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
-        return 0;
+        goto done;
     }
 
     LOG_INFO("Got a response for request (%s) to write content (%s): %d\n",
@@ -778,7 +798,7 @@ static int wrotten_handler(pcrdr_conn* conn,
             issue_next_operation(conn);
         }
         else {
-            write_more_doucment(conn, result_key);
+            write_more_doucment(conn, purc_variant_ref(result_key));
         }
     }
     else {
@@ -903,10 +923,15 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    purc_variant_t tmp;
-    purc_variant_t result_key = PURC_VARIANT_INVALID;
+    purc_variant_t result_key;
+    result_key = make_result_key(op, "dom/");
+    if (result_key == PURC_VARIANT_INVALID) {
+        LOG_ERROR("No valid `resultKey` defined\n");
+        goto failed;
+    }
 
     const char *target = NULL;
+    purc_variant_t tmp;
     if ((tmp = purc_variant_object_get_by_ckey(op, "target"))) {
         target = purc_variant_get_string_const(tmp);
     }
@@ -921,19 +946,6 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     if (strcmp(target_name, "plainwindow") && strcmp(target_name, "page")) {
         LOG_ERROR("Bad target name: %s\n", target_name);
         goto failed;
-    }
-
-    if ((tmp = purc_variant_object_get_by_ckey(op, "resultKey"))) {
-        size_t sz;
-        const char *str = purc_variant_get_string_const_ex(tmp, &sz);
-
-        char buff[sz + 16];
-        sprintf(buff, "%s/%s", target_name, str);
-        result_key = purc_variant_make_string(buff, false);
-    }
-
-    if (result_key == PURC_VARIANT_INVALID) {
-        LOG_ERROR("No resultKey defined\n");
     }
 
     const char *doc_content = NULL;
@@ -1434,6 +1446,10 @@ int main(int argc, char **argv)
 
     struct client_info client;
     memset(&client, 0, sizeof(client));
+
+    client.doc_contents = purc_variant_make_object_0();
+    client.doc_wrotten_len = purc_variant_make_object_0();
+    client.handles = purc_variant_make_object_0();
 
     if (read_option_args(&client, argc, argv)) {
         return EXIT_FAILURE;

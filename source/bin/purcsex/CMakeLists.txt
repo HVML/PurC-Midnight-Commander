@@ -52,25 +52,6 @@ set(PurCSexExtension_LIBRARIES
     PurC::PurC
 )
 
-set(calculator_SOURCES
-    "calculator/calculator.c"
-    log.c
-)
-
-set(calculator_FILES
-    "calculator/calculator.json"
-    "calculator/calculator.html"
-    "calculator/calculator-header.frag"
-    "calculator/calculator-intro.frag"
-)
-
-set(shownews_FILES
-    "shownews/shownews.json"
-    "shownews/shownews.html"
-    "shownews/shownews-intro.frag"
-    "shownews/shownews-news.frag"
-)
-
 macro(ADD_PURCSEX_EXTENSION extension_name)
     add_library(${extension_name} MODULE ${ARGN})
     add_dependencies(${extension_name} purcsex)
@@ -88,15 +69,56 @@ macro(ADD_PURCSEX_EXTENSION extension_name)
     target_link_libraries(${extension_name} ${PurCSexExtension_LIBRARIES})
 endmacro()
 
+set(calculator_SOURCES
+    "calculator/calculator.c"
+    log.c
+)
+
 ADD_PURCSEX_EXTENSION(calculator ${calculator_SOURCES})
+
+set(navigation_SOURCES
+    "navigation/navigation.c"
+    log.c
+)
+
+ADD_PURCSEX_EXTENSION(navigation ${navigation_SOURCES})
+
+set(shownews_FILES
+    "shownews.json"
+    "shownews/shownews.html"
+    "shownews/shownews-intro.frag"
+    "shownews/shownews-news.frag"
+)
 
 PURCMC_COPY_FILES(purcsex_copy_shownews_files
     DESTINATION "${CMAKE_BINARY_DIR}"
     FILES ${shownews_FILES}
 )
 
+set(calculator_FILES
+    "calculator.json"
+    "calculator/calculator.html"
+    "calculator/calculator-header.frag"
+    "calculator/calculator-intro.frag"
+)
+
 PURCMC_COPY_FILES(purcsex_copy_calculator_files
     DESTINATION "${CMAKE_BINARY_DIR}"
     FILES ${calculator_FILES}
+)
+
+set(navigation_FILES
+    "navigation.json"
+    "navigation/layout.html"
+    "navigation/splash.html"
+    "navigation/nav-tabs.html"
+    "navigation/about-hvml.html"
+    "navigation/about-purc.html"
+    "navigation/about-xguipro.html"
+)
+
+PURCMC_COPY_FILES(purcsex_copy_navigation_files
+    DESTINATION "${CMAKE_BINARY_DIR}"
+    FILES ${navigation_FILES}
 )
 

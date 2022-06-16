@@ -1,0 +1,20 @@
+{
+    "initialOps":
+        [
+            { "operation": "createPlainWindow", "target": "workspace/0", "title": "新闻", "resultKey": "main" },
+            { "operation": "load", "target": "plainwindow/main", "content": "shownews/shownews.html", "resultKey": "main" },
+            { "operation": "displace", "target": "dom/main", "element": "id/theIntro", "content": "shownews/shownews-intro.frag" },
+            { "operation": "displace", "target": "dom/main", "element": "handle/A0", "content": "shownews/shownews-news.frag" },
+            { "operation": "erase", "target": "dom/main", "element": "handle/A1", "property": "attr.disabled" }
+        ],
+    "namedOps":
+        {
+            "closeWindow": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/main" }
+        },
+   "events":
+       [
+            { "eventName": "close", "target": "plainwindow/main", "namedOp": "func:quit" },
+            { "eventName": "click", "target": "dom/main", "element": "handle/A2", "namedOp": "closeWindow" }
+       ]
+}
+

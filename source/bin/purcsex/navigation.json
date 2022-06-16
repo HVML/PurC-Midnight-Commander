@@ -1,0 +1,24 @@
+{
+    "initialOps":
+        [
+            { "operation": "addPageGroups", "target": "workspace/0", "content": "navigation/page-groups.html" },
+            { "operation": "createPlainWindow", "target": "workspace/0", "name": "splash", "title": "欢迎", "resultKey": "splash" },
+            { "operation": "load", "target": "plainwindow/splash", "content": "navigation/splash.html", "resultKey": "splash" }
+        ],
+    "namedOps":
+        {
+            "closeSplash": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/splash" },
+            "createMainWindow": [
+                { "operation": "createPage", "target": "workspace/0", "element": "id/mainBody", "name": "nav", "resultKey": "nav" },
+                { "operation": "load", "target": "page/nav", "content": "navigation/nav.html", "resultKey": "nav" },
+                { "operation": "createPage", "target": "workspace/0", "element": "id/mainBody", "name": "content", "resultKey": "content" },
+                { "operation": "load", "target": "page/content", "content": "navigation/content0.html", "resultKey": "content" }
+            ]
+        },
+   "events":
+       [
+            { "eventName": "click", "target": "dom/splash", "element": "id/close", "namedOp": "closeSplash" },
+            { "eventName": "close", "target": "plainwindow/splash", "namedOp": "createMainWindow" }
+       ]
+}
+

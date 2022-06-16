@@ -27,14 +27,12 @@
 #include <stdbool.h>
 #include <purc/purc.h>
 
-#define MAX_NR_WINDOWS      8
-
 struct sample_data;
 struct client_info {
     bool running;
     bool interact;
 
-    uint32_t nr_windows;
+    uint32_t nr_created_windows;
     uint32_t nr_destroyed_wins;
 
     time_t last_sigint_time;
@@ -55,15 +53,45 @@ struct client_info {
     size_t ops_issued;
     size_t nr_windows_created;
 
-    char *doc_content[MAX_NR_WINDOWS];
-    size_t len_content[MAX_NR_WINDOWS];
-    size_t len_wrotten[MAX_NR_WINDOWS];
+    /*
+     * contents for windows or pages.
+     *
+     * an object variant; the key is in one of the following patterns:
+     *
+     *  - `plainwindow/<resultKey>`
+     *  - `page/<resultKey>`
+     *
+     * and the value is the content string loaded from the specified file.
+     */
+    purc_variant_t doc_contents;
 
-    // handles of windows.
-    uint64_t win_handles[MAX_NR_WINDOWS];
+    /*
+     * length wrotten to the renderer for windows or pages.
+     *
+     * an object variant; the key is in one of the following patterns:
+     *
+     *  - `plainwindow/<resultKey>`
+     *  - `page/<resultKey>`
+     *
+     * and the value is the content length (an ulongint variant) has been
+     * wrotten to the renderer.
+     */
+    purc_variant_t doc_wrotten_len;
 
-    // handles of DOM.
-    uint64_t dom_handles[MAX_NR_WINDOWS];
+    /*
+     * handles for windows, pages, and DOMs:
+     *
+     * an object variant; the key is in one of the following patterns:
+     *
+     *  - `plainwindow/<resultKey>`
+     *  - `tabbedwindow/<resultKey>`
+     *  - `page/<resultKey>`
+     *  - `dom/<resultKey>`
+     *
+     * and the value is the result value (an ulongint variant) returned
+     * from the renderer.
+     */
+    purc_variant_t handles;
 
     void *sample_handle;
     struct sample_data *sample_data;

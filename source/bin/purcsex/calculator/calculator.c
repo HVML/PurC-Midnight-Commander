@@ -64,35 +64,51 @@ static int noreturn_handler(pcrdr_conn* conn,
     return 0;
 }
 
-static int split_target(const char *target, char *target_name)
+static uint64_t split_target(purc_variant_t handles,
+        const char *target, char *target_name)
 {
     char *sep = strchr(target, '/');
-    if (sep == NULL)
-        return -1;
+    if (sep == NULL) {
+        goto failed;
+    }
 
     size_t name_len = sep - target;
     if (name_len > PURC_LEN_IDENTIFIER) {
-        return -1;
+        goto failed;
     }
 
     strncpy(target_name, target, name_len);
     target_name[name_len] = 0;
 
     sep++;
-    if (sep[0] == 0)
-        return -1;
+    if (sep[0] == 0) {
+        goto failed;
+    }
 
-    char *end;
-    long l = strtol(sep, &end, 10);
-    if (*end == 0)
-        return (int)l;
+    if (isdigit(sep[0])) {
+        char *end;
+        unsigned long long ull = strtoull(sep, &end, 10);
+        if (*end == 0)
+            return (uint64_t)ull;
+    }
+    else {
+        /* retrieve the handle from handles */
+        purc_variant_t v = purc_variant_object_get_by_ckey(handles, target);
+        uint64_t handle;
 
-    return -1;
+        if (purc_variant_cast_to_ulongint(v, &handle, false))
+            return handle;
+    }
+
+failed:
+    target_name[0] = 0; /* target_name is an empty string when failed */
+    return 0;
 }
 
-static int get_win(struct client_info *info, purc_variant_t event_desired)
+static uint64_t
+get_handle(struct client_info *info, purc_variant_t event_desired)
 {
-    int win = -1;
+    uint64_t handle = 0;
 
     purc_variant_t tmp;
     if ((tmp = purc_variant_object_get_by_ckey(event_desired, "target"))) {
@@ -103,17 +119,15 @@ static int get_win(struct client_info *info, purc_variant_t event_desired)
         }
 
         char target_name[PURC_LEN_IDENTIFIER + 1];
-        win = split_target(target, target_name);
-        if (strcasecmp(target_name, "dom") ||
-                win < 0 || win >= info->nr_windows) {
+        handle = split_target(info->handles, target, target_name);
+        if (strcasecmp(target_name, "dom")) {
             LOG_ERROR("No valid target value in catched event\n");
-            win = -1;
             goto done;
         }
     }
 
 done:
-    return win;
+    return handle;
 }
 
 void calc_change_fraction(pcrdr_conn* conn,
@@ -121,8 +135,8 @@ void calc_change_fraction(pcrdr_conn* conn,
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    int win = get_win(info, event_desired);
-    if (win < 0)
+    uint64_t dom_handle = get_handle(info, event_desired);
+    if (dom_handle == 0)
         return;
 
     purc_variant_t value;
@@ -141,7 +155,7 @@ void calc_change_fraction(pcrdr_conn* conn,
 
     pcrdr_msg *msg;
     msg = pcrdr_make_request_message(
-            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_MSG_TARGET_DOM, dom_handle,
             "setProperty", PCRDR_REQUESTID_NORETURN, NULL,
             PCRDR_MSG_ELEMENT_TYPE_ID, "theFraction",
             "textContent",
@@ -201,7 +215,7 @@ static char get_digit_sign(const char *id)
 }
 
 static void set_expression(pcrdr_conn* conn,
-        struct client_info *info, int win)
+        struct client_info *info, uint64_t dom_handle)
 {
     const char *text;
     size_t length;
@@ -217,7 +231,7 @@ static void set_expression(pcrdr_conn* conn,
 
     pcrdr_msg *msg;
     msg = pcrdr_make_request_message(
-            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_MSG_TARGET_DOM, dom_handle,
             "setProperty", PCRDR_REQUESTID_NORETURN, NULL,
             PCRDR_MSG_ELEMENT_TYPE_ID, "theExpression",
             "textContent",
@@ -253,8 +267,8 @@ void calc_click_digit_sign(pcrdr_conn* conn,
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    int win = get_win(info, event_desired);
-    if (win < 0)
+    uint64_t dom_handle = get_handle(info, event_desired);
+    if (dom_handle == 0)
         return;
 
     purc_variant_t target_id;
@@ -281,7 +295,7 @@ void calc_click_digit_sign(pcrdr_conn* conn,
         return;
     }
 
-    set_expression(conn, info, win);
+    set_expression(conn, info, dom_handle);
 }
 
 void calc_click_back(pcrdr_conn* conn,
@@ -289,8 +303,8 @@ void calc_click_back(pcrdr_conn* conn,
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    int win = get_win(info, event_desired);
-    if (win < 0)
+    uint64_t dom_handle = get_handle(info, event_desired);
+    if (dom_handle == 0)
         return;
 
     if (info->sample_data->length > 0) {
@@ -301,7 +315,7 @@ void calc_click_back(pcrdr_conn* conn,
         return;
     }
 
-    set_expression(conn, info, win);
+    set_expression(conn, info, dom_handle);
 }
 
 void calc_click_clear(pcrdr_conn* conn,
@@ -309,8 +323,8 @@ void calc_click_clear(pcrdr_conn* conn,
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    int win = get_win(info, event_desired);
-    if (win < 0)
+    uint64_t dom_handle = get_handle(info, event_desired);
+    if (dom_handle == 0)
         return;
 
     if (info->sample_data->length > 0) {
@@ -321,7 +335,7 @@ void calc_click_clear(pcrdr_conn* conn,
         return;
     }
 
-    set_expression(conn, info, win);
+    set_expression(conn, info, dom_handle);
 }
 
 #define OP_PERCENT "()/100"
@@ -331,8 +345,8 @@ void calc_click_op_percent(pcrdr_conn* conn,
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    int win = get_win(info, event_desired);
-    if (win < 0)
+    uint64_t dom_handle = get_handle(info, event_desired);
+    if (dom_handle == 0)
         return;
 
     if (info->sample_data->length > 0 &&
@@ -354,7 +368,7 @@ void calc_click_op_percent(pcrdr_conn* conn,
     else
         return;
 
-    set_expression(conn, info, win);
+    set_expression(conn, info, dom_handle);
 }
 
 #undef OP_PERCENT
@@ -366,8 +380,8 @@ void calc_click_op_toggle_sign(pcrdr_conn* conn,
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    int win = get_win(info, event_desired);
-    if (win < 0)
+    uint64_t dom_handle = get_handle(info, event_desired);
+    if (dom_handle == 0)
         return;
 
     if (info->sample_data->length > 0 &&
@@ -385,7 +399,7 @@ void calc_click_op_toggle_sign(pcrdr_conn* conn,
     else
         return;
 
-    set_expression(conn, info, win);
+    set_expression(conn, info, dom_handle);
 }
 #undef OP_TOGGLE_SIGN
 
@@ -431,8 +445,8 @@ void calc_click_equal(pcrdr_conn* conn,
 
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    int win = get_win(info, event_desired);
-    if (win < 0)
+    uint64_t dom_handle = get_handle(info, event_desired);
+    if (dom_handle == 0)
         return;
 
     info->sample_data->expression[info->sample_data->length] = 0;
@@ -449,6 +463,6 @@ void calc_click_equal(pcrdr_conn* conn,
 
     LOG_DEBUG("result: %s (%u)\n",
             info->sample_data->expression, info->sample_data->length);
-    set_expression(conn, info, win);
+    set_expression(conn, info, dom_handle);
 }
 

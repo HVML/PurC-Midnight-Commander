@@ -12,13 +12,22 @@
                 { "operation": "createPage", "target": "workspace/0", "element": "id/mainBody", "name": "nav", "resultKey": "nav" },
                 { "operation": "load", "target": "page/nav", "content": "navigation/nav.html", "resultKey": "nav" },
                 { "operation": "createPage", "target": "workspace/0", "element": "id/mainBody", "name": "content", "resultKey": "content" },
-                { "operation": "load", "target": "page/content", "content": "navigation/content0.html", "resultKey": "content" }
-            ]
+                { "operation": "load", "target": "page/content", "content": "navigation/about-hvml.html", "resultKey": "content" }
+            ],
+            "loadContentHVML": { "operation": "load", "target": "page/content", "content": "navigation/about-hvml.html", "resultKey": "content" },
+            "loadContentPurC": { "operation": "load", "target": "page/content", "content": "navigation/about-purc.html", "resultKey": "content" },
+            "loadContentXGUIPro": { "operation": "load", "target": "page/content", "content": "navigation/about-xguipro.html", "resultKey": "content" }
+
         },
    "events":
        [
-            { "eventName": "click", "target": "dom/splash", "element": "id/close", "namedOp": "closeSplash" },
-            { "eventName": "close", "target": "plainwindow/splash", "namedOp": "createMainWindow" }
+            { "eventName": "click",  "target": "dom/splash", "element": "id/close", "namedOp": "closeSplash" },
+            { "eventName": "close",  "target": "workspace/0", "element": "handle/plainwindow:splash","namedOp": "createMainWindow" },
+            { "eventName": "create", "target": "workspace/0", "namedOp": "func:main_window_created", "resultKey": "mainWindow" },
+            { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToHVML", "namedOp": "loadContentHVML" },
+            { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToPurC", "namedOp": "loadContentPurC" },
+            { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToXGUIPro", "namedOp": "loadContentXGUIPro" },
+            { "eventName": "close", "target": "workspace/0", "element": "handle/tabbedwindow:mainWindow", "namedOp": "func:quit" }
        ]
 }
 

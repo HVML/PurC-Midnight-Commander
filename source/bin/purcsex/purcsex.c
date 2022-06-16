@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
+#include <ctype.h>
 
 #include <dlfcn.h>
 
@@ -39,7 +40,7 @@ static void print_copying(void)
 {
     printf(
         "\n"
-        "purcsex - a simple examples interacting with the PurCMC renderer.\n"
+        "purcsex - a simple example interacting with the PurCMC renderer.\n"
         "\n"
         "Copyright (C) 2021, 2022 FMSoft <https://www.fmsoft.cn>\n"
         "\n"
@@ -199,19 +200,6 @@ static bool load_sample(struct client_info *info)
         return false;
     }
 
-    info->nr_windows = 0;
-    purc_variant_t tmp;
-    if ((tmp = purc_variant_object_get_by_ckey(info->sample, "nrWindows"))) {
-        uint32_t nr_windows;
-        if (purc_variant_cast_to_uint32(tmp, &nr_windows, false))
-            info->nr_windows = nr_windows;
-    }
-
-    if (info->nr_windows == 0 || info->nr_windows > MAX_NR_WINDOWS) {
-        LOG_WARN("Wrong number of windows (%u)\n", info->nr_windows);
-        info->nr_windows = 1;
-    }
-
     info->initialOps = purc_variant_object_get_by_ckey(info->sample, "initialOps");
     if (info->initialOps == PURC_VARIANT_INVALID ||
             !purc_variant_array_size(info->initialOps, &info->nr_ops)) {
@@ -254,11 +242,8 @@ static bool load_sample(struct client_info *info)
 
 static void unload_sample(struct client_info *info)
 {
-    for (int i = 0; i < info->nr_windows; i++) {
-        if (info->doc_content[i]) {
-            free(info->doc_content[i]);
-        }
-    }
+    purc_variant_unref(info->doc_contents);
+    purc_variant_unref(info->doc_wrotten_len);
 
     if (info->sample) {
         purc_variant_unref(info->sample);
@@ -280,30 +265,45 @@ static void unload_sample(struct client_info *info)
     memset(info, 0, sizeof(*info));
 }
 
-static int split_target(const char *target, char *target_name)
+static uint64_t split_target(purc_variant_t handles,
+        const char *target, char *target_name)
 {
     char *sep = strchr(target, '/');
-    if (sep == NULL)
-        return -1;
+    if (sep == NULL) {
+        goto failed;
+    }
 
     size_t name_len = sep - target;
     if (name_len > PURC_LEN_IDENTIFIER) {
-        return -1;
+        goto failed;
     }
 
     strncpy(target_name, target, name_len);
     target_name[name_len] = 0;
 
     sep++;
-    if (sep[0] == 0)
-        return -1;
+    if (sep[0] == 0) {
+        goto failed;
+    }
 
-    char *end;
-    long l = strtol(sep, &end, 10);
-    if (*end == 0)
-        return (int)l;
+    if (isdigit(sep[0])) {
+        char *end;
+        unsigned long long ull = strtoull(sep, &end, 10);
+        if (*end == 0)
+            return (uint64_t)ull;
+    }
+    else {
+        /* retrieve the handle from handles */
+        purc_variant_t v = purc_variant_object_get_by_ckey(handles, target);
+        uint64_t handle;
 
-    return -1;
+        if (purc_variant_cast_to_ulongint(v, &handle, false))
+            return handle;
+    }
+
+failed:
+    target_name[0] = 0; /* target_name is an empty string when failed */
+    return 0;
 }
 
 static int transfer_target_info(struct client_info *info,
@@ -312,34 +312,24 @@ static int transfer_target_info(struct client_info *info,
     int type = -1;
     char target_name[PURC_LEN_IDENTIFIER + 1];
 
-    int value = split_target(source, target_name);
+    *target_value = split_target(info->handles, source, target_name);
     if (strcmp(target_name, "session") == 0) {
         type = PCRDR_MSG_TARGET_SESSION;
-        *target_value = (uint64_t)value;
     }
     else if (strcmp(target_name, "workspace") == 0) {
         type = PCRDR_MSG_TARGET_WORKSPACE;
-        *target_value = (uint64_t)value;
     }
     else if (strcmp(target_name, "plainwindow") == 0) {
         type = PCRDR_MSG_TARGET_PLAINWINDOW;
-        if (value < 0 || value >= info->nr_windows)
-            goto failed;
-
-        *target_value = info->win_handles[value];
+    }
+    else if (strcmp(target_name, "page") == 0) {
+        type = PCRDR_MSG_TARGET_PAGE;
     }
     else if (strcmp(target_name, "dom") == 0) {
         type = PCRDR_MSG_TARGET_DOM;
-        if (value < 0 || value >= info->nr_windows)
-            goto failed;
-
-        *target_value = info->dom_handles[value];
     }
 
     return type;
-
-failed:
-    return -1;
 }
 
 static const char* split_element(const char *element, char *element_type)
@@ -380,17 +370,26 @@ static const char *transfer_element_info(struct client_info *info,
         else if (strcmp(buff, "plainwindow") == 0) {
             *element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
 
-            int win = atoi(value);
-            if (win < 0 || win >= info->nr_windows) {
-                value = NULL;
+            uint64_t handle;
+            if (isdigit(value[0])) {
+                handle = (uint64_t)atoi(value);
             }
             else {
-                sprintf(info->buff, "%llx", (long long)info->win_handles[win]);
-                value = info->buff;
+                /* retrieve the handle from handles */
+                purc_variant_t v;
+                v = purc_variant_object_get_by_ckey(info->handles, element);
+                if (!purc_variant_cast_to_ulongint(v, &handle, false)) {
+                    value = NULL;
+                    goto failed;
+                }
             }
+
+            sprintf(info->buff, "%llx", (long long)handle);
+            value = info->buff;
         }
     }
 
+failed:
     return value;
 }
 
@@ -444,20 +443,23 @@ static int plainwin_created_handler(pcrdr_conn* conn,
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    int win = (int)(uintptr_t)context;
-    assert(win < info->nr_windows);
-
+    purc_variant_t result_key = (purc_variant_t)context;
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
-        return 0;
+        goto done;
     }
 
-    LOG_INFO("Got a response for request (%s) to create plainwin (%d): %d\n",
-            purc_variant_get_string_const(response_msg->requestId), win,
+    LOG_INFO("Got a response for request (%s) to create plainwin (%s): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            purc_variant_get_string_const(result_key),
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
         info->nr_windows_created++;
-        info->win_handles[win] = response_msg->resultValue;
+
+        purc_variant_t handle;
+        handle = purc_variant_make_ulongint(response_msg->resultValue);
+        purc_variant_object_set(info->handles, result_key, handle);
+
         issue_next_operation(conn);
     }
     else {
@@ -465,6 +467,8 @@ static int plainwin_created_handler(pcrdr_conn* conn,
         // info->running = false;
     }
 
+done:
+    purc_variant_unref(result_key);
     return 0;
 }
 
@@ -473,55 +477,96 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
     pcrdr_msg *msg;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    if (info->nr_windows == info->nr_windows_created)
+    purc_variant_t result_key;
+    if (!(result_key = purc_variant_object_get_by_ckey(op, "resultKey"))) {
+        LOG_ERROR("No `resultKey` defined\n");
         goto failed;
-    int win = info->nr_windows_created;
+    }
+
+    if (purc_variant_object_get(info->handles, result_key)) {
+        LOG_ERROR("Duplicated `resultKey`\n");
+        goto failed;
+    }
 
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
             PCRDR_OPERATION_CREATEPLAINWINDOW, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
+        LOG_ERROR("Failed to make request message\n");
         goto failed;
     }
-
-    char name_buff[64];
-    sprintf(name_buff, "the-plain-window-%d", win);
 
     purc_variant_t tmp;
-    const char *title = NULL;
-    if ((tmp = purc_variant_object_get_by_ckey(op, "title"))) {
-        title = purc_variant_get_string_const(tmp);
-    }
-    if (title == NULL)
-        title = "No Title";
+    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
 
-    purc_variant_t data = purc_variant_make_object(2,
-            purc_variant_make_string_static("name", false),
-            purc_variant_make_string_static(name_buff, false),
-            purc_variant_make_string_static("title", false),
-            purc_variant_make_string_static(title, false));
-    if (data == PURC_VARIANT_INVALID) {
-        goto failed;
+        const char *str = purc_variant_get_string_const(tmp);
+        if (str == NULL) {
+            LOG_ERROR("Bad group value type: %s\n",
+                    purc_variant_typename(purc_variant_get_type(tmp)));
+            goto failed;
+        }
+
+        const char *value;
+        char type[PURC_LEN_IDENTIFIER + 1];
+        value = split_element(str, type);
+        if (value == NULL) {
+            LOG_ERROR("Bad group value: %s\n", str);
+            goto failed;
+        }
+
+        if (strcmp(type, "id")) {
+            LOG_ERROR("Bad group type: %s\n", type);
+            goto failed;
+        }
+
+        msg->elementType = PCRDR_MSG_ELEMENT_TYPE_ID;
+        msg->elementValue = purc_variant_make_string(value, false);
+    }
+
+    purc_variant_t data = purc_variant_make_object(0,
+            PURC_VARIANT_INVALID, PURC_VARIANT_INVALID);
+    if ((tmp = purc_variant_object_get_by_ckey(op, "name"))) {
+        purc_variant_object_set_by_static_ckey(data, "name", tmp);
+        purc_variant_unref(tmp);
+    }
+    else {
+        char name[128];
+        sprintf(name, "the-plain-window-%s",
+                purc_variant_get_string_const(result_key));
+
+        tmp = purc_variant_make_string(name, false);
+        purc_variant_object_set_by_static_ckey(data, "name", tmp);
+        purc_variant_unref(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(op, "class"))) {
+        purc_variant_object_set_by_static_ckey(data, "class", tmp);
+        purc_variant_unref(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(op, "title"))) {
+        purc_variant_object_set_by_static_ckey(data, "title", tmp);
+        purc_variant_unref(tmp);
     }
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
     msg->data = data;
 
     if (pcrdr_send_request(conn, msg,
-                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
                 plainwin_created_handler) < 0) {
         goto failed;
     }
 
-    LOG_INFO("Request (%s) `%s` for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` for window %s sent\n",
             purc_variant_get_string_const(msg->requestId),
-            purc_variant_get_string_const(msg->operation), win);
+            purc_variant_get_string_const(msg->operation),
+            purc_variant_get_string_const(result_key));
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    LOG_ERROR("Failed call for window %d\n", win);
 
     if (msg) {
         pcrdr_release_message(msg);
@@ -540,29 +585,33 @@ static int plainwin_destroyed_handler(pcrdr_conn* conn,
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    int win = (int)(uintptr_t)context;
-    assert(win < info->nr_windows);
-
+    purc_variant_t result_key = (purc_variant_t)context;
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
-        return 0;
+        goto done;
     }
 
-    LOG_INFO("Got a response for request (%s) to destroy plainwin (%d): %d\n",
-            purc_variant_get_string_const(response_msg->requestId), win,
+    LOG_INFO("Got a response for request (%s) to destroy plainwin (%s): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            purc_variant_get_string_const(result_key),
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
+        if (!purc_variant_object_remove(info->handles, result_key, true)) {
+            LOG_ERROR("Failed to remove the plainwin handle: %s\n",
+                purc_variant_get_string_const(result_key));
+        }
+
         info->nr_windows_created--;
-        info->win_handles[win] = 0;
         if (info->nr_windows_created == 0) {
             info->running = false;
         }
     }
     else {
-        LOG_ERROR("failed to create a plain window\n");
-        // info->running = false;
+        LOG_ERROR("failed to destroy a plain window\n");
     }
 
+done:
+    purc_variant_unref(result_key);
     return 0;
 }
 
@@ -572,51 +621,49 @@ static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
     const char *element = NULL;
-    purc_variant_t tmp;
-    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
-        element = purc_variant_get_string_const(tmp);
+    purc_variant_t result_key;
+    if ((result_key = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(result_key);
     }
 
     if (element == NULL) {
+        LOG_ERROR("No window given\n");
         goto failed;
     }
 
-    int win = -1;
+    uint64_t value;
     char element_name[PURC_LEN_IDENTIFIER + 1];
-    win = split_target(element, element_name);
-    if (win < 0 || win > info->nr_windows_created || !info->win_handles[win]) {
-        goto failed;
-    }
-
+    value = split_target(info->handles, element, element_name);
     if (strcmp(element_name, "plainwindow")) {
+        LOG_ERROR("Bad window given: %s\n", element);
         goto failed;
     }
 
     char handle[32];
-    sprintf(handle, "%llx", (long long)info->win_handles[win]);
+    sprintf(handle, "%llx", (long long)value);
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
             PCRDR_OPERATION_DESTROYPLAINWINDOW, "-", NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
+        LOG_ERROR("Failed to make request message\n");
         goto failed;
     }
 
     if (pcrdr_send_request(conn, msg,
-                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
                 plainwin_destroyed_handler) < 0) {
+        LOG_ERROR("Failed to send request message\n");
         goto failed;
     }
 
-    LOG_INFO("Request (%s) `%s` for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` for window %s sent\n",
             purc_variant_get_string_const(msg->requestId),
-            purc_variant_get_string_const(msg->operation), win);
+            purc_variant_get_string_const(msg->operation), element);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    LOG_ERROR("Failed call for window %d\n", win);
-
     if (msg) {
         pcrdr_release_message(msg);
     }
@@ -631,22 +678,32 @@ static int loaded_handler(pcrdr_conn* conn,
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    int win = (int)(uintptr_t)context;
-    assert(win < info->nr_windows);
-
+    purc_variant_t result_key = (purc_variant_t)context;
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
-        return 0;
+        goto done;
     }
 
-    LOG_INFO("Got a response for request (%s) to load document content (%d): %d\n",
-            purc_variant_get_string_const(response_msg->requestId), win,
+    LOG_INFO("Got a response for request (%s) to load document content (%s): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            purc_variant_get_string_const(result_key),
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
-        info->dom_handles[win] = response_msg->resultValue;
+        if (!purc_variant_object_remove(info->doc_contents, result_key, true)) {
+            LOG_ERROR("Failed to remove the document content for %s\n",
+                purc_variant_get_string_const(result_key));
+            goto done;
+        }
 
-        free(info->doc_content[win]);
-        info->doc_content[win] = NULL;
+        if (!purc_variant_object_remove(info->doc_wrotten_len, result_key, true)) {
+            LOG_ERROR("Failed to remove the document wrotten length for %s\n",
+                purc_variant_get_string_const(result_key));
+            goto done;
+        }
+
+        purc_variant_t handle;
+        handle = purc_variant_make_ulongint(response_msg->resultValue);
+        purc_variant_object_set(info->handles, result_key, handle);
 
         issue_next_operation(conn);
     }
@@ -655,10 +712,12 @@ static int loaded_handler(pcrdr_conn* conn,
         // info->running = false;
     }
 
+done:
+    purc_variant_unref(result_key);
     return 0;
 }
 
-static int write_more_doucment(pcrdr_conn* conn, int win);
+static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key);
 
 static int wrotten_handler(pcrdr_conn* conn,
         const char *request_id, int state,
@@ -667,28 +726,59 @@ static int wrotten_handler(pcrdr_conn* conn,
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    int win = (int)(uintptr_t)context;
-    assert(win < info->nr_windows);
-
+    purc_variant_t result_key = (purc_variant_t)context;
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
         return 0;
     }
 
-    LOG_INFO("Got a response for request (%s) to write content (%d): %d\n",
-            purc_variant_get_string_const(response_msg->requestId), win,
+    LOG_INFO("Got a response for request (%s) to write content (%s): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            purc_variant_get_string_const(result_key),
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
-        if (info->len_wrotten[win] == info->len_content[win]) {
-            info->dom_handles[win] = response_msg->resultValue;
+        uint64_t len_wrotten, len_content;
 
-            free(info->doc_content[win]);
-            info->doc_content[win] = NULL;
+        purc_variant_t tmp;
+        tmp = purc_variant_object_get(info->doc_wrotten_len, result_key);
+        if (tmp == NULL ||
+                !purc_variant_cast_to_ulongint(tmp, &len_wrotten, false)) {
+            LOG_ERROR("No document wrotten length for %s\n",
+                purc_variant_get_string_const(result_key));
+            goto done;
+        }
+
+        tmp = purc_variant_object_get(info->doc_contents, result_key);
+        if (tmp == NULL ||
+                !purc_variant_get_string_const_ex(tmp, &len_content)) {
+            LOG_ERROR("No document contents for %s\n",
+                purc_variant_get_string_const(result_key));
+            goto done;
+        }
+
+        if (len_wrotten == len_content) {
+            purc_variant_t handle;
+            handle = purc_variant_make_ulongint(response_msg->resultValue);
+            purc_variant_object_set(info->handles, result_key, handle);
+
+            if (!purc_variant_object_remove(info->doc_contents,
+                        result_key, true)) {
+                LOG_ERROR("Failed to remove the document content for %s\n",
+                    purc_variant_get_string_const(result_key));
+                goto done;
+            }
+
+            if (!purc_variant_object_remove(info->doc_wrotten_len,
+                        result_key, true)) {
+                LOG_ERROR("Failed to remove the document wrotten length for %s\n",
+                    purc_variant_get_string_const(result_key));
+                goto done;
+            }
 
             issue_next_operation(conn);
         }
         else {
-            write_more_doucment(conn, win);
+            write_more_doucment(conn, result_key);
         }
     }
     else {
@@ -696,50 +786,81 @@ static int wrotten_handler(pcrdr_conn* conn,
         // info->running = false;
     }
 
+done:
+    purc_variant_unref(result_key);
     return 0;
 }
 
-static int write_more_doucment(pcrdr_conn* conn, int win)
+static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(win < info->nr_windows && info);
+    const char *doc_content;
+    uint64_t len_wrotten, len_content, win_handle;
+
+    purc_variant_t tmp;
+    tmp = purc_variant_object_get(info->doc_wrotten_len, result_key);
+    if (tmp == NULL ||
+            !purc_variant_cast_to_ulongint(tmp, &len_wrotten, false)) {
+        LOG_ERROR("No document wrotten length for %s\n",
+            purc_variant_get_string_const(result_key));
+        goto failed;
+    }
+
+    tmp = purc_variant_object_get(info->doc_contents, result_key);
+    if (tmp == NULL || !(doc_content =
+                purc_variant_get_string_const_ex(tmp, &len_content))) {
+        LOG_ERROR("No document contents for %s\n",
+            purc_variant_get_string_const(result_key));
+        goto failed;
+    }
+
+    tmp = purc_variant_object_get(info->handles, result_key);
+    if (tmp == NULL ||
+            !purc_variant_cast_to_ulongint(tmp, &win_handle, false)) {
+        LOG_ERROR("No window handle for %s\n",
+            purc_variant_get_string_const(result_key));
+        goto failed;
+    }
 
     pcrdr_msg *msg = NULL;
     purc_variant_t data = PURC_VARIANT_INVALID;
 
     pcrdr_response_handler handler;
-    if (info->len_wrotten[win] + DEF_LEN_ONE_WRITE > info->len_content[win]) {
+    if (len_wrotten + DEF_LEN_ONE_WRITE > len_content) {
         // writeEnd
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
-                info->win_handles[win],
+                win_handle,
                 PCRDR_OPERATION_WRITEEND, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        data = purc_variant_make_string(
-                info->doc_content[win] + info->len_wrotten[win], false);
-        info->len_wrotten[win] = info->len_content[win];
+        data = purc_variant_make_string_static(doc_content + len_wrotten, false);
+        purc_variant_object_set(info->doc_wrotten_len, result_key,
+                purc_variant_make_ulongint(len_content));
         handler = loaded_handler;
     }
     else {
         // writeMore
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
-                info->win_handles[win],
+                win_handle,
                 PCRDR_OPERATION_WRITEMORE, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        const char *start = info->doc_content[win] + info->len_wrotten[win];
+        const char *start = doc_content + len_wrotten;
         const char *end;
         pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
         if (end > start) {
             size_t len_to_write = end - start;
 
             data = purc_variant_make_string_ex(start, len_to_write, false);
-            info->len_wrotten[win] += len_to_write;
+            len_wrotten += len_to_write;
+            purc_variant_object_set(info->doc_wrotten_len, result_key,
+                    purc_variant_make_ulongint(len_wrotten));
         }
         else {
-            LOG_WARN("no valid character for window %d\n", win);
+            LOG_WARN("no valid character for window %s\n",
+                purc_variant_get_string_const(result_key));
             goto failed;
         }
         handler = wrotten_handler;
@@ -752,19 +873,21 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
     msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
     msg->data = data;
     if (pcrdr_send_request(conn, msg,
-                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
                 handler) < 0) {
+        LOG_ERROR("Failed to send request message for %s\n",
+                purc_variant_get_string_const(result_key));
         goto failed;
     }
 
-    LOG_INFO("Request (%s) `%s` for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` for window %s sent\n",
             purc_variant_get_string_const(msg->requestId),
-            purc_variant_get_string_const(msg->operation), win);
+            purc_variant_get_string_const(msg->operation),
+            purc_variant_get_string_const(result_key));
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    LOG_ERROR("Failed call for window %d\n", win);
 
     if (msg) {
         pcrdr_release_message(msg);
@@ -776,71 +899,100 @@ failed:
     return -1;
 }
 
-static int load_or_write_doucment(pcrdr_conn* conn, purc_variant_t op)
+static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
     purc_variant_t tmp;
+    purc_variant_t result_key = PURC_VARIANT_INVALID;
+
     const char *target = NULL;
     if ((tmp = purc_variant_object_get_by_ckey(op, "target"))) {
         target = purc_variant_get_string_const(tmp);
     }
-
     if (target == NULL) {
+        LOG_ERROR("No target defined\n");
         goto failed;
     }
 
     char target_name[PURC_LEN_IDENTIFIER + 1];
-    int win = 0;
-    win = split_target(target, target_name);
-    if (win < 0 || win > info->nr_windows_created || !info->win_handles[win]) {
+    uint64_t win_handle = 0;
+    win_handle = split_target(info->handles, target, target_name);
+    if (strcmp(target_name, "plainwindow") && strcmp(target_name, "page")) {
+        LOG_ERROR("Bad target name: %s\n", target_name);
         goto failed;
     }
 
-    if (strcmp(target_name, "plainwindow")) {
-        goto failed;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "resultKey"))) {
+        size_t sz;
+        const char *str = purc_variant_get_string_const_ex(tmp, &sz);
+
+        char buff[sz + 16];
+        sprintf(buff, "%s/%s", target_name, str);
+        result_key = purc_variant_make_string(buff, false);
     }
 
-    if (info->doc_content[win] == NULL) {
-        const char *content;
+    if (result_key == PURC_VARIANT_INVALID) {
+        LOG_ERROR("No resultKey defined\n");
+    }
+
+    const char *doc_content = NULL;
+    size_t len_content;
+    tmp = purc_variant_object_get(info->doc_contents, result_key);
+    if (tmp) {
+        doc_content = purc_variant_get_string_const_ex(tmp, &len_content);
+    }
+
+    if (doc_content == NULL) {
+        const char *file;
         if ((tmp = purc_variant_object_get_by_ckey(op, "content"))) {
-            content = purc_variant_get_string_const(tmp);
+            file = purc_variant_get_string_const(tmp);
         }
 
-        if (content) {
-            info->doc_content[win] = load_file_content(content,
-                    &info->len_content[win]);
+        char *loaded;
+        if (file) {
+            loaded = load_file_content(file, &len_content);
         }
 
-        if (info->doc_content[win] == NULL) {
-            LOG_ERROR("Failed to load document content from %s\n", content);
+        if (loaded == NULL) {
+            LOG_ERROR("Failed to load document content from %s\n", file);
             goto failed;
         }
+
+        doc_content = loaded;
+        tmp = purc_variant_make_string_reuse_buff(loaded, len_content, true);
+        purc_variant_object_set(info->doc_contents, result_key, tmp);
+        purc_variant_unref(tmp);
+
+        tmp = purc_variant_make_ulongint(0);
+        purc_variant_object_set(info->doc_wrotten_len, result_key, tmp);
+        purc_variant_unref(tmp);
     }
 
     pcrdr_msg *msg = NULL;
     purc_variant_t data = PURC_VARIANT_INVALID;
 
+    size_t len_wrotten;
     pcrdr_response_handler handler;
-    if (info->len_content[win] > DEF_LEN_ONE_WRITE) {
+    if (len_content > DEF_LEN_ONE_WRITE) {
         // use writeBegin
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
-                info->win_handles[win],
+                win_handle,
                 PCRDR_OPERATION_WRITEBEGIN, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        const char *start = info->doc_content[win];
+        const char *start = doc_content;
         const char *end;
         pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
         if (end > start) {
             size_t len_to_write = end - start;
 
             data = purc_variant_make_string_ex(start, len_to_write, false);
-            info->len_wrotten[win] = len_to_write;
+            len_wrotten = len_to_write;
         }
         else {
-            LOG_WARN("no valid character for window: %d\n", win);
+            LOG_ERROR("No valid character in document content\n");
             goto failed;
         }
 
@@ -849,37 +1001,47 @@ static int load_or_write_doucment(pcrdr_conn* conn, purc_variant_t op)
     else {
         // use load
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
-                info->win_handles[win],
+                win_handle,
                 PCRDR_OPERATION_LOAD, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        data = purc_variant_make_string_static(info->doc_content[win], false);
-        info->len_wrotten[win] = info->len_content[win];
+        data = purc_variant_make_string_static(doc_content, false);
+        len_wrotten = len_content;
         handler = loaded_handler;
     }
 
     if (msg == NULL || data == PURC_VARIANT_INVALID) {
+        LOG_ERROR("Failed to initialize the request message\n");
         goto failed;
     }
+
+    tmp = purc_variant_make_ulongint(len_wrotten);
+    purc_variant_object_set(info->doc_wrotten_len, result_key, tmp);
+    purc_variant_unref(tmp);
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
     msg->data = data;
 
     if (pcrdr_send_request(conn, msg,
-                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
                 handler) < 0) {
+        purc_variant_ref(result_key);
+        LOG_ERROR("Failed to send the request message\n");
         goto failed;
     }
 
-    LOG_INFO("Request (%s) `%s` for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` for window %s sent\n",
             purc_variant_get_string_const(msg->requestId),
-            purc_variant_get_string_const(msg->operation), win);
+            purc_variant_get_string_const(msg->operation),
+            purc_variant_get_string_const(result_key));
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    LOG_ERROR("Failed call for window %d\n", win);
+    if (result_key) {
+        purc_variant_ref(result_key);
+    }
 
     if (msg) {
         pcrdr_release_message(msg);
@@ -892,7 +1054,8 @@ failed:
 }
 
 static pcrdr_msg *make_change_message(struct client_info *info,
-        int op_id, const char *operation, purc_variant_t op, int win)
+        int op_id, const char *operation, purc_variant_t op,
+        uint64_t dom_handle)
 {
     purc_variant_t tmp;
     const char *element = NULL;
@@ -964,7 +1127,7 @@ static pcrdr_msg *make_change_message(struct client_info *info,
 
     pcrdr_msg *msg;
     msg = pcrdr_make_request_message(
-            PCRDR_MSG_TARGET_DOM, info->dom_handles[win],
+            PCRDR_MSG_TARGET_DOM, dom_handle,
             operation, NULL, NULL,
             element_type, element_value,
             property,
@@ -985,14 +1148,15 @@ static int changed_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
 {
-    int win = (int)(uintptr_t)context;
+    uint64_t dom_handle = (uint64_t)(uintptr_t)context;
 
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
         return 0;
     }
 
-    LOG_INFO("Got a response for request (%s) to change document (%d): %d\n",
-            purc_variant_get_string_const(response_msg->requestId), win,
+    LOG_INFO("Got a response for request (%s) to change DOM (%llx): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            (long long)dom_handle,
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
@@ -1023,37 +1187,35 @@ static int change_document(pcrdr_conn* conn,
     }
 
     char target_name[PURC_LEN_IDENTIFIER + 1];
-    int win = 0;
-    win = split_target(target, target_name);
-    if (win < 0 || win > info->nr_windows_created || !info->win_handles[win]) {
-        goto failed;
-    }
-
+    uint64_t dom_handle;
+    dom_handle = split_target(info->handles, target, target_name);
     if (strcmp(target_name, "dom")) {
         goto failed;
     }
 
-    pcrdr_msg *msg = make_change_message(info, op_id, operation, op, win);
-    if (msg == NULL)
+    pcrdr_msg *msg = make_change_message(info, op_id, operation, op,
+            dom_handle);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message\n");
         return -1;
+    }
 
     if (pcrdr_send_request(conn, msg,
-                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
+                PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)dom_handle,
                 changed_handler) < 0) {
+        LOG_ERROR("Failed to send request message\n");
         goto failed;
     }
 
-    LOG_INFO("Request (%s) `%s` (%s) for window %d sent\n",
+    LOG_INFO("Request (%s) `%s` (%s) for DOM %llx sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation),
             msg->property?purc_variant_get_string_const(msg->property):"N/A",
-            win);
+            (long long)dom_handle);
     pcrdr_release_message(msg);
     return 0;
 
 failed:
-    LOG_ERROR("Failed call for window %d\n", win);
-
     pcrdr_release_message(msg);
     return -1;
 }
@@ -1092,7 +1254,7 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
         break;
 
     case PCRDR_K_OPERATION_LOAD:
-        retv = load_or_write_doucment(conn, op);
+        retv = load_or_write_document(conn, op);
         break;
 
     case PCRDR_K_OPERATION_APPEND:

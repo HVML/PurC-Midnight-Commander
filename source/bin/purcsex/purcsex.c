@@ -548,9 +548,9 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
         purc_variant_unref(tmp);
     }
     else {
+        static unsigned nr_wins = 0;
         char name[128];
-        sprintf(name, "the-plain-window-%s",
-                purc_variant_get_string_const(result_key));
+        sprintf(name, "the-plain-window-%u", nr_wins++);
 
         tmp = purc_variant_make_string(name, false);
         purc_variant_object_set_by_static_ckey(data, "name", tmp);

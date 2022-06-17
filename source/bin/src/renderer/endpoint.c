@@ -463,7 +463,7 @@ static int authenticate_endpoint(Server* srv, Endpoint* endpoint,
 static int on_start_session(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
     SessionInfo *info = NULL;
 
     int retv = authenticate_endpoint(srv, endpoint, msg->data);
@@ -493,7 +493,7 @@ static int on_start_session(Server* srv, Endpoint* endpoint,
 static int on_end_session(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     remove_session(endpoint);
 
@@ -512,7 +512,7 @@ static int on_create_plain_window(Server* srv, Endpoint* endpoint,
 {
     int retv = PCRDR_SC_OK;
     PlainWindow *win;
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     const char* str = NULL;
     purc_variant_t tmp;
@@ -577,7 +577,7 @@ static int on_update_plain_window(Server* srv, Endpoint* endpoint,
     void *data;
     const char *element;
     PlainWindow *win;
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     element = purc_variant_get_string_const(msg->elementValue);
     if (element == NULL) {
@@ -643,7 +643,7 @@ static int on_destroy_plain_window(Server* srv, Endpoint* endpoint,
     void *data;
     const char *element;
     PlainWindow *win;
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     element = purc_variant_get_string_const(msg->elementValue);
     if (element == NULL) {
@@ -695,7 +695,7 @@ failed:
 static int on_load(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
     int retv = PCRDR_SC_OK;
     const char *doc_text;
     size_t doc_len;
@@ -784,7 +784,7 @@ failed:
 static int on_write_begin(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
     int retv = PCRDR_SC_OK;
     const char *doc_text;
     size_t doc_len;
@@ -881,7 +881,7 @@ failed:
 static int on_write_more(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
     int retv = PCRDR_SC_OK;
     const char *doc_text;
     size_t doc_len;
@@ -946,7 +946,7 @@ failed:
 static int on_write_end(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
     int retv = PCRDR_SC_OK;
     const char *doc_text;
     size_t doc_len;
@@ -1302,7 +1302,7 @@ failed:
 
 static int on_append(Server* srv, Endpoint* endpoint, const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
         operate_dom_element(srv, endpoint, msg,
@@ -1323,7 +1323,7 @@ static int on_append(Server* srv, Endpoint* endpoint, const pcrdr_msg *msg)
 static int on_prepend(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
         operate_dom_element(srv, endpoint, msg,
@@ -1344,7 +1344,7 @@ static int on_prepend(Server* srv, Endpoint* endpoint,
 static int on_insert_after(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
         operate_dom_element(srv, endpoint, msg,
@@ -1365,7 +1365,7 @@ static int on_insert_after(Server* srv, Endpoint* endpoint,
 static int on_insert_before(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
         operate_dom_element(srv, endpoint, msg,
@@ -1386,7 +1386,7 @@ static int on_insert_before(Server* srv, Endpoint* endpoint,
 static int on_displace(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
 
     if (msg->elementType == PCRDR_MSG_ELEMENT_TYPE_HANDLE) {
         operate_dom_element(srv, endpoint, msg,
@@ -1407,7 +1407,7 @@ static int on_displace(Server* srv, Endpoint* endpoint,
 static int on_clear(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
     operate_dom_element(srv, endpoint, msg,
             PCRDR_K_OPERATION_CLEAR, &response);
     return send_simple_response(srv, endpoint, &response);
@@ -1416,7 +1416,7 @@ static int on_clear(Server* srv, Endpoint* endpoint,
 static int on_erase(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
     operate_dom_element(srv, endpoint, msg,
             PCRDR_K_OPERATION_ERASE, &response);
     return send_simple_response(srv, endpoint, &response);
@@ -1425,7 +1425,7 @@ static int on_erase(Server* srv, Endpoint* endpoint,
 static int on_update(Server* srv, Endpoint* endpoint,
         const pcrdr_msg *msg)
 {
-    pcrdr_msg response;
+    pcrdr_msg response = { };
     operate_dom_element(srv, endpoint, msg,
             PCRDR_K_OPERATION_UPDATE, &response);
     return send_simple_response(srv, endpoint, &response);
@@ -1514,7 +1514,7 @@ int on_got_message(Server* srv, Endpoint* endpoint, const pcrdr_msg *msg)
                 purc_variant_get_string_const(msg->operation), handler);
 
         if (handler == NOT_FOUND_HANDLER) {
-            pcrdr_msg response;
+            pcrdr_msg response = { };
             response.type = PCRDR_MSG_TYPE_RESPONSE;
             response.sourceURI = PURC_VARIANT_INVALID;
             response.requestId = msg->requestId;
@@ -1528,7 +1528,7 @@ int on_got_message(Server* srv, Endpoint* endpoint, const pcrdr_msg *msg)
             return handler(srv, endpoint, msg);
         }
         else {
-            pcrdr_msg response;
+            pcrdr_msg response = { };
             response.type = PCRDR_MSG_TYPE_RESPONSE;
             response.sourceURI = PURC_VARIANT_INVALID;
             response.requestId = msg->requestId;

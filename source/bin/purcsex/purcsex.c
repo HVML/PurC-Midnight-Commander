@@ -74,7 +74,7 @@ static void print_usage(void)
             ""
             "  -a --app=<app_name>          - Connect to PurcMC renderer with the specified app name.\n"
             "  -r --runner=<runner_name>    - Connect to PurcMC renderer with the specified runner name.\n"
-            "  -n --name=<sample_name>      - The sample name like `shownews`.\n"
+            "  -s --sample=<sample_name>    - The sample name like `calculator`.\n"
             "  -i --interact                - Wait for confirmation before issuing another operation.\n"
             "  -v --version                 - Display version information and exit.\n"
             "  -h --help                    - This help.\n"
@@ -82,11 +82,11 @@ static void print_usage(void)
             );
 }
 
-static char short_options[] = "a:r:n:vh";
+static char short_options[] = "a:r:s:vh";
 static struct option long_opts[] = {
     {"app"            , required_argument , NULL , 'a' } ,
     {"runner"         , required_argument , NULL , 'r' } ,
-    {"name"           , required_argument , NULL , 'n' } ,
+    {"sample"         , required_argument , NULL , 's' } ,
     {"interact"       , no_argument       , NULL , 'i' } ,
     {"version"        , no_argument       , NULL , 'v' } ,
     {"help"           , no_argument       , NULL , 'h' } ,
@@ -118,7 +118,7 @@ static int read_option_args(struct client_info *client, int argc, char **argv)
             if (purc_is_valid_runner_name(optarg))
                 strcpy(client->runner_name, optarg);
             break;
-        case 'n':
+        case 's':
             if (purc_is_valid_token(optarg, PURC_LEN_IDENTIFIER))
                 strcpy(client->sample_name, optarg);
             else {
@@ -242,10 +242,6 @@ static bool load_sample(struct client_info *info)
 
 static void unload_sample(struct client_info *info)
 {
-    purc_variant_unref(info->handles);
-    purc_variant_unref(info->doc_contents);
-    purc_variant_unref(info->doc_wrotten_len);
-
     if (info->sample) {
         purc_variant_unref(info->sample);
     }
@@ -262,6 +258,10 @@ static void unload_sample(struct client_info *info)
         LOG_INFO("Module for sample `%s` unloaded; sample data: %p\n",
                 info->sample_name, info->sample_data);
     }
+
+    purc_variant_unref(info->handles);
+    purc_variant_unref(info->doc_contents);
+    purc_variant_unref(info->doc_wrotten_len);
 
     memset(info, 0, sizeof(*info));
 }
@@ -703,7 +703,7 @@ static int loaded_handler(pcrdr_conn* conn,
         goto done;
     }
 
-    LOG_INFO("Got a response for request (%s) to load document content (%s): %d\n",
+    LOG_INFO("Got a response for request (%s) to load content (%s): %d\n",
             purc_variant_get_string_const(response_msg->requestId),
             purc_variant_get_string_const(result_key),
             response_msg->retCode);
@@ -715,7 +715,8 @@ static int loaded_handler(pcrdr_conn* conn,
             goto done;
         }
 
-        if (!purc_variant_object_remove(info->doc_wrotten_len, result_key, true)) {
+        if (!purc_variant_object_remove(info->doc_wrotten_len,
+                    result_key, true)) {
             LOG_ERROR("Failed to remove the document wrotten length for %s\n",
                 purc_variant_get_string_const(result_key));
             goto done;
@@ -724,6 +725,7 @@ static int loaded_handler(pcrdr_conn* conn,
         purc_variant_t handle;
         handle = purc_variant_make_ulongint(response_msg->resultValue);
         purc_variant_object_set(info->handles, result_key, handle);
+        purc_variant_unref(handle);
 
         issue_next_operation(conn);
     }
@@ -737,7 +739,7 @@ done:
     return 0;
 }
 
-static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key);
+static int write_more_document(pcrdr_conn* conn, purc_variant_t result_key);
 
 static int wrotten_handler(pcrdr_conn* conn,
         const char *request_id, int state,
@@ -780,6 +782,7 @@ static int wrotten_handler(pcrdr_conn* conn,
             purc_variant_t handle;
             handle = purc_variant_make_ulongint(response_msg->resultValue);
             purc_variant_object_set(info->handles, result_key, handle);
+            purc_variant_unref(handle);
 
             if (!purc_variant_object_remove(info->doc_contents,
                         result_key, true)) {
@@ -798,7 +801,7 @@ static int wrotten_handler(pcrdr_conn* conn,
             issue_next_operation(conn);
         }
         else {
-            write_more_doucment(conn, purc_variant_ref(result_key));
+            write_more_document(conn, purc_variant_ref(result_key));
         }
     }
     else {
@@ -811,7 +814,7 @@ done:
     return 0;
 }
 
-static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key)
+static int write_more_document(pcrdr_conn* conn, purc_variant_t result_key)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     const char *doc_content;
@@ -837,7 +840,7 @@ static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key)
     tmp = purc_variant_object_get(info->handles, result_key);
     if (tmp == NULL ||
             !purc_variant_cast_to_ulongint(tmp, &win_handle, false)) {
-        LOG_ERROR("No window handle for %s\n",
+        LOG_ERROR("No window/page handle for %s\n",
             purc_variant_get_string_const(result_key));
         goto failed;
     }
@@ -846,6 +849,7 @@ static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key)
     purc_variant_t data = PURC_VARIANT_INVALID;
 
     pcrdr_response_handler handler;
+    size_t len_to_write = 0;
     if (len_wrotten + DEF_LEN_ONE_WRITE > len_content) {
         // writeEnd
         msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
@@ -854,9 +858,13 @@ static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key)
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
                 PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
 
-        data = purc_variant_make_string_static(doc_content + len_wrotten, false);
-        purc_variant_object_set(info->doc_wrotten_len, result_key,
-                purc_variant_make_ulongint(len_content));
+
+        tmp = purc_variant_make_ulongint(len_content);
+        purc_variant_object_set(info->doc_wrotten_len, result_key, tmp);
+        purc_variant_unref(tmp);
+
+        data = purc_variant_make_string_static(doc_content + len_wrotten,
+                false);
         handler = loaded_handler;
     }
     else {
@@ -871,12 +879,15 @@ static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key)
         const char *end;
         pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
         if (end > start) {
-            size_t len_to_write = end - start;
 
-            data = purc_variant_make_string_ex(start, len_to_write, false);
+            len_to_write = end - start;
+
             len_wrotten += len_to_write;
-            purc_variant_object_set(info->doc_wrotten_len, result_key,
-                    purc_variant_make_ulongint(len_wrotten));
+            tmp = purc_variant_make_ulongint(len_wrotten);
+            purc_variant_object_set(info->doc_wrotten_len, result_key, tmp);
+            purc_variant_unref(tmp);
+
+            data = purc_variant_make_string_static(start, false);
         }
         else {
             LOG_WARN("no valid character for window %s\n",
@@ -892,6 +903,7 @@ static int write_more_doucment(pcrdr_conn* conn, purc_variant_t result_key)
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
     msg->data = data;
+    msg->textLen = len_to_write;
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
                 handler) < 0) {
@@ -985,6 +997,7 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     purc_variant_t data = PURC_VARIANT_INVALID;
 
     size_t len_wrotten;
+    size_t len_to_write = 0;
     pcrdr_response_handler handler;
     if (len_content > DEF_LEN_ONE_WRITE) {
         // use writeBegin
@@ -998,9 +1011,9 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
         const char *end;
         pcutils_string_check_utf8_len(start, DEF_LEN_ONE_WRITE, NULL, &end);
         if (end > start) {
-            size_t len_to_write = end - start;
+            len_to_write = end - start;
 
-            data = purc_variant_make_string_ex(start, len_to_write, false);
+            data = purc_variant_make_string_static(start, false);
             len_wrotten = len_to_write;
         }
         else {
@@ -1028,12 +1041,19 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
         goto failed;
     }
 
+    /* We use the resultKey (`dom/xxx`) to store
+     * the window/page handle temporarily */
+    tmp = purc_variant_make_ulongint(win_handle);
+    purc_variant_object_set(info->handles, result_key, tmp);
+    purc_variant_unref(tmp);
+
     tmp = purc_variant_make_ulongint(len_wrotten);
     purc_variant_object_set(info->doc_wrotten_len, result_key, tmp);
     purc_variant_unref(tmp);
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
     msg->data = data;
+    msg->textLen = len_to_write;
 
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
@@ -1447,10 +1467,6 @@ int main(int argc, char **argv)
     struct client_info client;
     memset(&client, 0, sizeof(client));
 
-    client.doc_contents = purc_variant_make_object_0();
-    client.doc_wrotten_len = purc_variant_make_object_0();
-    client.handles = purc_variant_make_object_0();
-
     if (read_option_args(&client, argc, argv)) {
         return EXIT_FAILURE;
     }
@@ -1471,6 +1487,10 @@ int main(int argc, char **argv)
     }
 
     my_log_enable(true, NULL);
+
+    client.doc_contents = purc_variant_make_object_0();
+    client.doc_wrotten_len = purc_variant_make_object_0();
+    client.handles = purc_variant_make_object_0();
 
     conn = purc_get_conn_to_renderer();
     if (conn == NULL) {

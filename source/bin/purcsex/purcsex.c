@@ -187,6 +187,34 @@ failed:
     return buf;
 }
 
+static purc_variant_t load_operation_content(purc_variant_t op)
+{
+    purc_variant_t tmp;
+
+    const char *file = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "content"))) {
+        file = purc_variant_get_string_const(tmp);
+    }
+
+    if (file == NULL) {
+        LOG_ERROR("No content defined in operation\n");
+        return PURC_VARIANT_INVALID;
+    }
+
+    char *loaded;
+    size_t len_content;
+    if (file) {
+        loaded = load_file_content(file, &len_content);
+    }
+
+    if (loaded == NULL) {
+        LOG_ERROR("Failed to load content from %s\n", file);
+        return PURC_VARIANT_INVALID;
+    }
+
+    return purc_variant_make_string_reuse_buff(loaded, len_content, false);
+}
+
 static bool load_sample(struct client_info *info)
 {
     char file[strlen(info->sample_name) + 8];
@@ -437,6 +465,23 @@ static inline int issue_next_operation(pcrdr_conn* conn)
     return 0;
 }
 
+static purc_variant_t make_result_key(purc_variant_t op, const char *prefix)
+{
+    const char *str;
+    purc_variant_t v;
+    size_t sz;
+    if (!(v = purc_variant_object_get_by_ckey(op, "resultKey")) ||
+            !(str = purc_variant_get_string_const_ex(v, &sz)) ||
+            sz == 0) {
+        return PURC_VARIANT_INVALID;
+    }
+
+    char buff[sz + strlen(prefix) + 1];
+    strcpy(buff, prefix);
+    strcat(buff, str);
+    return purc_variant_make_string(buff, false);
+}
+
 static int plainwin_created_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
@@ -464,8 +509,8 @@ static int plainwin_created_handler(pcrdr_conn* conn,
         issue_next_operation(conn);
     }
     else {
-        LOG_ERROR("failed to create a plain window\n");
-        // info->running = false;
+        LOG_ERROR("failed to create the plainwin: %s\n",
+            purc_variant_get_string_const(result_key));
     }
 
 done:
@@ -473,31 +518,15 @@ done:
     return 0;
 }
 
-static purc_variant_t make_result_key(purc_variant_t op, const char *prefix)
-{
-    const char *str;
-    purc_variant_t v;
-    size_t sz;
-    if (!(v = purc_variant_object_get_by_ckey(op, "resultKey")) ||
-            !(str = purc_variant_get_string_const_ex(v, &sz)) ||
-            sz == 0) {
-        return PURC_VARIANT_INVALID;
-    }
-
-    char buff[sz + strlen(prefix) + 1];
-    strcpy(buff, prefix);
-    strcat(buff, str);
-    return purc_variant_make_string(buff, false);
-}
-
-static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
+static int
+create_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 {
     pcrdr_msg *msg;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
     purc_variant_t result_key = make_result_key(op, "plainwindow/");
     if (result_key == PURC_VARIANT_INVALID) {
-        LOG_ERROR("No valid `resultKey` defined\n");
+        LOG_ERROR("No valid `resultKey` defined for %s\n", op_name);
         goto failed;
     }
 
@@ -511,7 +540,7 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
             PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
-        LOG_ERROR("Failed to make request message\n");
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
         goto failed;
     }
 
@@ -520,7 +549,7 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
 
         const char *str = purc_variant_get_string_const(tmp);
         if (str == NULL) {
-            LOG_ERROR("Bad group value type: %s\n",
+            LOG_ERROR("Bad window group type: %s\n",
                     purc_variant_typename(purc_variant_get_type(tmp)));
             goto failed;
         }
@@ -529,12 +558,12 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
         char type[PURC_LEN_IDENTIFIER + 1];
         value = split_element(str, type);
         if (value == NULL) {
-            LOG_ERROR("Bad group value: %s\n", str);
+            LOG_ERROR("Bad window group value: %s\n", str);
             goto failed;
         }
 
         if (strcmp(type, "id")) {
-            LOG_ERROR("Bad group type: %s\n", type);
+            LOG_ERROR("Bad window group type: %s\n", type);
             goto failed;
         }
 
@@ -567,6 +596,16 @@ static int create_plain_win(pcrdr_conn* conn, purc_variant_t op)
         purc_variant_unref(tmp);
     }
 
+    if ((tmp = purc_variant_object_get_by_ckey(op, "layoutStyle"))) {
+        purc_variant_object_set_by_static_ckey(data, "layoutStyle", tmp);
+        purc_variant_unref(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(op, "widgetStyle"))) {
+        purc_variant_object_set_by_static_ckey(data, "widgetStyle", tmp);
+        purc_variant_unref(tmp);
+    }
+
     msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
     msg->data = data;
 
@@ -593,6 +632,115 @@ failed:
     }
     else if (data) {
         purc_variant_unref(data);
+    }
+
+    return -1;
+}
+
+static int plainwin_page_updated_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    purc_variant_t result_key = (purc_variant_t)context;
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        goto done;
+    }
+
+    LOG_INFO("Got a response for request (%s) to update window/page (%s)\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            purc_variant_get_string_const(result_key));
+
+    if (response_msg->retCode != PCRDR_SC_OK) {
+        LOG_ERROR("failed to update a window/page (%s): %d\n",
+            purc_variant_get_string_const(result_key),
+            response_msg->retCode);
+    }
+
+done:
+    purc_variant_unref(result_key);
+    return 0;
+}
+
+static int
+update_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    const char *element = NULL;
+    purc_variant_t trace_key;
+    if ((trace_key = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(trace_key);
+    }
+
+    if (element == NULL) {
+        LOG_ERROR("No plainwin given: %s\n", op_name);
+        goto failed;
+    }
+
+    uint64_t value;
+    char element_name[PURC_LEN_IDENTIFIER + 1];
+    value = split_target(info->handles, element, element_name);
+    if (strcmp(element_name, "plainwindow")) {
+        LOG_ERROR("Bad plainwin given: %s\n", element);
+        goto failed;
+    }
+    char handle[32];
+    sprintf(handle, "%llx", (long long)value);
+
+    const char *property = NULL;
+    purc_variant_t tmp;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "property"))) {
+        property = purc_variant_get_string_const(tmp);
+    }
+
+    if (property == NULL) {
+        LOG_ERROR("No property given: %s\n", op_name);
+        goto failed;
+    }
+
+    purc_variant_t prop_value;
+    if (!(prop_value = purc_variant_object_get_by_ckey(op, "value"))) {
+        LOG_ERROR("No property value given: %s\n", op_name);
+        goto failed;
+    }
+
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_UPDATEPLAINWINDOW, NULL, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, property,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
+        goto failed;
+    }
+
+    if (purc_variant_get_string_const(prop_value)) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    }
+    else {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
+    }
+    msg->data = purc_variant_ref(prop_value);
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(trace_key),
+                plainwin_page_updated_handler) < 0) {
+        LOG_ERROR("Failed to send request message\n");
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for window %s sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), element);
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
     }
 
     return -1;
@@ -635,7 +783,8 @@ done:
     return 0;
 }
 
-static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
+static int
+destroy_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 {
     pcrdr_msg *msg;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
@@ -647,7 +796,7 @@ static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
     }
 
     if (element == NULL) {
-        LOG_ERROR("No window given\n");
+        LOG_ERROR("No window given for %s\n", op_name);
         goto failed;
     }
 
@@ -655,7 +804,7 @@ static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
     char element_name[PURC_LEN_IDENTIFIER + 1];
     value = split_target(info->handles, element, element_name);
     if (strcmp(element_name, "plainwindow")) {
-        LOG_ERROR("Bad window given: %s\n", element);
+        LOG_ERROR("Bad window given for %s: %s\n", op_name, element);
         goto failed;
     }
 
@@ -666,7 +815,7 @@ static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
-        LOG_ERROR("Failed to make request message\n");
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
         goto failed;
     }
 
@@ -674,6 +823,331 @@ static int destroy_plain_win(pcrdr_conn* conn, purc_variant_t op)
                 PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
                 plainwin_destroyed_handler) < 0) {
         LOG_ERROR("Failed to send request message\n");
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for window %s sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), element);
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+
+    return -1;
+}
+
+static int page_created_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    purc_variant_t result_key = (purc_variant_t)context;
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        goto done;
+    }
+
+    LOG_INFO("Got a response for request (%s) to create page (%s): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            purc_variant_get_string_const(result_key),
+            response_msg->retCode);
+
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        info->nr_windows_created++;
+
+        purc_variant_t handle;
+        handle = purc_variant_make_ulongint(response_msg->resultValue);
+        purc_variant_object_set(info->handles, result_key, handle);
+
+        issue_next_operation(conn);
+    }
+    else {
+        LOG_ERROR("failed to create the desired page: %s\n",
+            purc_variant_get_string_const(result_key));
+    }
+
+done:
+    purc_variant_unref(result_key);
+    return 0;
+}
+
+static int
+create_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    purc_variant_t result_key = make_result_key(op, "page/");
+    if (result_key == PURC_VARIANT_INVALID) {
+        LOG_ERROR("No valid `resultKey` defined for %s\n", op_name);
+        goto failed;
+    }
+
+    if (purc_variant_object_get(info->handles, result_key)) {
+        LOG_ERROR("Duplicated `resultKey`\n");
+        goto failed;
+    }
+
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_CREATEPAGE, NULL, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
+        goto failed;
+    }
+
+    purc_variant_t tmp;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
+
+        const char *str = purc_variant_get_string_const(tmp);
+        if (str == NULL) {
+            LOG_ERROR("Bad group value type: %s\n",
+                    purc_variant_typename(purc_variant_get_type(tmp)));
+            goto failed;
+        }
+
+        const char *value;
+        char type[PURC_LEN_IDENTIFIER + 1];
+        value = split_element(str, type);
+        if (value == NULL) {
+            LOG_ERROR("Bad page group value: %s\n", str);
+            goto failed;
+        }
+
+        if (strcmp(type, "id")) {
+            LOG_ERROR("Bad page group type: %s\n", type);
+            goto failed;
+        }
+
+        msg->elementType = PCRDR_MSG_ELEMENT_TYPE_ID;
+        msg->elementValue = purc_variant_make_string(value, false);
+    }
+
+    purc_variant_t data = purc_variant_make_object_0();
+    if ((tmp = purc_variant_object_get_by_ckey(op, "name"))) {
+        purc_variant_object_set_by_static_ckey(data, "name", tmp);
+        purc_variant_unref(tmp);
+    }
+    else {
+        LOG_ERROR("No page name defined for %s\n", op_name);
+        goto failed;
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(op, "class"))) {
+        purc_variant_object_set_by_static_ckey(data, "class", tmp);
+        purc_variant_unref(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(op, "title"))) {
+        purc_variant_object_set_by_static_ckey(data, "title", tmp);
+        purc_variant_unref(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(op, "layoutStyle"))) {
+        purc_variant_object_set_by_static_ckey(data, "layoutStyle", tmp);
+        purc_variant_unref(tmp);
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(op, "widgetStyle"))) {
+        purc_variant_object_set_by_static_ckey(data, "widgetStyle", tmp);
+        purc_variant_unref(tmp);
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
+    msg->data = data;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
+                page_created_handler) < 0) {
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for page %s sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation),
+            purc_variant_get_string_const(result_key));
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (result_key)
+        purc_variant_unref(result_key);
+
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+    else if (data) {
+        purc_variant_unref(data);
+    }
+
+    return -1;
+}
+
+static int
+update_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    const char *element = NULL;
+    purc_variant_t trace_key;
+    if ((trace_key = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(trace_key);
+    }
+
+    if (element == NULL) {
+        LOG_ERROR("No page given in %s\n", op_name);
+        goto failed;
+    }
+
+    uint64_t value;
+    char element_name[PURC_LEN_IDENTIFIER + 1];
+    value = split_target(info->handles, element, element_name);
+    if (strcmp(element_name, "page")) {
+        LOG_ERROR("Bad page given: %s\n", element);
+        goto failed;
+    }
+    char handle[32];
+    sprintf(handle, "%llx", (long long)value);
+
+    const char *property = NULL;
+    purc_variant_t tmp;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "property"))) {
+        property = purc_variant_get_string_const(tmp);
+    }
+
+    if (property == NULL) {
+        LOG_ERROR("No property given: %s\n", op_name);
+        goto failed;
+    }
+
+    purc_variant_t prop_value;
+    if (!(prop_value = purc_variant_object_get_by_ckey(op, "value"))) {
+        LOG_ERROR("No property value given: %s\n", op_name);
+        goto failed;
+    }
+
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_UPDATEPAGE, NULL, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, property,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
+        goto failed;
+    }
+
+    if (purc_variant_get_string_const(prop_value)) {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    }
+    else {
+        msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
+    }
+    msg->data = purc_variant_ref(prop_value);
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(trace_key),
+                plainwin_page_updated_handler) < 0) {
+        LOG_ERROR("Failed to send request message for %s\n", op_name);
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for window %s sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), element);
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+
+    return -1;
+}
+
+static int page_destroyed_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+    assert(info);
+
+    purc_variant_t result_key = (purc_variant_t)context;
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        goto done;
+    }
+
+    LOG_INFO("Got a response for request (%s) to destroy page (%s): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            purc_variant_get_string_const(result_key),
+            response_msg->retCode);
+
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        if (!purc_variant_object_remove(info->handles, result_key, true)) {
+            LOG_ERROR("Failed to remove the page handle: %s\n",
+                purc_variant_get_string_const(result_key));
+        }
+
+        info->nr_windows_created--;
+        if (info->nr_windows_created == 0) {
+            info->running = false;
+        }
+    }
+    else {
+        LOG_ERROR("failed to destroy a plain window\n");
+    }
+
+done:
+    purc_variant_unref(result_key);
+    return 0;
+}
+
+static int
+destroy_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    const char *element = NULL;
+    purc_variant_t result_key;
+    if ((result_key = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(result_key);
+    }
+
+    if (element == NULL) {
+        LOG_ERROR("No page given in %s\n", op_name);
+        goto failed;
+    }
+
+    uint64_t value;
+    char element_name[PURC_LEN_IDENTIFIER + 1];
+    value = split_target(info->handles, element, element_name);
+    if (strcmp(element_name, "page")) {
+        LOG_ERROR("Bad page given: %s\n", element);
+        goto failed;
+    }
+
+    char handle[32];
+    sprintf(handle, "%llx", (long long)value);
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_DESTROYPAGE, "-", NULL,
+            PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
+        goto failed;
+    }
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
+                page_destroyed_handler) < 0) {
+        LOG_ERROR("Failed to send request message for %s\n", op_name);
         goto failed;
     }
 
@@ -1196,8 +1670,6 @@ static int changed_handler(pcrdr_conn* conn,
     }
     else {
         LOG_ERROR("failed to change document\n");
-        // struct client_info *info = pcrdr_conn_get_user_data(conn);
-        // info->running = false;
     }
 
     return 0;
@@ -1252,6 +1724,586 @@ failed:
     return -1;
 }
 
+static int page_group_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    uint64_t ws_handle = (uint64_t)(uintptr_t)context;
+
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        return 0;
+    }
+
+    LOG_INFO("Got a response for request (%s) to change workspace (%llx): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            (long long)ws_handle,
+            response_msg->retCode);
+
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        issue_next_operation(conn);
+    }
+    else {
+        LOG_ERROR("failed to change workspace\n");
+    }
+
+    return 0;
+}
+
+static int
+set_page_groups(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    //struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    purc_variant_t data = load_operation_content(op);
+    if (data == PURC_VARIANT_INVALID) {
+        goto failed;
+    }
+
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_SETPAGEGROUPS, NULL, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message\n");
+        goto failed;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->data = data;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, NULL,
+                page_group_handler) < 0) {
+        LOG_ERROR("Failed to send request message (%s)\n", op_name);
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for workspace/0 sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation));
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+    else if (data) {
+        purc_variant_unref(data);
+    }
+
+    return -1;
+}
+
+static int
+add_page_groups(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    //struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    purc_variant_t data = load_operation_content(op);
+    if (data == PURC_VARIANT_INVALID) {
+        goto failed;
+    }
+
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_ADDPAGEGROUPS, NULL, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message\n");
+        goto failed;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->data = data;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, NULL,
+                page_group_handler) < 0) {
+        LOG_ERROR("Failed to send request message (%s)\n", op_name);
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for workspace/0 sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation));
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+    else if (data) {
+        purc_variant_unref(data);
+    }
+
+    return -1;
+}
+
+static int
+remove_page_group(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    //struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    const char *element = NULL;
+    purc_variant_t tmp;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(tmp);
+    }
+
+    if (element == NULL) {
+        LOG_ERROR("No group identifier given: %s\n", op_name);
+        goto failed;
+    }
+
+    char type[PURC_LEN_IDENTIFIER + 1];
+    const char *gid = split_element(element, type);
+    if (gid == NULL) {
+        LOG_ERROR("Invalid element value for %s\n", op_name);
+        goto failed;
+    }
+
+    if (strcmp(type, "id")) {
+        LOG_ERROR("Must be an identifier for %s\n", op_name);
+        goto failed;
+    }
+
+    msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
+            PCRDR_OPERATION_REMOVEPAGEGROUP, NULL, NULL,
+            PCRDR_MSG_ELEMENT_TYPE_ID, gid, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
+        goto failed;
+    }
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, NULL,
+                page_group_handler) < 0) {
+        LOG_ERROR("Failed to send request message (%s)\n", op_name);
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for workspace/0 sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation));
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+
+    return -1;
+}
+
+static int
+get_property(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    purc_variant_t tmp;
+    const char *target = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "target"))) {
+        target = purc_variant_get_string_const(tmp);
+    }
+
+    if (target == NULL) {
+        LOG_ERROR("No `target` defined in %s\n", op_name);
+        goto failed;
+    }
+
+    char target_name[PURC_LEN_IDENTIFIER + 1];
+    uint64_t handle;
+    handle = split_target(info->handles, target, target_name);
+
+    pcrdr_msg_target target_type;
+    if (strcmp(target_name, "session") == 0) {
+        target_type = PCRDR_MSG_TARGET_SESSION;
+        handle = 0;
+    }
+    else if (strcmp(target_name, "workspace") == 0) {
+        target_type = PCRDR_MSG_TARGET_WORKSPACE;
+        handle = 0;
+    }
+    else if (strcmp(target_name, "plainwindow") == 0) {
+        target_type = PCRDR_MSG_TARGET_PLAINWINDOW;
+    }
+    else if (strcmp(target_name, "page") == 0) {
+        target_type = PCRDR_MSG_TARGET_PAGE;
+    }
+    else if (strcmp(target_name, "dom") == 0) {
+        target_type = PCRDR_MSG_TARGET_DOM;
+    }
+    else {
+        LOG_ERROR("Not supported element type: %s\n", target_name);
+        goto failed;
+    }
+
+    const char *element = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(tmp);
+    }
+
+    if (element == NULL) {
+        LOG_ERROR("No `element` given in %s\n", op_name);
+        goto failed;
+    }
+
+    char element_type_str[PURC_LEN_IDENTIFIER + 1];
+    const char *element_value;
+    element_value = split_element(element, element_type_str);
+    if (element_value == NULL) {
+        goto failed;
+    }
+
+    pcrdr_msg_element_type element_type;
+    if (strcmp(element_type_str, "handle") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
+    }
+    else if (strcmp(element_type_str, "id") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_ID;
+    }
+    else if (strcmp(element_type_str, "css") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_CSS;
+    }
+    else {
+        LOG_ERROR("Not supported element type: %s\n", element_type_str);
+        goto failed;
+    }
+
+    const char *property = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "property"))) {
+        property = purc_variant_get_string_const(tmp);
+    }
+
+    if (property == NULL) {
+        LOG_ERROR("No `property` given in %s\n", op_name);
+        goto failed;
+    }
+
+    pcrdr_response_handler handler = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "handler"))) {
+        const char *handler_name = purc_variant_get_string_const(tmp);
+
+        if (handler_name) {
+            handler = dlsym(info->sample_handle, handler_name);
+        }
+    }
+
+    if (handler == NULL) {
+        LOG_ERROR("No valid `handler` given in %s\n", op_name);
+        goto failed;
+    }
+
+    msg = pcrdr_make_request_message(target_type, handle,
+            PCRDR_OPERATION_GETPROPERTY, NULL, NULL,
+            element_type, element_value, property,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
+        goto failed;
+    }
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, 0,
+                handler) < 0) {
+        LOG_ERROR("Failed to send request message for %s\n", op_name);
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for %s.%s sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), element, property);
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+
+    return -1;
+}
+
+static int
+set_property(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    purc_variant_t tmp;
+    const char *target = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "target"))) {
+        target = purc_variant_get_string_const(tmp);
+    }
+
+    if (target == NULL) {
+        LOG_ERROR("No `target` defined in %s\n", op_name);
+        goto failed;
+    }
+
+    char target_name[PURC_LEN_IDENTIFIER + 1];
+    uint64_t handle;
+    handle = split_target(info->handles, target, target_name);
+
+    pcrdr_msg_target target_type;
+    if (strcmp(target_name, "session") == 0) {
+        target_type = PCRDR_MSG_TARGET_SESSION;
+        handle = 0;
+    }
+    else if (strcmp(target_name, "workspace") == 0) {
+        target_type = PCRDR_MSG_TARGET_WORKSPACE;
+        handle = 0;
+    }
+    else if (strcmp(target_name, "plainwindow") == 0) {
+        target_type = PCRDR_MSG_TARGET_PLAINWINDOW;
+    }
+    else if (strcmp(target_name, "page") == 0) {
+        target_type = PCRDR_MSG_TARGET_PAGE;
+    }
+    else if (strcmp(target_name, "dom") == 0) {
+        target_type = PCRDR_MSG_TARGET_DOM;
+    }
+    else {
+        LOG_ERROR("Not supported element type: %s\n", target_name);
+        goto failed;
+    }
+
+    const char *element = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(tmp);
+    }
+
+    if (element == NULL) {
+        LOG_ERROR("No `element` given in %s\n", op_name);
+        goto failed;
+    }
+
+    char element_type_str[PURC_LEN_IDENTIFIER + 1];
+    const char *element_value;
+    element_value = split_element(element, element_type_str);
+    if (element_value == NULL) {
+        goto failed;
+    }
+
+    pcrdr_msg_element_type element_type;
+    if (strcmp(element_type_str, "handle") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
+    }
+    else if (strcmp(element_type_str, "id") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_ID;
+    }
+    else if (strcmp(element_type_str, "css") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_CSS;
+    }
+    else {
+        LOG_ERROR("Not supported element type: %s\n", element_type_str);
+        goto failed;
+    }
+
+    const char *property = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "property"))) {
+        property = purc_variant_get_string_const(tmp);
+    }
+
+    if (property == NULL) {
+        LOG_ERROR("No `property` given in %s\n", op_name);
+        goto failed;
+    }
+
+    purc_variant_t data;
+    if (!(data = purc_variant_object_get_by_ckey(op, "value"))) {
+        LOG_ERROR("No `value` given in %s\n", op_name);
+        goto failed;
+    }
+
+    pcrdr_response_handler handler = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "handler"))) {
+        const char *handler_name = purc_variant_get_string_const(tmp);
+
+        if (handler_name) {
+            handler = dlsym(info->sample_handle, handler_name);
+        }
+    }
+
+    msg = pcrdr_make_request_message(target_type, handle,
+            PCRDR_OPERATION_SETPROPERTY, handler ? NULL : "-", NULL,
+            element_type, element_value, property,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
+        goto failed;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
+    msg->data = purc_variant_ref(data);
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, 0, handler) < 0) {
+        LOG_ERROR("Failed to send request message for %s\n", op_name);
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for %s.%s sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), element, property);
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+
+    return -1;
+}
+
+static int
+call_method(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+{
+    pcrdr_msg *msg;
+    struct client_info *info = pcrdr_conn_get_user_data(conn);
+
+    purc_variant_t tmp;
+    const char *target = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "target"))) {
+        target = purc_variant_get_string_const(tmp);
+    }
+
+    if (target == NULL) {
+        LOG_ERROR("No `target` defined in %s\n", op_name);
+        goto failed;
+    }
+
+    char target_name[PURC_LEN_IDENTIFIER + 1];
+    uint64_t handle;
+    handle = split_target(info->handles, target, target_name);
+
+    pcrdr_msg_target target_type;
+    if (strcmp(target_name, "session") == 0) {
+        target_type = PCRDR_MSG_TARGET_SESSION;
+        handle = 0;
+    }
+    else if (strcmp(target_name, "workspace") == 0) {
+        target_type = PCRDR_MSG_TARGET_WORKSPACE;
+        handle = 0;
+    }
+    else if (strcmp(target_name, "plainwindow") == 0) {
+        target_type = PCRDR_MSG_TARGET_PLAINWINDOW;
+    }
+    else if (strcmp(target_name, "page") == 0) {
+        target_type = PCRDR_MSG_TARGET_PAGE;
+    }
+    else if (strcmp(target_name, "dom") == 0) {
+        target_type = PCRDR_MSG_TARGET_DOM;
+    }
+    else {
+        LOG_ERROR("Not supported target: %s\n", target_name);
+        goto failed;
+    }
+
+    const char *element = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "element"))) {
+        element = purc_variant_get_string_const(tmp);
+    }
+
+    if (element == NULL) {
+        LOG_ERROR("No `element` given in %s\n", op_name);
+        goto failed;
+    }
+
+    char element_type_str[PURC_LEN_IDENTIFIER + 1];
+    const char *element_value;
+    element_value = split_element(element, element_type_str);
+    if (element_value == NULL) {
+        goto failed;
+    }
+
+    pcrdr_msg_element_type element_type;
+    if (strcmp(element_type_str, "handle") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_HANDLE;
+    }
+    else if (strcmp(element_type_str, "id") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_ID;
+    }
+    else if (strcmp(element_type_str, "css") == 0) {
+        element_type = PCRDR_MSG_ELEMENT_TYPE_CSS;
+    }
+    else {
+        LOG_ERROR("Not supported element type: %s\n", element_type_str);
+        goto failed;
+    }
+
+    purc_variant_t data = purc_variant_make_object_0();
+    if ((tmp = purc_variant_object_get_by_ckey(op, "method")) &&
+            purc_variant_get_string_const(tmp)) {
+        purc_variant_object_set_by_static_ckey(data, "method", tmp);
+    }
+    else {
+        LOG_ERROR("Not `method` specified for %s\n", op_name);
+        goto failed;
+    }
+
+    if ((tmp = purc_variant_object_get_by_ckey(op, "arg")) &&
+            purc_variant_get_string_const(tmp)) {
+        purc_variant_object_set_by_static_ckey(data, "arg", tmp);
+    }
+
+    pcrdr_response_handler handler = NULL;
+    if ((tmp = purc_variant_object_get_by_ckey(op, "handler"))) {
+        const char *handler_name = purc_variant_get_string_const(tmp);
+
+        if (handler_name) {
+            handler = dlsym(info->sample_handle, handler_name);
+        }
+    }
+
+    if (handler == NULL) {
+        LOG_ERROR("Not valid `handler` specified for %s\n", op_name);
+        goto failed;
+    }
+
+    msg = pcrdr_make_request_message(target_type, handle,
+            PCRDR_OPERATION_CALLMETHOD, NULL, NULL,
+            element_type, element_value, NULL,
+            PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
+    if (msg == NULL) {
+        LOG_ERROR("Failed to make request message for %s\n", op_name);
+        goto failed;
+    }
+
+    msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
+    msg->data = data;
+
+    if (pcrdr_send_request(conn, msg,
+                PCRDR_DEF_TIME_EXPECTED, 0, handler) < 0) {
+        LOG_ERROR("Failed to send request message for %s\n", op_name);
+        goto failed;
+    }
+
+    LOG_INFO("Request (%s) `%s` for %s sent\n",
+            purc_variant_get_string_const(msg->requestId),
+            purc_variant_get_string_const(msg->operation), element);
+    pcrdr_release_message(msg);
+    return 0;
+
+failed:
+    if (msg) {
+        pcrdr_release_message(msg);
+    }
+
+    return -1;
+}
 
 static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
 {
@@ -1278,11 +2330,15 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
     int retv;
     switch (op_id) {
     case PCRDR_K_OPERATION_CREATEPLAINWINDOW:
-        retv = create_plain_win(conn, op);
+        retv = create_plainwin(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_UPDATEPLAINWINDOW:
+        retv = update_plainwin(conn, operation, op);
         break;
 
     case PCRDR_K_OPERATION_DESTROYPLAINWINDOW:
-        retv = destroy_plain_win(conn, op);
+        retv = destroy_plainwin(conn, operation, op);
         break;
 
     case PCRDR_K_OPERATION_LOAD:
@@ -1298,6 +2354,42 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
     case PCRDR_K_OPERATION_ERASE:
     case PCRDR_K_OPERATION_CLEAR:
         retv = change_document(conn, op_id, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_SETPAGEGROUPS:
+        retv = set_page_groups(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_ADDPAGEGROUPS:
+        retv = add_page_groups(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_REMOVEPAGEGROUP:
+        retv = remove_page_group(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_CREATEPAGE:
+        retv = create_page(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_UPDATEPAGE:
+        retv = update_page(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_DESTROYPAGE:
+        retv = destroy_page(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_GETPROPERTY:
+        retv = get_property(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_SETPROPERTY:
+        retv = set_property(conn, operation, op);
+        break;
+
+    case PCRDR_K_OPERATION_CALLMETHOD:
+        retv = call_method(conn, operation, op);
         break;
 
     default:

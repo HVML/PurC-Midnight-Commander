@@ -291,6 +291,7 @@ static void unload_sample(struct client_info *info)
     purc_variant_unref(info->handles);
     purc_variant_unref(info->doc_contents);
     purc_variant_unref(info->doc_wrotten_len);
+    purc_variant_unref(info->batchOps);
 
     memset(info, 0, sizeof(*info));
 }
@@ -327,7 +328,7 @@ static uint64_t split_target(purc_variant_t handles,
         purc_variant_t v = purc_variant_object_get_by_ckey(handles, target);
         uint64_t handle;
 
-        if (purc_variant_cast_to_ulongint(v, &handle, false))
+        if (v && purc_variant_cast_to_ulongint(v, &handle, false))
             return handle;
     }
 
@@ -425,50 +426,63 @@ failed:
 
 static int issue_operation(pcrdr_conn* conn, purc_variant_t op);
 
-static inline int issue_batch_operations(pcrdr_conn* conn, purc_variant_t ops)
+static int issue_next_batch_operation(pcrdr_conn* conn)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    assert(info->currentOps == PURC_VARIANT_INVALID);
+    LOG_INFO("batchOps: %u/%u\n", (unsigned)info->issued_ops, (unsigned)info->nr_ops);
+    if (info->issued_ops < info->nr_ops) {
+        purc_variant_t op;
+        op = purc_variant_array_get(info->batchOps, info->issued_ops);
+        info->issued_ops++;
 
-    info->currentOps = purc_variant_ref(ops);
-    purc_variant_array_size(info->currentOps, &info->nr_ops);
-    info->issued_ops = 0;
+        if (info->interact) {
+            printf("Please press ENTER to issue next operation:\n");
+            do {
+                int ch;
+                do {
+                    ch = getchar();
+                } while (ch != '\n');
+            } while (0);
+        }
 
-    purc_variant_t op;
-    op = purc_variant_array_get(info->currentOps, info->issued_ops);
-    assert(op);
-    return issue_operation(conn, op);
+        return issue_operation(conn, op);
+    }
+
+    return 0;
 }
 
-static inline int issue_next_batch_operation(pcrdr_conn* conn)
+static inline int queue_operations(pcrdr_conn* conn, purc_variant_t op)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    if (info->issued_ops < info->nr_ops) {
-        info->issued_ops++;
-        purc_variant_t op;
-        op = purc_variant_array_get(info->currentOps, info->issued_ops);
-
-        if (op) {
-            if (info->interact) {
-                printf("Please press ENTER to issue next operation:\n");
-                do {
-                    int ch;
-                    do {
-                        ch = getchar();
-                    } while (ch != '\n');
-                } while (0);
-            }
-
-            return issue_operation(conn, op);
+    if (info->batchOps == PURC_VARIANT_INVALID) {
+        if (purc_variant_is_array(op)) {
+            info->batchOps = purc_variant_ref(op);
+        }
+        else {
+            info->batchOps = purc_variant_make_array_0();
+            purc_variant_array_append(info->batchOps, op);
         }
     }
     else {
-        purc_variant_unref(info->currentOps);
-        info->currentOps = PURC_VARIANT_INVALID;
+        if (purc_variant_is_array(op)) {
+            size_t sz;
+            purc_variant_array_size(op, &sz);
+            for (size_t i = 0; i < sz; i++) {
+                purc_variant_t v = purc_variant_array_get(op, i);
+                purc_variant_array_append(info->batchOps, v);
+            }
+        }
+        else
+            purc_variant_array_append(info->batchOps, op);
+    }
+
+    purc_variant_array_size(info->batchOps, &info->nr_ops);
+    if (pcrdr_conn_pending_requests_count(conn) == 0) {
+        issue_next_batch_operation(conn);
     }
 
     return 0;
@@ -1439,7 +1453,7 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     uint64_t win_handle = 0;
     win_handle = split_target(info->handles, target, target_name);
     if (strcmp(target_name, "plainwindow") && strcmp(target_name, "page")) {
-        LOG_ERROR("Bad target name: %s\n", target_name);
+        LOG_ERROR("Bad target name: %s\n", target);
         goto failed;
     }
 
@@ -2541,12 +2555,12 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
                 LOG_ERROR("No named operation defined: %s\n", op_name);
             }
             else if (purc_variant_is_object(op)) {
-                LOG_INFO("Issue a named operation: %s\n", op_name);
-                issue_operation(conn, op);
+                LOG_INFO("Queue a named operation: %s\n", op_name);
+                queue_operations(conn, op);
             }
             else if (purc_variant_is_array(op)) {
-                LOG_INFO("Issue a named batch operations: %s\n", op_name);
-                issue_batch_operations(conn, op);
+                LOG_INFO("Queue a named batch operations: %s\n", op_name);
+                queue_operations(conn, op);
             }
             else {
                 LOG_ERROR("Not a valid named operation: %s\n", op_name);
@@ -2651,7 +2665,7 @@ int main(int argc, char **argv)
 
     format_current_time(curr_time, sizeof (curr_time) - 1, false);
 
-    issue_batch_operations(conn, client.initialOps);
+    queue_operations(conn, client.initialOps);
 
     maxfd = cnnfd;
     do {

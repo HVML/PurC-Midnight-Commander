@@ -31,6 +31,7 @@ struct sample_data;
 struct client_info {
     bool running;
     bool interact;
+    bool batch_finished;
 
     uint32_t nr_created_windows;
     uint32_t nr_destroyed_wins;
@@ -46,11 +47,11 @@ struct client_info {
     purc_variant_t initialOps;
     purc_variant_t namedOps;
     purc_variant_t events;
+    size_t nr_events;
 
-    purc_variant_t currentOps;
+    purc_variant_t batchOps;
     size_t nr_ops;
     size_t issued_ops;
-    size_t nr_events;
 
     size_t nr_windows_created;
     size_t nr_pages_created;

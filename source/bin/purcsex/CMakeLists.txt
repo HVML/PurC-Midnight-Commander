@@ -108,6 +108,7 @@ PURCMC_COPY_FILES(purcsex_copy_calculator_files
 )
 
 set(navigation_FILES
+    "introduction.json"
     "navigation.json"
     "navigation/layout.html"
     "navigation/splash.html"

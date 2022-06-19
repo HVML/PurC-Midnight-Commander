@@ -8,28 +8,72 @@
     <link rel="stylesheet" href="//localhost/_renderer/_builtin/-/assets/bootstrap-5.1.3-dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="//localhost/_renderer/_builtin/-/assets/bootstrap-icons-1.8.3/bootstrap-icons.css" />
 
-    <title>欢迎进入 HVML 的世界</title>
+    <title>HVML</title>
 </head>
 
 <body>
 
-  <div class="px-4 my-5 border-bottom">
-    <div class="text-center" id="theIntro">
-      <img class="d-block mx-auto mb-4" src="//localhost/_renderer/_builtin/-/assets/hvml.png" alt="" width="100" height="100" />
-      <h1 class="display-4 fw-bold">
-        HVML
-        <small class="text-muted">全球首款可编程标记语言</small>
-      </h1>
+  <div class="px-4 py-5 my-5 text-center">
+    <img class="d-block mx-auto mb-4" src="//localhost/_renderer/_builtin/-/assets/hvml.png" alt="" width="100" height="100" />
+    <h1 class="display-4 fw-bold">
+      HVML
+    </h1>
 
-      <p class="lead">2020 年 5 月，魏永明有了设计一款与众不同的编程语言的想法，后于 2020 年 7 月提出了 HVML 编程语言并公开了第一份规范草案。一年后，即 2021 年 7 月，魏永明成立了一个攻坚团队并正式开始了 HVML 解释器（PurC）的开发。2021 年 12 月 27 日，第一个 HVML 程序成功运行，标志着 HVML 的正式诞生。约八十日后，在 2022 年 3 月 11 日，HVML 解释器完成和字符渲染器的对接。又八十日后，2022 年 5 月 31 日，HVML 图形渲染器 xGUI Pro 就绪。至此，魏永明及其团队完成了 HVML 技术栈的最后一块拼图。</p>
+    <div class="col-lg-9 mx-auto">
+      <p class="lead">在 HybridOS（合璧操作系统）的开发过程中，魏永明提出了一套完备、通用、易学的新式编程语言，称为 HVML。HVML 是 Hybrid Virtual Markup Language 的缩写，中文名称为“混合虚拟标记语言”，简称“呼噜猫”。HVML 是全球首款可编程标记语言。</p>
+      <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+          <button id="theBtnPurC" class="btn btn-primary btn-lg px-4 gap-3" hvml-events="click">了解 PurC</button>
+          <button id="theBtnXGUIPro" class="btn btn-secondary btn-lg px-4 gap-3" hvml-events="click">了解 xGUI Pro</button>
+      </div>
+    </div>
+  </div>
 
-      <div class="col-lg-6 mx-auto">
-        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mb-5">
-          <button id="theBtnPurC" class="btn btn-primary" hvml-events="click">了解 PurC</button>
-          <button id="theBtnXGUIPro" class="btn btn-secondary" hvml-events="click">了解 xGUI Pro</button>
+  <div class="container px-4 py-5" id="hanging-icons">
+    <h2 class="pb-2 border-bottom">HVML 的技术特点</h2>
+
+    <div class="row g-4 py-5 row-cols-1 row-cols-lg-2">
+      <div class="col d-flex align-items-start">
+        <div class="icon-square bg-light text-dark flex-shrink-0 me-3">
+            <i class="bi-alarm" style="font-size: 2rem;"></i>
+        </div>
+        <div>
+          <h2>简洁设计</h2>
+          <p>HVML 仅仅使用二十多个特有的标签，定义了用于操作一个抽象的栈式虚拟机的完备指令。通过符合英语表达习惯的动词标签以及介词属性、副词属性，让每一行代码都具有清晰的语义。这将帮助开发者编写具有极佳可读性的程序代码。</p>
         </div>
       </div>
 
+      <div class="col d-flex align-items-start">
+        <div class="icon-square bg-light text-dark flex-shrink-0 me-3">
+          <i class="bi-cpu-fill" style="font-size: 2rem;"></i>
+        </div>
+        <div>
+          <h2>数据驱动</h2>
+          <p>HVML 提供了通过操控数据来实现功能的方法，同时致力于通过统一的数据表达方式将系统中的不同模块串接起来。为了实现以上目标，HVML 在 JSON 这一广泛使用的抽象数据表达方式之上，提供了扩展的数据类型以及灵活的表达式处理能力。</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="row g-4 py-5 row-cols-1 row-cols-lg-2">
+      <div class="col d-flex align-items-start">
+        <div class="icon-square bg-light text-dark flex-shrink-0 me-3">
+          <i class="bi-tools" style="font-size: 2rem;"></i>
+        </div>
+        <div>
+          <h2>固有事件驱动机制</h2>
+          <p>和其他编程语言不同，HVML 语言提供了观察数据、事件甚至观察一个表达式结果发生变化的语言级机制。在此基础上，开发者无需关心底层的实现细节便可以轻松实现其他编程语言中难以管理的并发或异步编程。</p>
+        </div>
+      </div>
+
+      <div class="col d-flex align-items-start">
+        <div class="icon-square bg-light text-dark flex-shrink-0 me-3">
+          <i class="bi-tools" style="font-size: 2rem;"></i>
+        </div>
+        <div>
+          <h2>全新的应用框架</h2>
+          <p>通过 HVML 独有的应用框架，我们将性能关键的数据处理交由外部程序或服务器实现，和用户的交互由独立的渲染器负责，HVML 程序则负责粘合这些不同的系统组件。这提高了系统组件之间的互操作性高，同时可有效消除组件之间的耦合。</p>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="//localhost/_renderer/_builtin/-/assets/bootstrap-5.1.3-dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="//localhost/_renderer/_builtin/-/assets/bootstrap-icons-1.8.3/bootstrap-icons.css" />
 
-    <title>欢迎进入 HVML 的世界</title>
+    <title>PurC</title>
 </head>
 
 <body>
@@ -17,11 +17,18 @@
     <div class="text-center" id="theIntro">
       <img class="d-block mx-auto mb-4" src="//localhost/_renderer/_builtin/-/assets/hvml.png" alt="" width="100" height="100" />
       <h1 class="display-4 fw-bold">
-        HVML
-        <small class="text-muted">全球首款可编程标记语言</small>
+        PurC
+        <small class="text-muted">HVML 解释器</small>
       </h1>
 
-      <p class="lead">2020 年 5 月，魏永明有了设计一款与众不同的编程语言的想法，后于 2020 年 7 月提出了 HVML 编程语言并公开了第一份规范草案。一年后，即 2021 年 7 月，魏永明成立了一个攻坚团队并正式开始了 HVML 解释器（PurC）的开发。2021 年 12 月 27 日，第一个 HVML 程序成功运行，标志着 HVML 的正式诞生。约八十日后，在 2022 年 3 月 11 日，HVML 解释器完成和字符渲染器的对接。又八十日后，2022 年 5 月 31 日，HVML 图形渲染器 xGUI Pro 就绪。至此，魏永明及其团队完成了 HVML 技术栈的最后一块拼图。</p>
+      <p class="lead">PurC 是魏永明领导开发团队开发的第一个 HVML 解释器，使用 C 编程语言。PurC 是 Purring Cat（呼噜猫）的缩写，而呼噜猫是 HVML 的吉祥物。</p>
+
+      <p class="lead">在完整的基于 HVML 的应用框架中，包含一个独立运行的图形用户界面渲染引擎（简称“渲染器”），开发者通过撰写 HVML 程序来操控渲染引擎，而 HVML 程序在 HVML 解释器中运行，并可以和其他已有的编程语言运行时环境绑定起来，接收由其他编程语言程序生成的数据，并按照 HVML 程序的指令，将其转换为图形用户界面的描述信息或者变更信息。也就是说，在 HVML 的应用框架中，运行有两个主要组件：</p>
+
+      <ol>
+        <li>HVML 解释器加载并解析 HVML 程序，然后以特有的方式运行 HVML 程序，并生成使用 HTML、XML 等标签语言描述的文档或文档的变化信息，然后交由渲染器渲染。解释器同时监听来自渲染器交互事件并进行处理。PurC 便是 HVML 解释器的一种实现。</li>
+        <li>渲染器根据 HVML 解释器生成的 HTML、SVG、MathML 文档并根据 CSS 的定义将文档渲染为最终的图形界面，然后 HVML 解释器生成的文档变化信息，更新界面并实现和用户的交互。xGUI Pro 便是这样一种渲染器的实现。</li>
+      </ol>
 
       <div class="col-lg-6 mx-auto">
         <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mb-5">

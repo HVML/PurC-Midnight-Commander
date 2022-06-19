@@ -228,9 +228,10 @@ static bool load_sample(struct client_info *info)
         return false;
     }
 
-    info->initialOps = purc_variant_object_get_by_ckey(info->sample, "initialOps");
+    info->initialOps =
+        purc_variant_object_get_by_ckey(info->sample, "initialOps");
     if (info->initialOps == PURC_VARIANT_INVALID ||
-            !purc_variant_array_size(info->initialOps, &info->nr_ops)) {
+            !purc_variant_is_array(info->initialOps)) {
         LOG_ERROR("No valid `initialOps` defined.\n");
         return false;
     }
@@ -424,30 +425,34 @@ failed:
 
 static int issue_operation(pcrdr_conn* conn, purc_variant_t op);
 
-static inline int issue_first_operation(pcrdr_conn* conn)
+static inline int issue_batch_operations(pcrdr_conn* conn, purc_variant_t ops)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    info->ops_issued = 0;
+    assert(info->currentOps == PURC_VARIANT_INVALID);
+
+    info->currentOps = purc_variant_ref(ops);
+    purc_variant_array_size(info->currentOps, &info->nr_ops);
+    info->issued_ops = 0;
 
     purc_variant_t op;
-    op = purc_variant_array_get(info->initialOps, info->ops_issued);
+    op = purc_variant_array_get(info->currentOps, info->issued_ops);
     assert(op);
     return issue_operation(conn, op);
 }
 
-static inline int issue_next_operation(pcrdr_conn* conn)
+static inline int issue_next_batch_operation(pcrdr_conn* conn)
 {
     struct client_info *info = pcrdr_conn_get_user_data(conn);
     assert(info);
 
-    if (info->ops_issued < info->nr_ops) {
-        info->ops_issued++;
+    if (info->issued_ops < info->nr_ops) {
+        info->issued_ops++;
         purc_variant_t op;
-        op = purc_variant_array_get(info->initialOps, info->ops_issued);
-        if (op) {
+        op = purc_variant_array_get(info->currentOps, info->issued_ops);
 
+        if (op) {
             if (info->interact) {
                 printf("Please press ENTER to issue next operation:\n");
                 do {
@@ -460,6 +465,10 @@ static inline int issue_next_operation(pcrdr_conn* conn)
 
             return issue_operation(conn, op);
         }
+    }
+    else {
+        purc_variant_unref(info->currentOps);
+        info->currentOps = PURC_VARIANT_INVALID;
     }
 
     return 0;
@@ -506,7 +515,7 @@ static int plainwin_created_handler(pcrdr_conn* conn,
         handle = purc_variant_make_ulongint(response_msg->resultValue);
         purc_variant_object_set(info->handles, result_key, handle);
 
-        issue_next_operation(conn);
+        issue_next_batch_operation(conn);
     }
     else {
         LOG_ERROR("failed to create the plainwin: %s\n",
@@ -657,6 +666,7 @@ static int plainwin_page_updated_handler(pcrdr_conn* conn,
         LOG_ERROR("failed to update a window/page (%s): %d\n",
             purc_variant_get_string_const(result_key),
             response_msg->retCode);
+        issue_next_batch_operation(conn);
     }
 
 done:
@@ -770,9 +780,8 @@ static int plainwin_destroyed_handler(pcrdr_conn* conn,
         }
 
         info->nr_windows_created--;
-        if (info->nr_windows_created == 0) {
-            info->running = false;
-        }
+        assert(info->nr_windows_created >= 0);
+        issue_next_batch_operation(conn);
     }
     else {
         LOG_ERROR("failed to destroy a plain window\n");
@@ -811,7 +820,7 @@ destroy_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     char handle[32];
     sprintf(handle, "%llx", (long long)value);
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-            PCRDR_OPERATION_DESTROYPLAINWINDOW, "-", NULL,
+            PCRDR_OPERATION_DESTROYPLAINWINDOW, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -858,13 +867,13 @@ static int page_created_handler(pcrdr_conn* conn,
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
-        info->nr_windows_created++;
+        info->nr_pages_created++;
 
         purc_variant_t handle;
         handle = purc_variant_make_ulongint(response_msg->resultValue);
         purc_variant_object_set(info->handles, result_key, handle);
 
-        issue_next_operation(conn);
+        issue_next_batch_operation(conn);
     }
     else {
         LOG_ERROR("failed to create the desired page: %s\n",
@@ -1094,10 +1103,10 @@ static int page_destroyed_handler(pcrdr_conn* conn,
                 purc_variant_get_string_const(result_key));
         }
 
-        info->nr_windows_created--;
-        if (info->nr_windows_created == 0) {
-            info->running = false;
-        }
+        info->nr_pages_created--;
+        assert(info->nr_pages_created >= 0);
+
+        issue_next_batch_operation(conn);
     }
     else {
         LOG_ERROR("failed to destroy a plain window\n");
@@ -1136,7 +1145,7 @@ destroy_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     char handle[32];
     sprintf(handle, "%llx", (long long)value);
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-            PCRDR_OPERATION_DESTROYPAGE, "-", NULL,
+            PCRDR_OPERATION_DESTROYPAGE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -1201,7 +1210,7 @@ static int loaded_handler(pcrdr_conn* conn,
         purc_variant_object_set(info->handles, result_key, handle);
         purc_variant_unref(handle);
 
-        issue_next_operation(conn);
+        issue_next_batch_operation(conn);
     }
     else {
         LOG_ERROR("failed to load document\n");
@@ -1272,7 +1281,7 @@ static int wrotten_handler(pcrdr_conn* conn,
                 goto done;
             }
 
-            issue_next_operation(conn);
+            issue_next_batch_operation(conn);
         }
         else {
             write_more_document(conn, purc_variant_ref(result_key));
@@ -1666,7 +1675,7 @@ static int changed_handler(pcrdr_conn* conn,
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
-        issue_next_operation(conn);
+        issue_next_batch_operation(conn);
     }
     else {
         LOG_ERROR("failed to change document\n");
@@ -1724,6 +1733,8 @@ failed:
     return -1;
 }
 
+/* Common handler for `setPageGroups`, `addPageGroups`, and `removePageGroup`.
+ */
 static int page_group_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
@@ -1740,7 +1751,7 @@ static int page_group_handler(pcrdr_conn* conn,
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
-        issue_next_operation(conn);
+        issue_next_batch_operation(conn);
     }
     else {
         LOG_ERROR("failed to change workspace\n");
@@ -1903,6 +1914,28 @@ failed:
     }
 
     return -1;
+}
+
+static int default_handler(pcrdr_conn* conn,
+        const char *request_id, int state,
+        void *context, const pcrdr_msg *response_msg)
+{
+    if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {
+        return 0;
+    }
+
+    LOG_INFO("Got a response for request (%s) on context (%p): %d\n",
+            purc_variant_get_string_const(response_msg->requestId),
+            context, response_msg->retCode);
+
+    if (response_msg->retCode == PCRDR_SC_OK) {
+        issue_next_batch_operation(conn);
+    }
+    else {
+        LOG_ERROR("failed to change workspace\n");
+    }
+
+    return 0;
 }
 
 static int
@@ -2137,7 +2170,7 @@ set_property(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     }
 
     msg = pcrdr_make_request_message(target_type, handle,
-            PCRDR_OPERATION_SETPROPERTY, handler ? NULL : "-", NULL,
+            PCRDR_OPERATION_SETPROPERTY, NULL, NULL,
             element_type, element_value, property,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -2149,7 +2182,8 @@ set_property(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     msg->data = purc_variant_ref(data);
 
     if (pcrdr_send_request(conn, msg,
-                PCRDR_DEF_TIME_EXPECTED, 0, handler) < 0) {
+                PCRDR_DEF_TIME_EXPECTED, 0,
+                (handler != NULL) ? handler : default_handler) < 0) {
         LOG_ERROR("Failed to send request message for %s\n", op_name);
         goto failed;
     }
@@ -2503,12 +2537,19 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
         else {
             purc_variant_t op;
             op = purc_variant_object_get_by_ckey(info->namedOps, op_name);
-            if (op == PURC_VARIANT_INVALID || !purc_variant_is_object(op)) {
-                LOG_ERROR("Bad named operation: %s\n", op_name);
+            if (op == PURC_VARIANT_INVALID) {
+                LOG_ERROR("No named operation defined: %s\n", op_name);
+            }
+            else if (purc_variant_is_object(op)) {
+                LOG_INFO("Issue a named operation: %s\n", op_name);
+                issue_operation(conn, op);
+            }
+            else if (purc_variant_is_array(op)) {
+                LOG_INFO("Issue a named batch operations: %s\n", op_name);
+                issue_batch_operations(conn, op);
             }
             else {
-                LOG_INFO("Issue the named operation: %s\n", op_name);
-                issue_operation(conn, op);
+                LOG_ERROR("Not a valid named operation: %s\n", op_name);
             }
         }
     }
@@ -2610,7 +2651,7 @@ int main(int argc, char **argv)
 
     format_current_time(curr_time, sizeof (curr_time) - 1, false);
 
-    issue_first_operation(conn);
+    issue_batch_operations(conn, client.initialOps);
 
     maxfd = cnnfd;
     do {

@@ -47,11 +47,13 @@ struct client_info {
     purc_variant_t namedOps;
     purc_variant_t events;
 
+    purc_variant_t currentOps;
     size_t nr_ops;
+    size_t issued_ops;
     size_t nr_events;
 
-    size_t ops_issued;
     size_t nr_windows_created;
+    size_t nr_pages_created;
 
     /*
      * contents for windows or pages.

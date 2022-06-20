@@ -274,7 +274,7 @@ static void unload_sample(struct client_info *info)
     purc_variant_unref(info->handles);
     purc_variant_unref(info->doc_contents);
     purc_variant_unref(info->doc_wrotten_len);
-    //purc_variant_unref(info->batchOps);
+    purc_variant_unref(info->batchOps);
 
     if (info->sample) {
         purc_variant_unref(info->sample);
@@ -591,7 +591,6 @@ create_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     purc_variant_t data = purc_variant_make_object_0();
     if ((tmp = purc_variant_object_get_by_ckey(op, "name"))) {
         purc_variant_object_set_by_static_ckey(data, "name", tmp);
-        purc_variant_unref(tmp);
     }
     else {
         static unsigned nr_wins = 0;
@@ -605,22 +604,18 @@ create_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 
     if ((tmp = purc_variant_object_get_by_ckey(op, "class"))) {
         purc_variant_object_set_by_static_ckey(data, "class", tmp);
-        purc_variant_unref(tmp);
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(op, "title"))) {
         purc_variant_object_set_by_static_ckey(data, "title", tmp);
-        purc_variant_unref(tmp);
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(op, "layoutStyle"))) {
         purc_variant_object_set_by_static_ckey(data, "layoutStyle", tmp);
-        purc_variant_unref(tmp);
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(op, "widgetStyle"))) {
         purc_variant_object_set_by_static_ckey(data, "widgetStyle", tmp);
-        purc_variant_unref(tmp);
     }
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
@@ -949,7 +944,6 @@ create_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     purc_variant_t data = purc_variant_make_object_0();
     if ((tmp = purc_variant_object_get_by_ckey(op, "name"))) {
         purc_variant_object_set_by_static_ckey(data, "name", tmp);
-        purc_variant_unref(tmp);
     }
     else {
         LOG_ERROR("No page name defined for %s\n", op_name);
@@ -958,22 +952,18 @@ create_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 
     if ((tmp = purc_variant_object_get_by_ckey(op, "class"))) {
         purc_variant_object_set_by_static_ckey(data, "class", tmp);
-        purc_variant_unref(tmp);
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(op, "title"))) {
         purc_variant_object_set_by_static_ckey(data, "title", tmp);
-        purc_variant_unref(tmp);
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(op, "layoutStyle"))) {
         purc_variant_object_set_by_static_ckey(data, "layoutStyle", tmp);
-        purc_variant_unref(tmp);
     }
 
     if ((tmp = purc_variant_object_get_by_ckey(op, "widgetStyle"))) {
         purc_variant_object_set_by_static_ckey(data, "widgetStyle", tmp);
-        purc_variant_unref(tmp);
     }
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;

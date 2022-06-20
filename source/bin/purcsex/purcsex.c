@@ -271,6 +271,11 @@ static bool load_sample(struct client_info *info)
 
 static void unload_sample(struct client_info *info)
 {
+    purc_variant_unref(info->handles);
+    purc_variant_unref(info->doc_contents);
+    purc_variant_unref(info->doc_wrotten_len);
+    //purc_variant_unref(info->batchOps);
+
     if (info->sample) {
         purc_variant_unref(info->sample);
     }
@@ -287,11 +292,6 @@ static void unload_sample(struct client_info *info)
         LOG_INFO("Module for sample `%s` unloaded; sample data: %p\n",
                 info->sample_name, info->sample_data);
     }
-
-    purc_variant_unref(info->handles);
-    purc_variant_unref(info->doc_contents);
-    purc_variant_unref(info->doc_wrotten_len);
-    purc_variant_unref(info->batchOps);
 
     memset(info, 0, sizeof(*info));
 }
@@ -459,25 +459,19 @@ static inline int queue_operations(pcrdr_conn* conn, purc_variant_t op)
     assert(info);
 
     if (info->batchOps == PURC_VARIANT_INVALID) {
-        if (purc_variant_is_array(op)) {
-            info->batchOps = purc_variant_ref(op);
-        }
-        else {
-            info->batchOps = purc_variant_make_array_0();
-            purc_variant_array_append(info->batchOps, op);
+        info->batchOps = purc_variant_make_array_0();
+    }
+
+    if (purc_variant_is_array(op)) {
+        size_t sz;
+        purc_variant_array_size(op, &sz);
+        for (size_t i = 0; i < sz; i++) {
+            purc_variant_t v = purc_variant_array_get(op, i);
+            purc_variant_array_append(info->batchOps, v);
         }
     }
     else {
-        if (purc_variant_is_array(op)) {
-            size_t sz;
-            purc_variant_array_size(op, &sz);
-            for (size_t i = 0; i < sz; i++) {
-                purc_variant_t v = purc_variant_array_get(op, i);
-                purc_variant_array_append(info->batchOps, v);
-            }
-        }
-        else
-            purc_variant_array_append(info->batchOps, op);
+        purc_variant_array_append(info->batchOps, op);
     }
 
     purc_variant_array_size(info->batchOps, &info->nr_ops);

@@ -14,7 +14,8 @@
             "aboutHVML": { "operation": "load", "target": "plainwindow/intro", "content": "navigation/about-hvml.html", "resultKey": "intro" },
             "aboutPurC": { "operation": "load", "target": "plainwindow/intro", "content": "navigation/about-purc.html", "resultKey": "intro" },
             "aboutXGUIPro": { "operation": "load", "target": "plainwindow/intro", "content": "navigation/about-xguipro.html", "resultKey": "intro" },
-            "closeIntro": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/intro" }
+            "closeIntro": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/intro" },
+            "closeSplash": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/splash" }
         },
    "events":
        [
@@ -22,7 +23,8 @@
             { "eventName": "click", "target": "dom/intro", "element": "id/theBtnHVML", "namedOp": "aboutHVML" },
             { "eventName": "click", "target": "dom/intro", "element": "id/theBtnPurC", "namedOp": "aboutPurC" },
             { "eventName": "click", "target": "dom/intro", "element": "id/theBtnXGUIPro", "namedOp": "aboutXGUIPro" },
-            { "eventName": "close", "target": "plainwindow/intro", "namedOp": "func:quit" }
+            { "eventName": "close", "target": "plainwindow/intro", "namedOp": "closeSplash" },
+            { "eventName": "close", "target": "plainwindow/splash", "namedOp": "func:quit" }
        ]
 }
 

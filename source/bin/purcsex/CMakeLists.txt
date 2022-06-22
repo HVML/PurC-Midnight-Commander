@@ -83,35 +83,22 @@ set(navigation_SOURCES
 
 ADD_PURCSEX_EXTENSION(navigation ${navigation_SOURCES})
 
-set(shownews_FILES
+set(asset_FILES
     "shownews.json"
     "shownews/shownews.html"
     "shownews/shownews-intro.frag"
     "shownews/shownews-news.frag"
-)
-
-PURCMC_COPY_FILES(purcsex_copy_shownews_files
-    DESTINATION "${CMAKE_BINARY_DIR}"
-    FILES ${shownews_FILES}
-)
-
-set(calculator_FILES
     "calculator.json"
     "calculator/calculator.html"
     "calculator/calculator-header.frag"
     "calculator/calculator-intro.frag"
-)
-
-PURCMC_COPY_FILES(purcsex_copy_calculator_files
-    DESTINATION "${CMAKE_BINARY_DIR}"
-    FILES ${calculator_FILES}
-)
-
-set(navigation_FILES
     "introduction.json"
     "introduction2.json"
+    "introduction3.json"
     "navigation.json"
     "navigation/layout.html"
+    "navigation/modal-group.frag"
+    "navigation/page-groups.frag"
     "navigation/splash.html"
     "navigation/nav-tabs.html"
     "navigation/about-hvml.html"
@@ -119,8 +106,8 @@ set(navigation_FILES
     "navigation/about-xguipro.html"
 )
 
-PURCMC_COPY_FILES(purcsex_copy_navigation_files
+PURCMC_COPY_FILES(purcsex_copy_asset_files
     DESTINATION "${CMAKE_BINARY_DIR}"
-    FILES ${navigation_FILES}
+    FILES ${asset_FILES}
 )
 

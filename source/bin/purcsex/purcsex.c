@@ -653,8 +653,8 @@ static int plainwin_page_updated_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
 {
-    struct client_info *info = pcrdr_conn_get_user_data(conn);
-    assert(info);
+    //struct client_info *info = pcrdr_conn_get_user_data(conn);
+    //assert(info);
 
     purc_variant_t result_key = (purc_variant_t)context;
     if (state == PCRDR_RESPONSE_CANCELLED || response_msg == NULL) {

@@ -614,8 +614,8 @@ create_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
         purc_variant_object_set_by_static_ckey(data, "layoutStyle", tmp);
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(op, "widgetStyle"))) {
-        purc_variant_object_set_by_static_ckey(data, "widgetStyle", tmp);
+    if ((tmp = purc_variant_object_get_by_ckey(op, "toolkitStyle"))) {
+        purc_variant_object_set_by_static_ckey(data, "toolkitStyle", tmp);
     }
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
@@ -962,8 +962,8 @@ create_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
         purc_variant_object_set_by_static_ckey(data, "layoutStyle", tmp);
     }
 
-    if ((tmp = purc_variant_object_get_by_ckey(op, "widgetStyle"))) {
-        purc_variant_object_set_by_static_ckey(data, "widgetStyle", tmp);
+    if ((tmp = purc_variant_object_get_by_ckey(op, "toolkitStyle"))) {
+        purc_variant_object_set_by_static_ckey(data, "toolkitStyle", tmp);
     }
 
     msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;

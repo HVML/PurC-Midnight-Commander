@@ -1333,7 +1333,7 @@ static int write_more_document(pcrdr_conn* conn, purc_variant_t result_key)
     size_t len_to_write = 0;
     if (len_wrotten + DEF_LEN_ONE_WRITE > len_content) {
         // writeEnd
-        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+        msg = pcrdr_make_request_message(info->last_target,
                 win_handle,
                 PCRDR_OPERATION_WRITEEND, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
@@ -1350,7 +1350,7 @@ static int write_more_document(pcrdr_conn* conn, purc_variant_t result_key)
     }
     else {
         // writeMore
-        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+        msg = pcrdr_make_request_message(info->last_target,
                 win_handle,
                 PCRDR_OPERATION_WRITEMORE, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
@@ -1436,7 +1436,13 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     char target_name[PURC_LEN_IDENTIFIER + 1];
     uint64_t win_handle = 0;
     win_handle = split_target(info->handles, target, target_name);
-    if (strcmp(target_name, "plainwindow") && strcmp(target_name, "page")) {
+    if (strcmp(target_name, "plainwindow") == 0) {
+        info->last_target = PCRDR_MSG_TARGET_PLAINWINDOW;
+    }
+    else if (strcmp(target_name, "page") == 0) {
+        info->last_target = PCRDR_MSG_TARGET_PAGE;
+    }
+    else {
         LOG_ERROR("Bad target name: %s\n", target);
         goto failed;
     }
@@ -1482,7 +1488,7 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     pcrdr_response_handler handler;
     if (len_content > DEF_LEN_ONE_WRITE) {
         // use writeBegin
-        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+        msg = pcrdr_make_request_message(info->last_target,
                 win_handle,
                 PCRDR_OPERATION_WRITEBEGIN, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
@@ -1506,7 +1512,7 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     }
     else {
         // use load
-        msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_PLAINWINDOW,
+        msg = pcrdr_make_request_message(info->last_target,
                 win_handle,
                 PCRDR_OPERATION_LOAD, NULL, NULL,
                 PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,

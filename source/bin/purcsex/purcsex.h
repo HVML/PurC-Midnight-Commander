@@ -99,6 +99,7 @@ struct client_info {
     void *sample_handle;
     struct sample_data *sample_data;
 
+    pcrdr_msg_target last_target;
     char buff[32];
 };
 

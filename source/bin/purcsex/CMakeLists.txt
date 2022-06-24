@@ -102,6 +102,7 @@ set(asset_FILES
     "introduction.json"
     "introduction2.json"
     "introduction3.json"
+    "introduction4.json"
     "navigation.json"
     "assets/layout.html"
     "assets/layout-panes.html"

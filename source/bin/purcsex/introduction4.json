@@ -1,0 +1,32 @@
+{
+    "initialOps":
+        [
+            { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout-panes.html" },
+            { "operation": "addPage", "target": "workspace/0", "element": "id/theHeader", "name": "splash", "resultKey": "splash" },
+            { "operation": "load", "target": "page/splash", "content": "assets/splash.html", "resultKey": "splash" },
+            { "operation": "addPage", "target": "workspace/0", "element": "id/theBody", "name": "hvml", "resultKey": "hvml" },
+            { "operation": "load", "target": "page/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" },
+            { "operation": "addPage", "target": "workspace/0", "element": "id/theBody", "name": "purc", "class": "pane", "resultKey": "purc" },
+            { "operation": "load", "target": "page/purc", "content": "assets/about-purc.html", "class": "pane", "resultKey": "purc" },
+            { "operation": "addPage", "target": "workspace/0", "element": "id/theBody", "name": "xguipro", "class": "pane", "resultKey": "xguipro" },
+            { "operation": "load", "target": "page/xguipro", "content": "assets/about-xguipro.html", "class": "pane", "resultKey": "xguipro" }
+        ],
+    "namedOps":
+        {
+            "aboutHVML-hvml": { "operation": "load", "target": "page/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" },
+            "aboutPurC-hvml": { "operation": "load", "target": "page/hvml", "content": "assets/about-purc.html", "resultKey": "hvml" },
+            "aboutXGUIPro-hvml": { "operation": "load", "target": "page/hvml", "content": "assets/about-xguipro.html", "resultKey": "hvml" },
+            "aboutHVML-purc": { "operation": "load", "target": "page/purc", "content": "assets/about-hvml.html", "resultKey": "purc" },
+            "aboutPurC-purc": { "operation": "load", "target": "page/purc", "content": "assets/about-purc.html", "resultKey": "purc" },
+            "aboutXGUIPro-purc": { "operation": "load", "target": "page/purc", "content": "assets/about-xguipro.html", "resultKey": "purc" },
+            "aboutHVML-xguipro": { "operation": "load", "target": "page/xguipro", "content": "assets/about-hvml.html", "resultKey": "xguipro" },
+            "aboutPurC-xguipro": { "operation": "load", "target": "page/xguipro", "content": "assets/about-purc.html", "resultKey": "xguipro" },
+            "aboutXGUIPro-xguipro": { "operation": "load", "target": "page/xguipro", "content": "assets/about-xguipro.html", "resultKey": "xguipro" }
+        },
+   "events":
+       [
+            { "eventName": "create", "target": "workspace/0", "element": "id/theTabbedWindow", "namedOp": "func:on_tabbed_window_created" },
+            { "eventName": "close", "target": "workspace/0", "element": "id/theTabbedWindow", "namedOp": "func:quit" }
+       ]
+}
+

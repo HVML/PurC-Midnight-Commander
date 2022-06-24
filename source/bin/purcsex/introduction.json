@@ -2,18 +2,18 @@
     "initialOps":
         [
             { "operation": "createPlainWindow", "target": "workspace/0", "name": "splash", "title": "欢迎", "resultKey": "splash" },
-            { "operation": "load", "target": "plainwindow/splash", "content": "navigation/splash.html", "resultKey": "splash" }
+            { "operation": "load", "target": "plainwindow/splash", "content": "assets/splash.html", "resultKey": "splash" }
         ],
     "namedOps":
         {
             "closeSplash": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/splash" },
             "createIntro": [
                 { "operation": "createPlainWindow", "target": "workspace/0", "name": "intro", "title": "介绍", "resultKey": "intro" },
-                { "operation": "load", "target": "plainwindow/intro", "content": "navigation/about-hvml.html", "resultKey": "intro" }
+                { "operation": "load", "target": "plainwindow/intro", "content": "assets/about-hvml.html", "resultKey": "intro" }
             ],
-            "aboutHVML": { "operation": "load", "target": "plainwindow/intro", "content": "navigation/about-hvml.html", "resultKey": "intro" },
-            "aboutPurC": { "operation": "load", "target": "plainwindow/intro", "content": "navigation/about-purc.html", "resultKey": "intro" },
-            "aboutXGUIPro": { "operation": "load", "target": "plainwindow/intro", "content": "navigation/about-xguipro.html", "resultKey": "intro" },
+            "aboutHVML": { "operation": "load", "target": "plainwindow/intro", "content": "assets/about-hvml.html", "resultKey": "intro" },
+            "aboutPurC": { "operation": "load", "target": "plainwindow/intro", "content": "assets/about-purc.html", "resultKey": "intro" },
+            "aboutXGUIPro": { "operation": "load", "target": "plainwindow/intro", "content": "assets/about-xguipro.html", "resultKey": "intro" },
             "closeIntro": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/intro" }
         },
    "events":

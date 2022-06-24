@@ -103,14 +103,15 @@ set(asset_FILES
     "introduction2.json"
     "introduction3.json"
     "navigation.json"
-    "navigation/layout.html"
-    "navigation/modal-group.frag"
-    "navigation/page-groups.frag"
-    "navigation/splash.html"
-    "navigation/nav-tabs.html"
-    "navigation/about-hvml.html"
-    "navigation/about-purc.html"
-    "navigation/about-xguipro.html"
+    "assets/layout.html"
+    "assets/layout-panes.html"
+    "assets/modal-group.frag"
+    "assets/page-groups.frag"
+    "assets/splash.html"
+    "assets/nav-tabs.html"
+    "assets/about-hvml.html"
+    "assets/about-purc.html"
+    "assets/about-xguipro.html"
 )
 
 PURCMC_COPY_FILES(purcsex_copy_asset_files

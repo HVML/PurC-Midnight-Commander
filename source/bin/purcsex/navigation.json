@@ -1,25 +1,25 @@
 {
     "initialOps":
         [
-            { "operation": "setPageGroups", "target": "workspace/0", "content": "navigation/layout.html" },
-            { "operation": "addPageGroups", "target": "workspace/0", "content": "navigation/modal-group.frag" },
+            { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout.html" },
+            { "operation": "addPageGroups", "target": "workspace/0", "content": "assets/modal-group.frag" },
             { "operation": "createPlainWindow", "target": "workspace/0", "name": "splash", "title": "欢迎", "resultKey": "splash" },
-            { "operation": "load", "target": "plainwindow/splash", "content": "navigation/splash.html", "resultKey": "splash" },
+            { "operation": "load", "target": "plainwindow/splash", "content": "assets/splash.html", "resultKey": "splash" },
             { "operation": "removePageGroup", "target": "workspace/0", "element": "id/modals" }
         ],
     "namedOps":
         {
             "closeSplash": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/splash" },
             "createMainWindow": [
-                { "operation": "addPageGroups", "target": "workspace/0", "content": "navigation/page-groups.frag" },
+                { "operation": "addPageGroups", "target": "workspace/0", "content": "assets/page-groups.frag" },
                 { "operation": "createPage", "target": "workspace/0", "element": "id/mainBody", "name": "nav", "resultKey": "nav" },
-                { "operation": "load", "target": "page/nav", "content": "navigation/nav.html", "resultKey": "nav" },
+                { "operation": "load", "target": "page/nav", "content": "assets/nav.html", "resultKey": "nav" },
                 { "operation": "createPage", "target": "workspace/0", "element": "id/mainBody", "name": "content", "resultKey": "content" },
-                { "operation": "load", "target": "page/content", "content": "navigation/about-hvml.html", "resultKey": "content" }
+                { "operation": "load", "target": "page/content", "content": "assets/about-hvml.html", "resultKey": "content" }
             ],
-            "loadContentHVML": { "operation": "load", "target": "page/content", "content": "navigation/about-hvml.html", "resultKey": "content" },
-            "loadContentPurC": { "operation": "load", "target": "page/content", "content": "navigation/about-purc.html", "resultKey": "content" },
-            "loadContentXGUIPro": { "operation": "load", "target": "page/content", "content": "navigation/about-xguipro.html", "resultKey": "content" }
+            "loadContentHVML": { "operation": "load", "target": "page/content", "content": "assets/about-hvml.html", "resultKey": "content" },
+            "loadContentPurC": { "operation": "load", "target": "page/content", "content": "assets/about-purc.html", "resultKey": "content" },
+            "loadContentXGUIPro": { "operation": "load", "target": "page/content", "content": "assets/about-xguipro.html", "resultKey": "content" }
 
         },
    "events":

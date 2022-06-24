@@ -76,6 +76,13 @@ set(calculator_SOURCES
 
 ADD_PURCSEX_EXTENSION(calculator ${calculator_SOURCES})
 
+set(introduction3_SOURCES
+    "introduction3/introduction3.c"
+    log.c
+)
+
+ADD_PURCSEX_EXTENSION(introduction3 ${introduction3_SOURCES})
+
 set(navigation_SOURCES
     "navigation/navigation.c"
     log.c

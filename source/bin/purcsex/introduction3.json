@@ -4,7 +4,7 @@
             { "operation": "setPageGroups", "target": "workspace/0", "content": "navigation/layout.html" },
             { "operation": "addPageGroups", "target": "workspace/0", "content": "navigation/modal-group.frag" },
             { "operation": "createPlainWindow", "target": "workspace/0", "element": "id/modals", "name": "splash", "class": "hc", "title": "欢迎",
-                "layoutStyle": "width:320px;height:240px;", "resultKey": "splash" },
+                "layoutStyle": "width:600px;height:400px;", "resultKey": "splash" },
             { "operation": "load", "target": "plainwindow/splash", "content": "navigation/splash.html", "resultKey": "splash" }
         ],
     "namedOps":
@@ -44,9 +44,9 @@
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnHVML", "namedOp": "aboutHVML-xguipro" },
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnPurC", "namedOp": "aboutPurC-xguipro" },
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnXGUIPro", "namedOp": "aboutXGUIPro-xguipro" },
-            { "eventName": "close", "target": "workspace/0", "element": "plainwindow/hvml", "namedOp": "func:on_intro_window_closed" },
-            { "eventName": "close", "target": "workspace/0", "element": "plainwindow/purc", "namedOp": "func:on_intro_window_closed" },
-            { "eventName": "close", "target": "workspace/0", "element": "plainwindow/xguipro", "namedOp": "func:on_intro_window_closed" }
+            { "eventName": "close", "target": "plainwindow/hvml", "namedOp": "func:on_intro_window_closed" },
+            { "eventName": "close", "target": "plainwindow/purc", "namedOp": "func:on_intro_window_closed" },
+            { "eventName": "close", "target": "plainwindow/xguipro", "namedOp": "func:on_intro_window_closed" }
        ]
 }
 

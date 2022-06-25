@@ -83,6 +83,13 @@ set(introduction3_SOURCES
 
 ADD_PURCSEX_EXTENSION(introduction3 ${introduction3_SOURCES})
 
+set(introduction5_SOURCES
+    "introduction5/introduction5.c"
+    log.c
+)
+
+ADD_PURCSEX_EXTENSION(introduction5 ${introduction5_SOURCES})
+
 set(navigation_SOURCES
     "navigation/navigation.c"
     log.c
@@ -103,6 +110,7 @@ set(asset_FILES
     "introduction2.json"
     "introduction3.json"
     "introduction4.json"
+    "introduction5.json"
     "navigation.json"
     "assets/layout.html"
     "assets/layout-panes.html"

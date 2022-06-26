@@ -114,6 +114,7 @@ set(asset_FILES
     "navigation.json"
     "assets/layout.html"
     "assets/layout-panes.html"
+    "assets/layout-two-panes.html"
     "assets/modal-group.frag"
     "assets/page-groups.frag"
     "assets/splash.html"

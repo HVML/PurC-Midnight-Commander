@@ -1,9 +1,11 @@
 {
     "initialOps":
         [
-            { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout-panes.html" },
-            { "operation": "createPage", "target": "workspace/0", "element": "id/theHeader", "name": "splash", "layoutStyle": "height:100%;", "resultKey": "splash" },
-            { "operation": "load", "target": "page/splash", "content": "assets/splash.html", "resultKey": "splash" }
+            { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout-two-panes.html" },
+            { "operation": "createPage", "target": "workspace/0", "element": "id/theUpperHalf", "name": "splash", "class": "pane", "resultKey": "splash" },
+            { "operation": "load", "target": "page/splash", "content": "assets/splash.html", "resultKey": "splash" },
+            { "operation": "createPage", "target": "workspace/0", "element": "id/theLowerHalf", "name": "hvml", "class": "pane", "resultKey": "hvml" },
+            { "operation": "load", "target": "page/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" }
         ],
     "namedOps":
         {
@@ -19,8 +21,11 @@
         },
    "events":
        [
-            { "eventName": "create:tabbedewindow", "target": "workspace/0", "namedOp": "func:on_tabbed_window_created" },
-            { "eventName": "destroy:tabbedewindow", "target": "workspace/0", "namedOp": "func:quit" }
+            { "eventName": "click", "target": "dom/hvml", "element": "id/theBtnHVML", "namedOp": "aboutHVML-hvml" },
+            { "eventName": "click", "target": "dom/hvml", "element": "id/theBtnPurC", "namedOp": "aboutPurC-hvml" },
+            { "eventName": "click", "target": "dom/hvml", "element": "id/theBtnXGUIPro", "namedOp": "aboutXGUIPro-hvml" },
+            { "eventName": "create:tabbedwindow", "target": "workspace/0", "namedOp": "func:on_tabbed_window_created" },
+            { "eventName": "destroy:tabbedwindow", "target": "workspace/0", "namedOp": "func:quit" }
        ]
 }
 

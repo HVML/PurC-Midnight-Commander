@@ -23,8 +23,8 @@
             { "eventName": "click", "target": "dom/intro", "element": "id/theBtnHVML", "namedOp": "aboutHVML" },
             { "eventName": "click", "target": "dom/intro", "element": "id/theBtnPurC", "namedOp": "aboutPurC" },
             { "eventName": "click", "target": "dom/intro", "element": "id/theBtnXGUIPro", "namedOp": "aboutXGUIPro" },
-            { "eventName": "close", "target": "plainwindow/intro", "namedOp": "closeSplash" },
-            { "eventName": "close", "target": "plainwindow/splash", "namedOp": "func:quit" }
+            { "eventName": "destroy", "target": "plainwindow/intro", "namedOp": "closeSplash" },
+            { "eventName": "destroy", "target": "plainwindow/splash", "namedOp": "func:quit" }
        ]
 }
 

@@ -25,12 +25,12 @@
    "events":
        [
             { "eventName": "click",  "target": "dom/splash", "element": "id/close", "namedOp": "closeSplash" },
-            { "eventName": "close",  "target": "workspace/0", "element": "handle/plainwindow:splash","namedOp": "createMainWindow" },
-            { "eventName": "create", "target": "workspace/0", "namedOp": "func:main_window_created", "resultKey": "mainWindow" },
+            { "eventName": "destroy",  "target": "plainwindow/splash", "namedOp": "createMainWindow" },
+            { "eventName": "create:tabbedwindow", "target": "workspace/0", "namedOp": "func:main_window_created" },
             { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToHVML", "namedOp": "loadContentHVML" },
             { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToPurC", "namedOp": "loadContentPurC" },
             { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToXGUIPro", "namedOp": "loadContentXGUIPro" },
-            { "eventName": "close", "target": "workspace/0", "element": "handle/tabbedwindow:mainWindow", "namedOp": "func:quit" }
+            { "eventName": "destroy:tabbedwindow", "target": "workspace/0", "namedOp": "func:quit" }
        ]
 }
 

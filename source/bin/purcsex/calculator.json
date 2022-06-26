@@ -38,7 +38,7 @@
             { "eventName": "click", "target": "dom/main", "element": "id/theOpEqual", "namedOp": "func:calc_click_equal" },
             { "eventName": "click", "target": "dom/main", "element": "id/theBtnClear", "namedOp": "func:calc_click_clear" },
             { "eventName": "click", "target": "dom/main", "element": "id/theBtnBack", "namedOp": "func:calc_click_back" },
-            { "eventName": "close", "target": "plainwindow/main", "namedOp": "func:quit" },
+            { "eventName": "destroy", "target": "plainwindow/main", "namedOp": "func:quit" },
             { "eventName": "click", "target": "dom/main", "element": "handle/A2", "namedOp": "closeWindow" }
        ]
 }

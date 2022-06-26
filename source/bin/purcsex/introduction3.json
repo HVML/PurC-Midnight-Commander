@@ -34,8 +34,8 @@
    "events":
        [
             { "eventName": "click", "target": "dom/splash", "element": "id/theBtnEnter", "namedOp": "removeSplash" },
-            { "eventName": "close", "target": "plainwindow/splash", "namedOp": "createIntro" },
-            { "eventName": "click", "target": "dom/hvml", "element": "id/theBtnhvml", "namedOp": "aboutHVML-hvml" },
+            { "eventName": "destroy", "target": "plainwindow/splash", "namedOp": "createIntro" },
+            { "eventName": "click", "target": "dom/hvml", "element": "id/theBtnHVML", "namedOp": "aboutHVML-hvml" },
             { "eventName": "click", "target": "dom/hvml", "element": "id/theBtnPurC", "namedOp": "aboutPurC-hvml" },
             { "eventName": "click", "target": "dom/hvml", "element": "id/theBtnXGUIPro", "namedOp": "aboutXGUIPro-hvml" },
             { "eventName": "click", "target": "dom/purc", "element": "id/theBtnHVML", "namedOp": "aboutHVML-purc" },
@@ -44,9 +44,9 @@
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnHVML", "namedOp": "aboutHVML-xguipro" },
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnPurC", "namedOp": "aboutPurC-xguipro" },
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnXGUIPro", "namedOp": "aboutXGUIPro-xguipro" },
-            { "eventName": "close", "target": "plainwindow/hvml", "namedOp": "func:on_intro_window_closed" },
-            { "eventName": "close", "target": "plainwindow/purc", "namedOp": "func:on_intro_window_closed" },
-            { "eventName": "close", "target": "plainwindow/xguipro", "namedOp": "func:on_intro_window_closed" }
+            { "eventName": "destroy", "target": "plainwindow/hvml", "namedOp": "func:on_intro_window_closed" },
+            { "eventName": "destroy", "target": "plainwindow/purc", "namedOp": "func:on_intro_window_closed" },
+            { "eventName": "destroy", "target": "plainwindow/xguipro", "namedOp": "func:on_intro_window_closed" }
        ]
 }
 

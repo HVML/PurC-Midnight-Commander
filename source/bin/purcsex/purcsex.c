@@ -538,7 +538,8 @@ done:
 static int
 create_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 {
-    pcrdr_msg *msg;
+    pcrdr_msg *msg = NULL;
+    purc_variant_t data = PURC_VARIANT_INVALID;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
     purc_variant_t result_key = make_result_key(op, "plainwindow/");
@@ -548,7 +549,7 @@ create_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     }
 
     if (purc_variant_object_get(info->handles, result_key)) {
-        LOG_ERROR("Duplicated `resultKey`\n");
+        LOG_ERROR("Duplicate `resultKey`\n");
         goto failed;
     }
 
@@ -588,7 +589,7 @@ create_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
         msg->elementValue = purc_variant_make_string(value, false);
     }
 
-    purc_variant_t data = purc_variant_make_object_0();
+    data = purc_variant_make_object_0();
     if ((tmp = purc_variant_object_get_by_ckey(op, "name"))) {
         purc_variant_object_set_by_static_ckey(data, "name", tmp);
     }
@@ -2484,6 +2485,11 @@ static const char *match_event(pcrdr_conn* conn,
     if (target_type != evt_msg->target ||
             target_value != evt_msg->targetValue) {
         goto failed;
+    }
+
+    if (strcmp("destroy", event_name) == 0) {
+        // remove target from info->handles
+        purc_variant_object_remove_by_static_ckey(info->handles, target, true);
     }
 
     if (element) {

@@ -19,8 +19,8 @@
         },
    "events":
        [
-            { "eventName": "create", "target": "workspace/0", "element": "id/theTabbedWindow", "namedOp": "func:on_tabbed_window_created" },
-            { "eventName": "close", "target": "workspace/0", "element": "id/theTabbedWindow", "namedOp": "func:quit" }
+            { "eventName": "create:tabbedewindow", "target": "workspace/0", "namedOp": "func:on_tabbed_window_created" },
+            { "eventName": "destroy:tabbedewindow", "target": "workspace/0", "namedOp": "func:quit" }
        ]
 }
 

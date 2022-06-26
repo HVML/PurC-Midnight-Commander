@@ -13,7 +13,7 @@
         },
    "events":
        [
-            { "eventName": "close", "target": "plainwindow/main", "namedOp": "func:quit" },
+            { "eventName": "destroy", "target": "plainwindow/main", "namedOp": "func:quit" },
             { "eventName": "click", "target": "dom/main", "element": "handle/A2", "namedOp": "closeWindow" }
        ]
 }

@@ -1,20 +1,17 @@
 {
     "initialOps":
         [
-            { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout.html" },
-            { "operation": "addPageGroups", "target": "workspace/0", "content": "assets/modal-group.frag" },
+            { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout-sidebar.html" },
             { "operation": "createPlainWindow", "target": "workspace/0", "name": "splash", "title": "欢迎", "resultKey": "splash" },
-            { "operation": "load", "target": "plainwindow/splash", "content": "assets/splash.html", "resultKey": "splash" },
-            { "operation": "removePageGroup", "target": "workspace/0", "element": "id/modals" }
+            { "operation": "load", "target": "plainwindow/splash", "content": "assets/splash.html", "resultKey": "splash" }
         ],
     "namedOps":
         {
             "closeSplash": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/splash" },
             "createMainWindow": [
-                { "operation": "addPageGroups", "target": "workspace/0", "content": "assets/page-groups.frag" },
-                { "operation": "createPage", "target": "workspace/0", "element": "id/mainBody", "name": "nav", "resultKey": "nav" },
-                { "operation": "load", "target": "page/nav", "content": "assets/nav.html", "resultKey": "nav" },
-                { "operation": "createPage", "target": "workspace/0", "element": "id/mainBody", "name": "content", "resultKey": "content" },
+                { "operation": "createPage", "target": "workspace/0", "element": "id/theSidebarArea", "name": "sidebar", "class": "pane", "resultKey": "sidebar" },
+                { "operation": "load", "target": "page/sidebar", "content": "assets/sidebar.html", "resultKey": "sidebar" },
+                { "operation": "createPage", "target": "workspace/0", "element": "id/theMainArea", "name": "content", "class": "pane", "resultKey": "content" },
                 { "operation": "load", "target": "page/content", "content": "assets/about-hvml.html", "resultKey": "content" }
             ],
             "loadContentHVML": { "operation": "load", "target": "page/content", "content": "assets/about-hvml.html", "resultKey": "content" },
@@ -24,13 +21,16 @@
         },
    "events":
        [
-            { "eventName": "click",  "target": "dom/splash", "element": "id/close", "namedOp": "closeSplash" },
+            { "eventName": "click",  "target": "dom/splash", "element": "id/theBtnEnter", "namedOp": "closeSplash" },
             { "eventName": "destroy",  "target": "plainwindow/splash", "namedOp": "createMainWindow" },
             { "eventName": "create:tabbedwindow", "target": "workspace/0", "namedOp": "func:main_window_created" },
-            { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToHVML", "namedOp": "loadContentHVML" },
-            { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToPurC", "namedOp": "loadContentPurC" },
-            { "eventName": "click", "target": "dom/nav", "element": "id/theLinkeToXGUIPro", "namedOp": "loadContentXGUIPro" },
-            { "eventName": "destroy:tabbedwindow", "target": "workspace/0", "namedOp": "func:quit" }
+            { "eventName": "destroy:tabbedwindow", "target": "workspace/0", "namedOp": "func:quit" },
+            { "eventName": "click", "target": "dom/sidebar", "element": "id/theLinkHome", "namedOp": "loadContentHVML" },
+            { "eventName": "click", "target": "dom/sidebar", "element": "id/theLinkProducts", "namedOp": "loadContentXGUIPro" },
+            { "eventName": "click", "target": "dom/sidebar", "element": "id/theLinkDashboard", "namedOp": "loadContentPurC" },
+            { "eventName": "click", "target": "dom/content", "element": "id/theBtnHVML", "namedOp": "loadContentHVML" },
+            { "eventName": "click", "target": "dom/content", "element": "id/theBtnPurC", "namedOp": "loadContentPurC" },
+            { "eventName": "click", "target": "dom/content", "element": "id/theBtnXGUIPro", "namedOp": "loadContentXGUIPro" }
        ]
 }
 

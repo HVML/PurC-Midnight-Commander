@@ -122,6 +122,8 @@ set(asset_FILES
     "assets/about-hvml.html"
     "assets/about-purc.html"
     "assets/about-xguipro.html"
+    "assets/layout-sidebar.html"
+    "assets/sidebar.html"
 )
 
 PURCMC_COPY_FILES(purcsex_copy_asset_files

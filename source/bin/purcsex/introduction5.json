@@ -2,13 +2,13 @@
     "initialOps":
         [
             { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout-panes.html" },
-            { "operation": "createPage", "target": "workspace/0", "element": "id/theHeader", "name": "splash", "layoutStyle": "height:100%;", "resultKey": "splash" },
+            { "operation": "createWidget", "target": "workspace/0", "element": "id/theHeader", "name": "splash", "layoutStyle": "height:100%;", "resultKey": "splash" },
             { "operation": "load", "target": "widget/splash", "content": "assets/splash.html", "resultKey": "splash" },
-            { "operation": "createPage", "target": "workspace/0", "element": "id/theBody", "name": "hvml", "class": "pane", "resultKey": "hvml" },
+            { "operation": "createWidget", "target": "workspace/0", "element": "id/theBody", "name": "hvml", "class": "pane", "resultKey": "hvml" },
             { "operation": "load", "target": "widget/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" },
-            { "operation": "createPage", "target": "workspace/0", "element": "id/theBody", "name": "purc", "class": "pane", "resultKey": "purc" },
+            { "operation": "createWidget", "target": "workspace/0", "element": "id/theBody", "name": "purc", "class": "pane", "resultKey": "purc" },
             { "operation": "load", "target": "widget/purc", "content": "assets/about-purc.html", "class": "pane", "resultKey": "purc" },
-            { "operation": "createPage", "target": "workspace/0", "element": "id/theBody", "name": "xguipro", "class": "pane", "resultKey": "xguipro" },
+            { "operation": "createWidget", "target": "workspace/0", "element": "id/theBody", "name": "xguipro", "class": "pane", "resultKey": "xguipro" },
             { "operation": "load", "target": "widget/xguipro", "content": "assets/about-xguipro.html", "class": "pane", "resultKey": "xguipro" }
         ],
     "namedOps":
@@ -37,7 +37,8 @@
             { "eventName": "destroy", "target": "widget/splash", "namedOp": "func:on_intro_widget_closed" },
             { "eventName": "destroy", "target": "widget/hvml", "namedOp": "func:on_intro_widget_closed" },
             { "eventName": "destroy", "target": "widget/purc", "namedOp": "func:on_intro_widget_closed" },
-            { "eventName": "destroy", "target": "widget/xguipro", "namedOp": "func:on_intro_widget_closed" }
+            { "eventName": "destroy", "target": "widget/xguipro", "namedOp": "func:on_intro_widget_closed" },
+            { "eventName": "destroy:tabbedwindow", "target": "workspace/0", "namedOp": "func:quit" }
        ]
 }
 

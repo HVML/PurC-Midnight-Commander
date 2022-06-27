@@ -2,9 +2,9 @@
     "initialOps":
         [
             { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout-two-panes.html" },
-            { "operation": "createPage", "target": "workspace/0", "element": "id/theUpperHalf", "name": "splash", "class": "pane", "resultKey": "splash" },
+            { "operation": "createWidget", "target": "workspace/0", "element": "id/theUpperHalf", "name": "splash", "class": "pane", "resultKey": "splash" },
             { "operation": "load", "target": "widget/splash", "content": "assets/splash.html", "resultKey": "splash" },
-            { "operation": "createPage", "target": "workspace/0", "element": "id/theLowerHalf", "name": "hvml", "class": "pane", "resultKey": "hvml" },
+            { "operation": "createWidget", "target": "workspace/0", "element": "id/theLowerHalf", "name": "hvml", "class": "pane", "resultKey": "hvml" },
             { "operation": "load", "target": "widget/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" }
         ],
     "namedOps":

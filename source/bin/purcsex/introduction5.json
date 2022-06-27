@@ -3,25 +3,25 @@
         [
             { "operation": "setPageGroups", "target": "workspace/0", "content": "assets/layout-panes.html" },
             { "operation": "createPage", "target": "workspace/0", "element": "id/theHeader", "name": "splash", "layoutStyle": "height:100%;", "resultKey": "splash" },
-            { "operation": "load", "target": "page/splash", "content": "assets/splash.html", "resultKey": "splash" },
+            { "operation": "load", "target": "widget/splash", "content": "assets/splash.html", "resultKey": "splash" },
             { "operation": "createPage", "target": "workspace/0", "element": "id/theBody", "name": "hvml", "class": "pane", "resultKey": "hvml" },
-            { "operation": "load", "target": "page/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" },
+            { "operation": "load", "target": "widget/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" },
             { "operation": "createPage", "target": "workspace/0", "element": "id/theBody", "name": "purc", "class": "pane", "resultKey": "purc" },
-            { "operation": "load", "target": "page/purc", "content": "assets/about-purc.html", "class": "pane", "resultKey": "purc" },
+            { "operation": "load", "target": "widget/purc", "content": "assets/about-purc.html", "class": "pane", "resultKey": "purc" },
             { "operation": "createPage", "target": "workspace/0", "element": "id/theBody", "name": "xguipro", "class": "pane", "resultKey": "xguipro" },
-            { "operation": "load", "target": "page/xguipro", "content": "assets/about-xguipro.html", "class": "pane", "resultKey": "xguipro" }
+            { "operation": "load", "target": "widget/xguipro", "content": "assets/about-xguipro.html", "class": "pane", "resultKey": "xguipro" }
         ],
     "namedOps":
         {
-            "aboutHVML-hvml": { "operation": "load", "target": "page/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" },
-            "aboutPurC-hvml": { "operation": "load", "target": "page/hvml", "content": "assets/about-purc.html", "resultKey": "hvml" },
-            "aboutXGUIPro-hvml": { "operation": "load", "target": "page/hvml", "content": "assets/about-xguipro.html", "resultKey": "hvml" },
-            "aboutHVML-purc": { "operation": "load", "target": "page/purc", "content": "assets/about-hvml.html", "resultKey": "purc" },
-            "aboutPurC-purc": { "operation": "load", "target": "page/purc", "content": "assets/about-purc.html", "resultKey": "purc" },
-            "aboutXGUIPro-purc": { "operation": "load", "target": "page/purc", "content": "assets/about-xguipro.html", "resultKey": "purc" },
-            "aboutHVML-xguipro": { "operation": "load", "target": "page/xguipro", "content": "assets/about-hvml.html", "resultKey": "xguipro" },
-            "aboutPurC-xguipro": { "operation": "load", "target": "page/xguipro", "content": "assets/about-purc.html", "resultKey": "xguipro" },
-            "aboutXGUIPro-xguipro": { "operation": "load", "target": "page/xguipro", "content": "assets/about-xguipro.html", "resultKey": "xguipro" }
+            "aboutHVML-hvml": { "operation": "load", "target": "widget/hvml", "content": "assets/about-hvml.html", "resultKey": "hvml" },
+            "aboutPurC-hvml": { "operation": "load", "target": "widget/hvml", "content": "assets/about-purc.html", "resultKey": "hvml" },
+            "aboutXGUIPro-hvml": { "operation": "load", "target": "widget/hvml", "content": "assets/about-xguipro.html", "resultKey": "hvml" },
+            "aboutHVML-purc": { "operation": "load", "target": "widget/purc", "content": "assets/about-hvml.html", "resultKey": "purc" },
+            "aboutPurC-purc": { "operation": "load", "target": "widget/purc", "content": "assets/about-purc.html", "resultKey": "purc" },
+            "aboutXGUIPro-purc": { "operation": "load", "target": "widget/purc", "content": "assets/about-xguipro.html", "resultKey": "purc" },
+            "aboutHVML-xguipro": { "operation": "load", "target": "widget/xguipro", "content": "assets/about-hvml.html", "resultKey": "xguipro" },
+            "aboutPurC-xguipro": { "operation": "load", "target": "widget/xguipro", "content": "assets/about-purc.html", "resultKey": "xguipro" },
+            "aboutXGUIPro-xguipro": { "operation": "load", "target": "widget/xguipro", "content": "assets/about-xguipro.html", "resultKey": "xguipro" }
         },
    "events":
        [
@@ -34,10 +34,10 @@
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnHVML", "namedOp": "aboutHVML-xguipro" },
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnPurC", "namedOp": "aboutPurC-xguipro" },
             { "eventName": "click", "target": "dom/xguipro", "element": "id/theBtnXGUIPro", "namedOp": "aboutXGUIPro-xguipro" },
-            { "eventName": "destroy", "target": "page/splash", "namedOp": "func:on_intro_page_closed" },
-            { "eventName": "destroy", "target": "page/hvml", "namedOp": "func:on_intro_page_closed" },
-            { "eventName": "destroy", "target": "page/purc", "namedOp": "func:on_intro_page_closed" },
-            { "eventName": "destroy", "target": "page/xguipro", "namedOp": "func:on_intro_page_closed" }
+            { "eventName": "destroy", "target": "widget/splash", "namedOp": "func:on_intro_widget_closed" },
+            { "eventName": "destroy", "target": "widget/hvml", "namedOp": "func:on_intro_widget_closed" },
+            { "eventName": "destroy", "target": "widget/purc", "namedOp": "func:on_intro_widget_closed" },
+            { "eventName": "destroy", "target": "widget/xguipro", "namedOp": "func:on_intro_widget_closed" }
        ]
 }
 

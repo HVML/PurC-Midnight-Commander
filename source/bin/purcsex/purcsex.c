@@ -353,8 +353,8 @@ static int transfer_target_info(struct client_info *info,
     else if (strcmp(target_name, "plainwindow") == 0) {
         type = PCRDR_MSG_TARGET_PLAINWINDOW;
     }
-    else if (strcmp(target_name, "page") == 0) {
-        type = PCRDR_MSG_TARGET_PAGE;
+    else if (strcmp(target_name, "widget") == 0) {
+        type = PCRDR_MSG_TARGET_WIDGET;
     }
     else if (strcmp(target_name, "dom") == 0) {
         type = PCRDR_MSG_TARGET_DOM;
@@ -650,7 +650,7 @@ failed:
     return -1;
 }
 
-static int plainwin_page_updated_handler(pcrdr_conn* conn,
+static int plainwin_widget_updated_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
 {
@@ -662,12 +662,12 @@ static int plainwin_page_updated_handler(pcrdr_conn* conn,
         goto done;
     }
 
-    LOG_INFO("Got a response for request (%s) to update window/page (%s)\n",
+    LOG_INFO("Got a response for request (%s) to update window/widget (%s)\n",
             purc_variant_get_string_const(response_msg->requestId),
             purc_variant_get_string_const(result_key));
 
     if (response_msg->retCode != PCRDR_SC_OK) {
-        LOG_ERROR("failed to update a window/page (%s): %d\n",
+        LOG_ERROR("failed to update a window/widget (%s): %d\n",
             purc_variant_get_string_const(result_key),
             response_msg->retCode);
         issue_next_batch_operation(conn);
@@ -741,7 +741,7 @@ update_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(trace_key),
-                plainwin_page_updated_handler) < 0) {
+                plainwin_widget_updated_handler) < 0) {
         LOG_ERROR("Failed to send request message\n");
         goto failed;
     }
@@ -853,7 +853,7 @@ failed:
     return -1;
 }
 
-static int page_created_handler(pcrdr_conn* conn,
+static int widget_created_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
 {
@@ -865,13 +865,13 @@ static int page_created_handler(pcrdr_conn* conn,
         goto done;
     }
 
-    LOG_INFO("Got a response for request (%s) to create page (%s): %d\n",
+    LOG_INFO("Got a response for request (%s) to create widget (%s): %d\n",
             purc_variant_get_string_const(response_msg->requestId),
             purc_variant_get_string_const(result_key),
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
-        info->nr_pages_created++;
+        info->nr_widgets_created++;
 
         purc_variant_t handle;
         handle = purc_variant_make_ulongint(response_msg->resultValue);
@@ -880,7 +880,7 @@ static int page_created_handler(pcrdr_conn* conn,
         issue_next_batch_operation(conn);
     }
     else {
-        LOG_ERROR("failed to create the desired page: %s\n",
+        LOG_ERROR("failed to create the desired widget: %s\n",
             purc_variant_get_string_const(result_key));
     }
 
@@ -890,12 +890,12 @@ done:
 }
 
 static int
-create_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+create_widget(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 {
     pcrdr_msg *msg;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
 
-    purc_variant_t result_key = make_result_key(op, "page/");
+    purc_variant_t result_key = make_result_key(op, "widget/");
     if (result_key == PURC_VARIANT_INVALID) {
         LOG_ERROR("No valid `resultKey` defined for %s\n", op_name);
         goto failed;
@@ -907,7 +907,7 @@ create_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     }
 
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-            PCRDR_OPERATION_CREATEPAGE, NULL, NULL,
+            PCRDR_OPERATION_CREATEWIDGET, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_VOID, NULL, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -972,11 +972,11 @@ create_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
-                page_created_handler) < 0) {
+                widget_created_handler) < 0) {
         goto failed;
     }
 
-    LOG_INFO("Request (%s) `%s` for page %s sent\n",
+    LOG_INFO("Request (%s) `%s` for widget %s sent\n",
             purc_variant_get_string_const(msg->requestId),
             purc_variant_get_string_const(msg->operation),
             purc_variant_get_string_const(result_key));
@@ -998,7 +998,7 @@ failed:
 }
 
 static int
-update_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+update_widget(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 {
     pcrdr_msg *msg;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
@@ -1010,15 +1010,15 @@ update_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     }
 
     if (element == NULL) {
-        LOG_ERROR("No page given in %s\n", op_name);
+        LOG_ERROR("No widget given in %s\n", op_name);
         goto failed;
     }
 
     uint64_t value;
     char element_name[PURC_LEN_IDENTIFIER + 1];
     value = split_target(info->handles, element, element_name);
-    if (strcmp(element_name, "page")) {
-        LOG_ERROR("Bad page given: %s\n", element);
+    if (strcmp(element_name, "widget")) {
+        LOG_ERROR("Bad widget given: %s\n", element);
         goto failed;
     }
     char handle[32];
@@ -1042,7 +1042,7 @@ update_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     }
 
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-            PCRDR_OPERATION_UPDATEPAGE, NULL, NULL,
+            PCRDR_OPERATION_UPDATEWIDGET, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, property,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -1060,7 +1060,7 @@ update_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(trace_key),
-                plainwin_page_updated_handler) < 0) {
+                plainwin_widget_updated_handler) < 0) {
         LOG_ERROR("Failed to send request message for %s\n", op_name);
         goto failed;
     }
@@ -1079,7 +1079,7 @@ failed:
     return -1;
 }
 
-static int page_destroyed_handler(pcrdr_conn* conn,
+static int widget_destroyed_handler(pcrdr_conn* conn,
         const char *request_id, int state,
         void *context, const pcrdr_msg *response_msg)
 {
@@ -1091,19 +1091,19 @@ static int page_destroyed_handler(pcrdr_conn* conn,
         goto done;
     }
 
-    LOG_INFO("Got a response for request (%s) to destroy page (%s): %d\n",
+    LOG_INFO("Got a response for request (%s) to destroy widget (%s): %d\n",
             purc_variant_get_string_const(response_msg->requestId),
             purc_variant_get_string_const(result_key),
             response_msg->retCode);
 
     if (response_msg->retCode == PCRDR_SC_OK) {
         if (!purc_variant_object_remove(info->handles, result_key, true)) {
-            LOG_ERROR("Failed to remove the page handle: %s\n",
+            LOG_ERROR("Failed to remove the widget handle: %s\n",
                 purc_variant_get_string_const(result_key));
         }
 
-        info->nr_pages_created--;
-        assert(info->nr_pages_created >= 0);
+        info->nr_widgets_created--;
+        assert(info->nr_widgets_created >= 0);
 
         issue_next_batch_operation(conn);
     }
@@ -1117,7 +1117,7 @@ done:
 }
 
 static int
-destroy_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
+destroy_widget(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 {
     pcrdr_msg *msg;
     struct client_info *info = pcrdr_conn_get_user_data(conn);
@@ -1129,22 +1129,22 @@ destroy_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     }
 
     if (element == NULL) {
-        LOG_ERROR("No page given in %s\n", op_name);
+        LOG_ERROR("No widget given in %s\n", op_name);
         goto failed;
     }
 
     uint64_t value;
     char element_name[PURC_LEN_IDENTIFIER + 1];
     value = split_target(info->handles, element, element_name);
-    if (strcmp(element_name, "page")) {
-        LOG_ERROR("Bad page given: %s\n", element);
+    if (strcmp(element_name, "widget")) {
+        LOG_ERROR("Bad widget given: %s\n", element);
         goto failed;
     }
 
     char handle[32];
     sprintf(handle, "%llx", (long long)value);
     msg = pcrdr_make_request_message(PCRDR_MSG_TARGET_WORKSPACE, 0,
-            PCRDR_OPERATION_DESTROYPAGE, NULL, NULL,
+            PCRDR_OPERATION_DESTROYWIDGET, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle, NULL,
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     if (msg == NULL) {
@@ -1154,7 +1154,7 @@ destroy_page(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
 
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, purc_variant_ref(result_key),
-                page_destroyed_handler) < 0) {
+                widget_destroyed_handler) < 0) {
         LOG_ERROR("Failed to send request message for %s\n", op_name);
         goto failed;
     }
@@ -1322,7 +1322,7 @@ static int write_more_document(pcrdr_conn* conn, purc_variant_t result_key)
     tmp = purc_variant_object_get(info->handles, result_key);
     if (tmp == NULL ||
             !purc_variant_cast_to_ulongint(tmp, &win_handle, false)) {
-        LOG_ERROR("No window/page handle for %s\n",
+        LOG_ERROR("No window/widget handle for %s\n",
             purc_variant_get_string_const(result_key));
         goto failed;
     }
@@ -1440,8 +1440,8 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     if (strcmp(target_name, "plainwindow") == 0) {
         info->last_target = PCRDR_MSG_TARGET_PLAINWINDOW;
     }
-    else if (strcmp(target_name, "page") == 0) {
-        info->last_target = PCRDR_MSG_TARGET_PAGE;
+    else if (strcmp(target_name, "widget") == 0) {
+        info->last_target = PCRDR_MSG_TARGET_WIDGET;
     }
     else {
         LOG_ERROR("Bad target name: %s\n", target);
@@ -1530,7 +1530,7 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     }
 
     /* We use the resultKey (`dom/xxx`) to store
-     * the window/page handle temporarily */
+     * the window/widget handle temporarily */
     tmp = purc_variant_make_ulongint(win_handle);
     purc_variant_object_set(info->handles, result_key, tmp);
     purc_variant_unref(tmp);
@@ -1976,8 +1976,8 @@ get_property(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     else if (strcmp(target_name, "plainwindow") == 0) {
         target_type = PCRDR_MSG_TARGET_PLAINWINDOW;
     }
-    else if (strcmp(target_name, "page") == 0) {
-        target_type = PCRDR_MSG_TARGET_PAGE;
+    else if (strcmp(target_name, "widget") == 0) {
+        target_type = PCRDR_MSG_TARGET_WIDGET;
     }
     else if (strcmp(target_name, "dom") == 0) {
         target_type = PCRDR_MSG_TARGET_DOM;
@@ -2106,8 +2106,8 @@ set_property(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     else if (strcmp(target_name, "plainwindow") == 0) {
         target_type = PCRDR_MSG_TARGET_PLAINWINDOW;
     }
-    else if (strcmp(target_name, "page") == 0) {
-        target_type = PCRDR_MSG_TARGET_PAGE;
+    else if (strcmp(target_name, "widget") == 0) {
+        target_type = PCRDR_MSG_TARGET_WIDGET;
     }
     else if (strcmp(target_name, "dom") == 0) {
         target_type = PCRDR_MSG_TARGET_DOM;
@@ -2240,8 +2240,8 @@ call_method(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     else if (strcmp(target_name, "plainwindow") == 0) {
         target_type = PCRDR_MSG_TARGET_PLAINWINDOW;
     }
-    else if (strcmp(target_name, "page") == 0) {
-        target_type = PCRDR_MSG_TARGET_PAGE;
+    else if (strcmp(target_name, "widget") == 0) {
+        target_type = PCRDR_MSG_TARGET_WIDGET;
     }
     else if (strcmp(target_name, "dom") == 0) {
         target_type = PCRDR_MSG_TARGET_DOM;
@@ -2407,16 +2407,16 @@ static int issue_operation(pcrdr_conn* conn, purc_variant_t op)
         retv = remove_page_group(conn, operation, op);
         break;
 
-    case PCRDR_K_OPERATION_CREATEPAGE:
-        retv = create_page(conn, operation, op);
+    case PCRDR_K_OPERATION_CREATEWIDGET:
+        retv = create_widget(conn, operation, op);
         break;
 
-    case PCRDR_K_OPERATION_UPDATEPAGE:
-        retv = update_page(conn, operation, op);
+    case PCRDR_K_OPERATION_UPDATEWIDGET:
+        retv = update_widget(conn, operation, op);
         break;
 
-    case PCRDR_K_OPERATION_DESTROYPAGE:
-        retv = destroy_page(conn, operation, op);
+    case PCRDR_K_OPERATION_DESTROYWIDGET:
+        retv = destroy_widget(conn, operation, op);
         break;
 
     case PCRDR_K_OPERATION_GETPROPERTY:

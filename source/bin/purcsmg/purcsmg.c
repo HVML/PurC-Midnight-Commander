@@ -1072,7 +1072,7 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
 
     case PCRDR_MSG_TARGET_SESSION:
     case PCRDR_MSG_TARGET_WORKSPACE:
-    case PCRDR_MSG_TARGET_PAGE:
+    case PCRDR_MSG_TARGET_WIDGET:
     case PCRDR_MSG_TARGET_DOM:
     default:
         printf("Got an event not intrested in (target: %d/%p): %s\n",

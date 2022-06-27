@@ -54,7 +54,7 @@ struct client_info {
     size_t issued_ops;
 
     size_t nr_windows_created;
-    size_t nr_pages_created;
+    size_t nr_widgets_created;
 
     /*
      * contents for windows or pages.

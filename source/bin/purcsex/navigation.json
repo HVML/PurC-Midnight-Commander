@@ -10,13 +10,13 @@
             "closeSplash": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/splash" },
             "createMainWindow": [
                 { "operation": "createPage", "target": "workspace/0", "element": "id/theSidebarArea", "name": "sidebar", "class": "pane", "resultKey": "sidebar" },
-                { "operation": "load", "target": "page/sidebar", "content": "assets/sidebar.html", "resultKey": "sidebar" },
+                { "operation": "load", "target": "widget/sidebar", "content": "assets/sidebar.html", "resultKey": "sidebar" },
                 { "operation": "createPage", "target": "workspace/0", "element": "id/theMainArea", "name": "content", "class": "pane", "resultKey": "content" },
-                { "operation": "load", "target": "page/content", "content": "assets/about-hvml.html", "resultKey": "content" }
+                { "operation": "load", "target": "widget/content", "content": "assets/about-hvml.html", "resultKey": "content" }
             ],
-            "loadContentHVML": { "operation": "load", "target": "page/content", "content": "assets/about-hvml.html", "resultKey": "content" },
-            "loadContentPurC": { "operation": "load", "target": "page/content", "content": "assets/about-purc.html", "resultKey": "content" },
-            "loadContentXGUIPro": { "operation": "load", "target": "page/content", "content": "assets/about-xguipro.html", "resultKey": "content" }
+            "loadContentHVML": { "operation": "load", "target": "widget/content", "content": "assets/about-hvml.html", "resultKey": "content" },
+            "loadContentPurC": { "operation": "load", "target": "widget/content", "content": "assets/about-purc.html", "resultKey": "content" },
+            "loadContentXGUIPro": { "operation": "load", "target": "widget/content", "content": "assets/about-xguipro.html", "resultKey": "content" }
 
         },
    "events":

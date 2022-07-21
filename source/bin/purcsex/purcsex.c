@@ -732,7 +732,7 @@ update_plainwin(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     }
 
     if (purc_variant_get_string_const(prop_value)) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+        msg->dataType = PCRDR_MSG_DATA_TYPE_PLAIN;
     }
     else {
         msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
@@ -1051,7 +1051,7 @@ update_widget(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
     }
 
     if (purc_variant_get_string_const(prop_value)) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+        msg->dataType = PCRDR_MSG_DATA_TYPE_PLAIN;
     }
     else {
         msg->dataType = PCRDR_MSG_DATA_TYPE_JSON;
@@ -1383,7 +1383,7 @@ static int write_more_document(pcrdr_conn* conn, purc_variant_t result_key)
         goto failed;
     }
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     msg->data = data;
     msg->textLen = len_to_write;
     if (pcrdr_send_request(conn, msg,
@@ -1539,7 +1539,7 @@ static int load_or_write_document(pcrdr_conn* conn, purc_variant_t op)
     purc_variant_object_set(info->doc_wrotten_len, result_key, tmp);
     purc_variant_unref(tmp);
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     msg->data = data;
     msg->textLen = len_to_write;
 
@@ -1651,7 +1651,7 @@ static pcrdr_msg *make_change_message(struct client_info *info,
             operation, NULL, NULL,
             element_type, element_value,
             property,
-            content ? PCRDR_MSG_DATA_TYPE_TEXT : PCRDR_MSG_DATA_TYPE_VOID,
+            content ? PCRDR_MSG_DATA_TYPE_HTML : PCRDR_MSG_DATA_TYPE_VOID,
             content, content_length);
 
     if (content_loaded) {
@@ -1785,7 +1785,7 @@ set_page_groups(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
         goto failed;
     }
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     msg->data = data;
 
     if (pcrdr_send_request(conn, msg,
@@ -1833,7 +1833,7 @@ add_page_groups(pcrdr_conn* conn, const char *op_name, purc_variant_t op)
         goto failed;
     }
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     msg->data = data;
 
     if (pcrdr_send_request(conn, msg,
@@ -2574,8 +2574,8 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
                 purc_variant_get_string_const(msg->elementValue));
         }
 
-        if (msg->dataType == PCRDR_MSG_DATA_TYPE_TEXT) {
-            LOG_INFO("    The attached data is TEXT:\n%s\n",
+        if (msg->dataType == PCRDR_MSG_DATA_TYPE_PLAIN) {
+            LOG_INFO("    The attached data is plain text:\n%s\n",
                 purc_variant_get_string_const(msg->data));
         }
         else if (msg->dataType == PCRDR_MSG_DATA_TYPE_JSON) {

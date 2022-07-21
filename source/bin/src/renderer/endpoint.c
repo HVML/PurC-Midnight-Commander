@@ -348,7 +348,7 @@ int send_initial_response (Server* srv, Endpoint* endpoint)
 
     msg = pcrdr_make_response_message ("0", NULL,
             PCRDR_SC_OK, 0,
-            PCRDR_MSG_DATA_TYPE_TEXT, SERVER_FEATURES,
+            PCRDR_MSG_DATA_TYPE_PLAIN, SERVER_FEATURES,
             sizeof (SERVER_FEATURES) - 1);
     if (msg == NULL) {
         retv = PCRDR_SC_INTERNAL_SERVER_ERROR;
@@ -614,7 +614,7 @@ static int on_update_plain_window(Server* srv, Endpoint* endpoint,
     const char *property;
     property = purc_variant_get_string_const(msg->property);
     if (property == NULL || strcmp(property, "title") ||
-            msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT) {
+            msg->dataType != PCRDR_MSG_DATA_TYPE_PLAIN) {
         retv = PCRDR_SC_BAD_REQUEST;
         goto failed;
     }
@@ -704,7 +704,7 @@ static int on_load(Server* srv, Endpoint* endpoint,
     pchtml_html_parser_t *parser = NULL;
     pchtml_html_document_t *html_doc = NULL;
 
-    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_HTML ||
             msg->data == PURC_VARIANT_INVALID) {
         retv = PCRDR_SC_BAD_REQUEST;
         goto failed;
@@ -793,7 +793,7 @@ static int on_write_begin(Server* srv, Endpoint* endpoint,
     pchtml_html_parser_t *parser = NULL;
     pchtml_html_document_t *html_doc = NULL;
 
-    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_HTML ||
             msg->data == PURC_VARIANT_INVALID) {
         retv = PCRDR_SC_BAD_REQUEST;
         goto failed;
@@ -889,7 +889,7 @@ static int on_write_more(Server* srv, Endpoint* endpoint,
 
     pchtml_html_parser_t *parser = NULL;
 
-    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_HTML ||
             msg->data == PURC_VARIANT_INVALID) {
         retv = PCRDR_SC_BAD_REQUEST;
         goto failed;
@@ -952,7 +952,7 @@ static int on_write_end(Server* srv, Endpoint* endpoint,
     size_t doc_len;
     PlainWindow *win = NULL;
 
-    if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+    if (msg->dataType != PCRDR_MSG_DATA_TYPE_HTML ||
             msg->data == PURC_VARIANT_INVALID) {
         retv = PCRDR_SC_BAD_REQUEST;
         goto failed;
@@ -1041,11 +1041,13 @@ static PlainWindow *check_dom_request_msg(Endpoint *endpoint,
             goto failed;
         }
 
-        // any operation except `erase` and `clear` should have a text data.
+        // any operation except `erase` and `clear`
+        // should have a valid text type.
         const char *op = purc_variant_get_string_const(msg->operation);
         if (strcmp(PCRDR_OPERATION_ERASE, op) &&
                 strcmp(PCRDR_OPERATION_CLEAR, op)) {
-            if (msg->dataType != PCRDR_MSG_DATA_TYPE_TEXT ||
+            if (msg->dataType == PCRDR_MSG_DATA_TYPE_VOID ||
+                    msg->dataType == PCRDR_MSG_DATA_TYPE_JSON ||
                     msg->data == PURC_VARIANT_INVALID) {
                 *retv = PCRDR_SC_BAD_REQUEST;
                 goto failed;

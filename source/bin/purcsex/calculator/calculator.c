@@ -159,7 +159,7 @@ void calc_change_fraction(pcrdr_conn* conn,
             "setProperty", PCRDR_REQUESTID_NORETURN, NULL,
             PCRDR_MSG_ELEMENT_TYPE_ID, "theFraction",
             "textContent",
-            PCRDR_MSG_DATA_TYPE_TEXT, value_text, value_length);
+            PCRDR_MSG_DATA_TYPE_PLAIN, value_text, value_length);
 
     if (msg == NULL) {
         LOG_ERROR("Failed to make request message: %s\n",
@@ -235,7 +235,7 @@ static void set_expression(pcrdr_conn* conn,
             "setProperty", PCRDR_REQUESTID_NORETURN, NULL,
             PCRDR_MSG_ELEMENT_TYPE_ID, "theExpression",
             "textContent",
-            PCRDR_MSG_DATA_TYPE_TEXT,
+            PCRDR_MSG_DATA_TYPE_PLAIN,
             text, length);
 
     if (msg == NULL) {

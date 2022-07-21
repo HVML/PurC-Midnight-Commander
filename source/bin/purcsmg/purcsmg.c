@@ -424,7 +424,7 @@ static int load_or_write_doucment(pcrdr_conn* conn, int win)
         goto failed;
     }
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     msg->data = data;
 
     if (pcrdr_send_request(conn, msg,
@@ -501,7 +501,7 @@ static int write_more_doucment(pcrdr_conn* conn, int win)
         goto failed;
     }
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     msg->data = data;
     if (pcrdr_send_request(conn, msg,
                 PCRDR_DEF_TIME_EXPECTED, (void *)(uintptr_t)win,
@@ -543,7 +543,7 @@ static pcrdr_msg *make_change_message_0(struct run_info *info, int win)
             PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             "textContent",
-            PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
+            PCRDR_MSG_DATA_TYPE_PLAIN, text, strlen(text));
 }
 
 static pcrdr_msg *make_change_message_1(struct run_info *info, int win)
@@ -561,7 +561,7 @@ static pcrdr_msg *make_change_message_1(struct run_info *info, int win)
             PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
             "textContent",
-            PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
+            PCRDR_MSG_DATA_TYPE_PLAIN, text, strlen(text));
 }
 
 static pcrdr_msg *make_change_message_2(struct run_info *info, int win)
@@ -577,7 +577,7 @@ static pcrdr_msg *make_change_message_2(struct run_info *info, int win)
             PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLE, handle,
             "attr.value",
-            PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
+            PCRDR_MSG_DATA_TYPE_PLAIN, text, strlen(text));
 }
 
 static pcrdr_msg *make_change_message_3(struct run_info *info, int win)
@@ -595,7 +595,7 @@ static pcrdr_msg *make_change_message_3(struct run_info *info, int win)
             PCRDR_OPERATION_UPDATE, NULL, NULL,
             PCRDR_MSG_ELEMENT_TYPE_HANDLES, handles,
             "attr.value",
-            PCRDR_MSG_DATA_TYPE_TEXT, text, strlen(text));
+            PCRDR_MSG_DATA_TYPE_PLAIN, text, strlen(text));
 }
 
 static const char *fragment =
@@ -619,7 +619,7 @@ static pcrdr_msg *make_change_message_4(struct run_info *info, int win)
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     msg->data = purc_variant_make_string_static(fragment, false);
     if (msg->data) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+        msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     }
     else {
         pcrdr_release_message(msg);
@@ -644,7 +644,7 @@ static pcrdr_msg *make_change_message_5(struct run_info *info, int win)
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     msg->data = purc_variant_make_string_static(fragment, false);
     if (msg->data) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+        msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     }
     else {
         pcrdr_release_message(msg);
@@ -669,7 +669,7 @@ static pcrdr_msg *make_change_message_6(struct run_info *info, int win)
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     msg->data = purc_variant_make_string_static(fragment, false);
     if (msg->data) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+        msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     }
     else {
         pcrdr_release_message(msg);
@@ -694,7 +694,7 @@ static pcrdr_msg *make_change_message_7(struct run_info *info, int win)
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     msg->data = purc_variant_make_string_static(fragment, false);
     if (msg->data) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+        msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     }
     else {
         pcrdr_release_message(msg);
@@ -719,7 +719,7 @@ static pcrdr_msg *make_change_message_8(struct run_info *info, int win)
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     msg->data = purc_variant_make_string_static(fragment, false);
     if (msg->data) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+        msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     }
     else {
         pcrdr_release_message(msg);
@@ -797,7 +797,7 @@ static pcrdr_msg *make_change_message_d(struct run_info *info, int win)
             PCRDR_MSG_DATA_TYPE_VOID, NULL, 0);
     msg->data = purc_variant_make_string_static("FMSoft", false);
     if (msg->data) {
-        msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+        msg->dataType = PCRDR_MSG_DATA_TYPE_PLAIN;
     }
     else {
         pcrdr_release_message(msg);
@@ -889,7 +889,7 @@ static int reset_window(pcrdr_conn* conn, int win)
         goto failed;
     }
 
-    msg->dataType = PCRDR_MSG_DATA_TYPE_TEXT;
+    msg->dataType = PCRDR_MSG_DATA_TYPE_HTML;
     msg->data = data;
 
     if (pcrdr_send_request(conn, msg,
@@ -1084,8 +1084,8 @@ static void my_event_handler(pcrdr_conn* conn, const pcrdr_msg *msg)
                 purc_variant_get_string_const(msg->elementValue));
         }
 
-        if (msg->dataType == PCRDR_MSG_DATA_TYPE_TEXT) {
-            printf("    The attached data is TEXT:\n%s\n",
+        if (msg->dataType == PCRDR_MSG_DATA_TYPE_PLAIN) {
+            printf("    The attached data is plain text:\n%s\n",
                 purc_variant_get_string_const(msg->data));
         }
         else if (msg->dataType == PCRDR_MSG_DATA_TYPE_JSON) {

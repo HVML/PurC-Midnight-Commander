@@ -98,6 +98,7 @@ set(navigation_SOURCES
 ADD_PURCSEX_EXTENSION(navigation ${navigation_SOURCES})
 
 set(asset_FILES
+    "hello.json"
     "shownews.json"
     "shownews/shownews.html"
     "shownews/shownews-intro.frag"
@@ -112,6 +113,7 @@ set(asset_FILES
     "introduction4.json"
     "introduction5.json"
     "navigation.json"
+    "assets/hello.html"
     "assets/layout.html"
     "assets/layout-panes.html"
     "assets/layout-two-panes.html"

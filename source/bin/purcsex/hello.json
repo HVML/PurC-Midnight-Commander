@@ -1,0 +1,17 @@
+{
+    "initialOps":
+        [
+            { "operation": "createPlainWindow", "target": "workspace/0", "title": "Hello", "resultKey": "main" },
+            { "operation": "load", "target": "plainwindow/main", "content": "assets/hello.html", "resultKey": "main" }
+        ],
+    "namedOps":
+        {
+            "closeWindow": { "operation": "destroyPlainWindow", "target": "workspace/0", "element": "plainwindow/main" }
+        },
+   "events":
+       [
+            { "eventName": "destroy", "target": "plainwindow/main", "namedOp": "func:quit" },
+            { "eventName": "click", "target": "dom/main", "element": "handle/A2", "namedOp": "closeWindow" }
+       ]
+}
+

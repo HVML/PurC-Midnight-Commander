@@ -41,6 +41,11 @@ The following features are still under development:
 1. The user can edit a uDOM tree, e.g., changing the attributes and contents
    of an element, or creating a new element.
 
+For documents and other open source software around HVML, you can visit the following URLs:
+
+- <https://github.com/HVML>, or
+- <https://hvml.fmsoft.cn>
+
 ## Source Tree of PurcMC
 
 The source tree of PurcMC is illustrated as follow:

@@ -65,7 +65,9 @@ For the community conduct, please refer to [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## Building
 
-Building and install the latest PurC to your system first.
+Building and install the latest PurC to your system first:
+
+- [PurC](https://github.com/HVML/PurC): the HVML interpreter for C language.
 
 ### Commands
 
@@ -91,7 +93,7 @@ $ make
 
 ### Start HVML Renderer
 
-First, change to the `build/` directory:
+If you did not install PurCMC, please change to the `build/` directory:
 
 ```
 $ cd build/

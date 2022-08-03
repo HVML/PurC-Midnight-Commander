@@ -45,7 +45,7 @@
 #define ULOG_WARN(fmt, ...) printf(fmt, ## __VA_ARGS__)
 #define ULOG_ERR(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
 
-struct run_info the_client;
+extern struct run_info the_client;
 
 /* command identifiers */
 enum {
